@@ -1,0 +1,106 @@
+<style>
+    .message {
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 12px;
+        padding: 1.5rem;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message-question {
+        font-size: 0.9rem;
+        color: #888;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #333;
+    }
+
+    .message-content {
+        line-height: 1.7;
+    }
+
+    .message-content h1,
+    .message-content h2,
+    .message-content h3 {
+        color: #e10600;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .message-content h1:first-child,
+    .message-content h2:first-child,
+    .message-content h3:first-child {
+        margin-top: 0;
+    }
+
+    .message-content ul,
+    .message-content ol {
+        padding-left: 1.5rem;
+    }
+
+    .message-content li {
+        margin-bottom: 0.5rem;
+    }
+
+    .message-content code {
+        background: #2d2d2d;
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+
+    .message-content pre {
+        background: #2d2d2d;
+        padding: 1rem;
+        border-radius: 8px;
+        overflow-x: auto;
+    }
+
+    .message-content pre code {
+        background: none;
+        padding: 0;
+    }
+
+    .message-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin: 1rem 0;
+    }
+
+    .message-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+    }
+
+    .message-content th,
+    .message-content td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #333;
+    }
+
+    .message-content th {
+        background: #2d2d2d;
+        color: #e10600;
+    }
+
+    .message-content strong {
+        color: #fff;
+    }
+</style>
+
+<article class="message">
+    <div class="message-question">
+        <strong>Q:</strong> {{ question }}
+    </div>
+    <div class="message-content">
+        {{ content | markdown | safe }}
+    </div>
+</article>

@@ -718,6 +718,15 @@ wheels = [
 ]
 
 [[package]]
+name = "markdown"
+version = "3.10.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b7/b1/af95bcae8549f1f3fd70faacb29075826a0d689a27f232e8cee315efa053/markdown-3.10.1.tar.gz", hash = "sha256:1c19c10bd5c14ac948c53d0d762a04e2fa35a6d58a6b7b1e6bfcbe6fefc0001a", size = 365402, upload-time = "2026-01-21T18:09:28.206Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/59/1b/6ef961f543593969d25b2afe57a3564200280528caa9bd1082eecdd7b3bc/markdown-3.10.1-py3-none-any.whl", hash = "sha256:867d788939fe33e4b736426f5b9f651ad0c0ae0ecf89df0ca5d1176c70812fe3", size = 107684, upload-time = "2026-01-21T18:09:27.203Z" },
+]
+
+[[package]]
 name = "markupsafe"
 version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1122,12 +1131,16 @@ source = { editable = "packages/pitlane-agent" }
 dependencies = [
     { name = "claude-agent-sdk" },
     { name = "fastf1" },
+    { name = "matplotlib" },
+    { name = "numpy" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "claude-agent-sdk" },
     { name = "fastf1", specifier = ">=3.0" },
+    { name = "matplotlib", specifier = ">=3.8" },
+    { name = "numpy", specifier = ">=1.24" },
 ]
 
 [[package]]
@@ -1152,6 +1165,7 @@ source = { editable = "packages/pitlane-web" }
 dependencies = [
     { name = "fastapi" },
     { name = "jinja2" },
+    { name = "markdown" },
     { name = "pitlane-agent" },
     { name = "python-multipart" },
     { name = "uvicorn", extra = ["standard"] },
@@ -1161,6 +1175,7 @@ dependencies = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "jinja2", specifier = ">=3.1" },
+    { name = "markdown", specifier = ">=3.5" },
     { name = "pitlane-agent", editable = "packages/pitlane-agent" },
     { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },

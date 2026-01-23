@@ -1,11 +1,158 @@
 {% extends "base.html" %}
 
-{% block content %}
-<h2>Welcome to PitLane AI</h2>
-<p>Your AI-powered Formula 1 data analysis assistant.</p>
+{% block head %}
+<style>
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
 
-<section>
-    <h3>Get Started</h3>
-    <p>Ask questions about F1 races, drivers, lap times, and more.</p>
-</section>
+    .chat-form {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-end;
+    }
+
+    .chat-form textarea {
+        flex: 1;
+        padding: 1rem;
+        font-size: 1rem;
+        border: 2px solid #333;
+        border-radius: 8px;
+        background: #1e1e1e;
+        color: #e0e0e0;
+        resize: vertical;
+        min-height: 60px;
+        font-family: inherit;
+    }
+
+    .chat-form textarea:focus {
+        outline: none;
+        border-color: #e10600;
+    }
+
+    .chat-form button {
+        padding: 1rem 2rem;
+        font-size: 1rem;
+        background: #e10600;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
+
+    .chat-form button:hover {
+        background: #ff1a1a;
+    }
+
+    .chat-form button:disabled {
+        background: #666;
+        cursor: not-allowed;
+    }
+
+    .responses {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .loading {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #888;
+        padding: 1rem;
+    }
+
+    .loading::before {
+        content: "";
+        width: 20px;
+        height: 20px;
+        border: 2px solid #333;
+        border-top-color: #e10600;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .suggestions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .suggestion {
+        padding: 0.5rem 1rem;
+        background: #2d2d2d;
+        border: 1px solid #444;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .suggestion:hover {
+        background: #3d3d3d;
+        border-color: #e10600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div>
+        <h2>Ask About F1</h2>
+        <p>Get insights about races, drivers, lap times, strategies, and more.</p>
+    </div>
+
+    <form class="chat-form"
+          hx-post="/api/chat"
+          hx-target="#responses"
+          hx-swap="afterbegin"
+          hx-indicator="#loading">
+        <textarea name="question"
+                  placeholder="Ask about any F1 race, driver, or session..."
+                  rows="2"
+                  required></textarea>
+        <button type="submit">Analyze</button>
+    </form>
+
+    <div class="suggestions">
+        <span class="suggestion" onclick="askQuestion(this.textContent)">Who won the 2024 Monaco GP?</span>
+        <span class="suggestion" onclick="askQuestion(this.textContent)">Compare Verstappen and Norris lap times at Silverstone 2024</span>
+        <span class="suggestion" onclick="askQuestion(this.textContent)">Show Ferrari's tyre strategy at Monza 2024</span>
+    </div>
+
+    <div id="loading" class="loading htmx-indicator">
+        Analyzing F1 data...
+    </div>
+
+    <div id="responses" class="responses">
+        <!-- Responses will be inserted here -->
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function askQuestion(text) {
+        const textarea = document.querySelector('textarea[name="question"]');
+        textarea.value = text;
+        textarea.form.requestSubmit();
+    }
+
+    // Clear textarea after successful submission
+    document.body.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.successful && event.detail.elt.matches('form')) {
+            event.detail.elt.querySelector('textarea').value = '';
+        }
+    });
+</script>
 {% endblock %}
