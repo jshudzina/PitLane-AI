@@ -1,13 +1,16 @@
 """Get F1 session information from FastF1.
 
 Usage:
+    pitlane session-info --year 2024 --gp Monaco --session R
+
+    # Or using module invocation
     python -m pitlane_agent.scripts.session_info --year 2024 --gp Monaco --session R
 """
 
-import argparse
 import json
 import sys
 
+import click
 import fastf1
 
 
@@ -54,26 +57,34 @@ def get_session_info(year: int, gp: str, session_type: str) -> dict:
     }
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Get F1 session information")
-    parser.add_argument("--year", type=int, required=True, help="Season year (e.g., 2024)")
-    parser.add_argument("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
-    parser.add_argument(
-        "--session",
-        type=str,
-        required=True,
-        help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
-    )
-
-    args = parser.parse_args()
-
+@click.command()
+@click.option(
+    "--year",
+    type=int,
+    required=True,
+    help="Season year (e.g., 2024)"
+)
+@click.option(
+    "--gp",
+    type=str,
+    required=True,
+    help="Grand Prix name (e.g., Monaco, Silverstone)"
+)
+@click.option(
+    "--session",
+    type=str,
+    required=True,
+    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ"
+)
+def cli(year, gp, session):
+    """Get F1 session information including drivers and metadata."""
     try:
-        info = get_session_info(args.year, args.gp, args.session)
-        print(json.dumps(info, indent=2))
+        info = get_session_info(year, gp, session)
+        click.echo(json.dumps(info, indent=2))
     except Exception as e:
-        print(json.dumps({"error": str(e)}), file=sys.stderr)
+        click.echo(json.dumps({"error": str(e)}), err=True)
         sys.exit(1)
 
 
 if __name__ == "__main__":
-    main()
+    cli()
