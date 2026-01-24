@@ -1,7 +1,6 @@
 """Tests for the main pitlane CLI group."""
 
 from click.testing import CliRunner
-
 from pitlane_agent.cli import pitlane
 
 

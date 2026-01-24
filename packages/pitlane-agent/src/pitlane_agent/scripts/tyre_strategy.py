@@ -195,29 +195,14 @@ def generate_tyre_strategy_chart(
 
 
 @click.command()
-@click.option(
-    "--year",
-    type=int,
-    required=True,
-    help="Season year (e.g., 2024)"
-)
-@click.option(
-    "--gp",
-    type=str,
-    required=True,
-    help="Grand Prix name (e.g., Monaco, Silverstone)"
-)
-@click.option(
-    "--session",
-    type=str,
-    default="R",
-    help="Session type (default: R for Race)"
-)
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco, Silverstone)")
+@click.option("--session", type=str, default="R", help="Session type (default: R for Race)")
 @click.option(
     "--output",
     type=click.Path(),
     default="/tmp/pitlane_charts/tyre_strategy.png",
-    help="Output path for the chart image"
+    help="Output path for the chart image",
 )
 def cli(year, gp, session, output):
     """Generate tyre strategy visualization for a race."""
