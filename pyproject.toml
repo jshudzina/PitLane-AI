@@ -4,14 +4,34 @@ version = "0.1.0"
 description = "F1 data analysis powered by AI agents"
 readme = "README.md"
 requires-python = ">=3.11"
+dependencies = [
+    "pitlane-agent",
+    "pitlane-web",
+]
+
+[tool.uv.sources]
+pitlane-agent = { workspace = true }
+pitlane-web = { workspace = true }
 
 [dependency-groups]
 dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "pytest-mock>=3.14",
     "ruff>=0.8.4",
 ]
 
 [tool.uv.workspace]
 members = ["packages/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["packages/*/tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 line-length = 100
