@@ -3,11 +3,14 @@ name = "pitlane-ai"
 version = "0.1.0"
 description = "F1 data analysis powered by AI agents"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "pitlane-agent",
     "pitlane-web",
 ]
+
+[tool.uv]
+config-settings = { editable_mode = "compat" }
 
 [tool.uv.sources]
 pitlane-agent = { workspace = true }
@@ -35,7 +38,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py311"
 
 [tool.ruff.lint]

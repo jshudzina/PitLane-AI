@@ -308,4 +308,5 @@ class TestF1AgentConstants:
 
     def test_charts_dir_constant(self):
         """Test that CHARTS_DIR has expected value."""
-        assert Path("/tmp/pitlane_charts") == CHARTS_DIR
+        expected_dir = Path("/tmp/pitlane_charts")
+        assert expected_dir == CHARTS_DIR
