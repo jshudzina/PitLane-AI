@@ -1,16 +1,19 @@
 """Generate tyre strategy visualization from FastF1 data.
 
 Usage:
+    pitlane tyre-strategy --year 2024 --gp Monaco --session R
+
+    # Or using module invocation
     python -m pitlane_agent.scripts.tyre_strategy \
         --year 2024 --gp Monaco --session R \
         --output /tmp/pitlane_charts/tyre_strategy.png
 """
 
-import argparse
 import json
 import sys
 from pathlib import Path
 
+import click
 import fastf1
 import fastf1.plotting
 import matplotlib.pyplot as plt
@@ -191,37 +194,45 @@ def generate_tyre_strategy_chart(
     }
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Generate tyre strategy chart")
-    parser.add_argument("--year", type=int, required=True, help="Season year")
-    parser.add_argument("--gp", type=str, required=True, help="Grand Prix name")
-    parser.add_argument(
-        "--session",
-        type=str,
-        default="R",
-        help="Session type (default: R for Race)",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="/tmp/pitlane_charts/tyre_strategy.png",
-        help="Output path for the chart",
-    )
-
-    args = parser.parse_args()
-
+@click.command()
+@click.option(
+    "--year",
+    type=int,
+    required=True,
+    help="Season year (e.g., 2024)"
+)
+@click.option(
+    "--gp",
+    type=str,
+    required=True,
+    help="Grand Prix name (e.g., Monaco, Silverstone)"
+)
+@click.option(
+    "--session",
+    type=str,
+    default="R",
+    help="Session type (default: R for Race)"
+)
+@click.option(
+    "--output",
+    type=click.Path(),
+    default="/tmp/pitlane_charts/tyre_strategy.png",
+    help="Output path for the chart image"
+)
+def cli(year, gp, session, output):
+    """Generate tyre strategy visualization for a race."""
     try:
         result = generate_tyre_strategy_chart(
-            year=args.year,
-            gp=args.gp,
-            session_type=args.session,
-            output_path=args.output,
+            year=year,
+            gp=gp,
+            session_type=session,
+            output_path=output,
         )
-        print(json.dumps(result, indent=2))
+        click.echo(json.dumps(result, indent=2))
     except Exception as e:
-        print(json.dumps({"error": str(e)}), file=sys.stderr)
+        click.echo(json.dumps({"error": str(e)}), err=True)
         sys.exit(1)
 
 
 if __name__ == "__main__":
-    main()
+    cli()
