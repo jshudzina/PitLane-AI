@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
-
 from pitlane_agent.scripts.session_info import cli, get_session_info
 
 
@@ -94,9 +93,7 @@ class TestSessionInfoCLI:
         }
 
         runner = CliRunner()
-        result = runner.invoke(
-            cli, ["--year", "2024", "--gp", "Monaco", "--session", "R"]
-        )
+        result = runner.invoke(cli, ["--year", "2024", "--gp", "Monaco", "--session", "R"])
 
         assert result.exit_code == 0
 
@@ -115,9 +112,7 @@ class TestSessionInfoCLI:
         mock_get_session_info.side_effect = Exception("FastF1 error")
 
         runner = CliRunner()
-        result = runner.invoke(
-            cli, ["--year", "2024", "--gp", "Monaco", "--session", "R"]
-        )
+        result = runner.invoke(cli, ["--year", "2024", "--gp", "Monaco", "--session", "R"])
 
         assert result.exit_code == 1
 

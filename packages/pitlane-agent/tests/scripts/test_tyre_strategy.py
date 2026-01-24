@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
-
 from pitlane_agent.scripts.tyre_strategy import (
     cli,
     generate_tyre_strategy_chart,
@@ -135,7 +134,7 @@ class TestTyreStrategyCLI:
         mock_generate.return_value = {"output_path": "/tmp/test.png"}
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["--year", "2024", "--gp", "Monaco"])
+        runner.invoke(cli, ["--year", "2024", "--gp", "Monaco"])
 
         # Verify default session was used
         call_args = mock_generate.call_args[1]

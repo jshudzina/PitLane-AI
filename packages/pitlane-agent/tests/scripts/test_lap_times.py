@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
-
 from pitlane_agent.scripts.lap_times import cli, generate_lap_times_chart, setup_plot_style
 
 
@@ -35,9 +34,7 @@ class TestLapTimesBusinessLogic:
                 {"LapNumber": 2, "LapTime": pd.Timedelta(seconds=89)},
             ]
         )
-        mock_fastf1_session.laps.pick_driver.return_value.pick_quicklaps.return_value = (
-            mock_laps
-        )
+        mock_fastf1_session.laps.pick_driver.return_value.pick_quicklaps.return_value = mock_laps
 
         # Mock pyplot
         mock_fig = MagicMock()
@@ -155,7 +152,7 @@ class TestLapTimesCLI:
         mock_generate.return_value = {"output_path": "/tmp/test.png"}
 
         runner = CliRunner()
-        result = runner.invoke(
+        runner.invoke(
             cli,
             [
                 "--year",
@@ -179,7 +176,7 @@ class TestLapTimesCLI:
         mock_generate.return_value = {"output_path": "/tmp/test.png"}
 
         runner = CliRunner()
-        result = runner.invoke(
+        runner.invoke(
             cli,
             [
                 "--year",
@@ -207,7 +204,7 @@ class TestLapTimesCLI:
         mock_generate.return_value = {"output_path": "/tmp/charts/lap_times.png"}
 
         runner = CliRunner()
-        result = runner.invoke(
+        runner.invoke(
             cli,
             [
                 "--year",

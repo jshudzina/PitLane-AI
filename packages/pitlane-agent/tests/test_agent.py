@@ -4,8 +4,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from pitlane_agent.agent import CHARTS_DIR, F1Agent, PACKAGE_DIR
+from pitlane_agent.agent import CHARTS_DIR, PACKAGE_DIR, F1Agent
 
 
 class TestF1AgentInitialization:
@@ -103,15 +102,15 @@ class TestF1AgentChat:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("pitlane_agent.agent.ClaudeSDKClient") as MockClient:
-            MockClient.return_value = mock_client
+        with patch("pitlane_agent.agent.ClaudeSDKClient") as mock_sdk_client:
+            mock_sdk_client.return_value = mock_client
 
             agent = F1Agent()
             async for _ in agent.chat("Test"):
                 pass
 
             # Verify ClaudeSDKClient was called with correct options
-            call_args = MockClient.call_args
+            call_args = mock_sdk_client.call_args
             options = call_args.kwargs["options"]
 
             assert options.cwd == str(PACKAGE_DIR)
@@ -309,4 +308,5 @@ class TestF1AgentConstants:
 
     def test_charts_dir_constant(self):
         """Test that CHARTS_DIR has expected value."""
-        assert CHARTS_DIR == Path("/tmp/pitlane_charts")
+        expected_dir = Path("/tmp/pitlane_charts")
+        assert expected_dir == CHARTS_DIR

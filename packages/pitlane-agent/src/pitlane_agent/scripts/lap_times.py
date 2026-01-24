@@ -147,35 +147,25 @@ def generate_lap_times_chart(
 
 
 @click.command()
-@click.option(
-    "--year",
-    type=int,
-    required=True,
-    help="Season year (e.g., 2024)"
-)
-@click.option(
-    "--gp",
-    type=str,
-    required=True,
-    help="Grand Prix name (e.g., Monaco, Silverstone)"
-)
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco, Silverstone)")
 @click.option(
     "--session",
     type=str,
     required=True,
-    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ"
+    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
 )
 @click.option(
     "--drivers",
     multiple=True,
     required=True,
-    help="Driver abbreviation (can be specified multiple times: --drivers VER --drivers HAM)"
+    help="Driver abbreviation (can be specified multiple times: --drivers VER --drivers HAM)",
 )
 @click.option(
     "--output",
     type=click.Path(),
     default="/tmp/charts/lap_times.png",
-    help="Output path for the chart image"
+    help="Output path for the chart image",
 )
 def cli(year, gp, session, drivers, output):
     """Generate lap times chart for specified drivers."""

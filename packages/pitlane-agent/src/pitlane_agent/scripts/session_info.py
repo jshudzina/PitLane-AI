@@ -58,23 +58,13 @@ def get_session_info(year: int, gp: str, session_type: str) -> dict:
 
 
 @click.command()
-@click.option(
-    "--year",
-    type=int,
-    required=True,
-    help="Season year (e.g., 2024)"
-)
-@click.option(
-    "--gp",
-    type=str,
-    required=True,
-    help="Grand Prix name (e.g., Monaco, Silverstone)"
-)
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco, Silverstone)")
 @click.option(
     "--session",
     type=str,
     required=True,
-    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ"
+    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
 )
 def cli(year, gp, session):
     """Get F1 session information including drivers and metadata."""

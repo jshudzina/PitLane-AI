@@ -7,7 +7,6 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 from click.testing import CliRunner
-
 from pitlane_agent.scripts.event_schedule import cli, get_event_schedule
 
 
@@ -204,9 +203,7 @@ class TestEventScheduleBusinessLogic:
         result = get_event_schedule(2024, include_testing=False)
 
         assert result["include_testing"] is False
-        mock_fastf1.get_event_schedule.assert_called_once_with(
-            2024, include_testing=False
-        )
+        mock_fastf1.get_event_schedule.assert_called_once_with(2024, include_testing=False)
 
     @patch("pitlane_agent.scripts.event_schedule.fastf1")
     def test_get_event_schedule_error(self, mock_fastf1):
