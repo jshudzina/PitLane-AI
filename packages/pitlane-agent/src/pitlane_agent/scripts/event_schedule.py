@@ -1,16 +1,16 @@
 """Get F1 event schedule from FastF1.
 
 Usage:
-    python -m pitlane_agent.scripts.event_schedule --year 2024
-    python -m pitlane_agent.scripts.event_schedule --year 2024 --round 6
-    python -m pitlane_agent.scripts.event_schedule --year 2024 --country Italy
+    pitlane event-schedule --year 2024
+    pitlane event-schedule --year 2024 --round 6
+    pitlane event-schedule --year 2024 --country Italy
 """
 
-import argparse
 import json
 import sys
 from datetime import datetime
 
+import click
 import fastf1
 
 
@@ -103,51 +103,59 @@ def get_event_schedule(
     }
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Get F1 event schedule")
-    parser.add_argument(
-        "--year", type=int, required=True, help="Championship year (e.g., 2024)"
-    )
-    parser.add_argument(
-        "--round", type=int, required=False, help="Filter by specific round number"
-    )
-    parser.add_argument(
-        "--country", type=str, required=False, help="Filter by country name"
-    )
-    parser.add_argument(
-        "--include-testing",
-        type=bool,
-        default=True,
-        help="Include testing sessions (default: True)",
-    )
-
-    args = parser.parse_args()
-
+@click.command()
+@click.option(
+    "--year",
+    type=int,
+    required=True,
+    help="Championship year (e.g., 2024)",
+)
+@click.option(
+    "--round",
+    "round_number",
+    type=int,
+    default=None,
+    help="Filter by specific round number",
+)
+@click.option(
+    "--country",
+    type=str,
+    default=None,
+    help="Filter by country name",
+)
+@click.option(
+    "--include-testing/--no-testing",
+    default=True,
+    help="Include testing sessions (default: True)",
+)
+def cli(
+    year: int,
+    round_number: int | None,
+    country: str | None,
+    include_testing: bool,
+):
+    """Get F1 event schedule from FastF1."""
     # Validate year input
     current_year = datetime.now().year
-    if args.year < 1950 or args.year > current_year + 2:
-        print(
-            json.dumps(
-                {
-                    "error": f"Year must be between 1950 and {current_year + 2}",
-                }
-            ),
-            file=sys.stderr,
+    if year < 1950 or year > current_year + 2:
+        click.echo(
+            json.dumps({"error": f"Year must be between 1950 and {current_year + 2}"}),
+            err=True,
         )
         sys.exit(1)
 
     try:
         schedule = get_event_schedule(
-            args.year,
-            round_number=args.round,
-            country=args.country,
-            include_testing=args.include_testing,
+            year,
+            round_number=round_number,
+            country=country,
+            include_testing=include_testing,
         )
-        print(json.dumps(schedule, indent=2))
+        click.echo(json.dumps(schedule, indent=2))
     except Exception as e:
-        print(json.dumps({"error": str(e)}), file=sys.stderr)
+        click.echo(json.dumps({"error": str(e)}), err=True)
         sys.exit(1)
 
 
 if __name__ == "__main__":
-    main()
+    cli()

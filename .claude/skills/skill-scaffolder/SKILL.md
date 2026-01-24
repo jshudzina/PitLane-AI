@@ -579,16 +579,16 @@ class TestCLI:
 
 ```bash
 # Run all tests for a script
-pytest packages/pitlane-agent/tests/scripts/test_script_name.py -v
+uv run pytest packages/pitlane-agent/tests/scripts/test_script_name.py -v
 
 # Run specific test class
-pytest packages/pitlane-agent/tests/scripts/test_script_name.py::TestCLI -v
+uv run pytest packages/pitlane-agent/tests/scripts/test_script_name.py::TestCLI -v
 
 # Run specific test method
-pytest packages/pitlane-agent/tests/scripts/test_script_name.py::TestCLI::test_cli_success -v
+uv run pytest packages/pitlane-agent/tests/scripts/test_script_name.py::TestCLI::test_cli_success -v
 
 # Run with coverage
-pytest packages/pitlane-agent/tests/scripts/test_script_name.py --cov=pitlane_agent.scripts.script_name
+uv run pytest packages/pitlane-agent/tests/scripts/test_script_name.py --cov=pitlane_agent.scripts.script_name
 ```
 
 ## Step 5: Verify Setup
@@ -617,10 +617,10 @@ python -m pitlane_agent.scripts.your_script_name --param1 test | jq .
 ### 3. Run Tests
 ```bash
 # Run all tests
-pytest packages/pitlane-agent/tests/scripts/test_your_script_name.py -v
+uv run pytest packages/pitlane-agent/tests/scripts/test_your_script_name.py -v
 
 # Check coverage
-pytest packages/pitlane-agent/tests/scripts/test_your_script_name.py \
+uv run pytest packages/pitlane-agent/tests/scripts/test_your_script_name.py \
   --cov=pitlane_agent.scripts.your_script_name \
   --cov-report=term-missing
 ```

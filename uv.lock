@@ -1250,6 +1250,10 @@ requires-dist = [
 name = "pitlane-ai"
 version = "0.1.0"
 source = { virtual = "." }
+dependencies = [
+    { name = "pitlane-agent" },
+    { name = "pitlane-web" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -1261,6 +1265,10 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [
+    { name = "pitlane-agent", editable = "packages/pitlane-agent" },
+    { name = "pitlane-web", editable = "packages/pitlane-web" },
+]
 
 [package.metadata.requires-dev]
 dev = [
