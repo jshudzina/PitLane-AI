@@ -9,6 +9,8 @@ dependencies = [
     "fastf1>=3.0",
     "matplotlib>=3.8",
     "numpy>=1.24",
+    "opentelemetry-api>=1.24.0",
+    "opentelemetry-sdk>=1.24.0",
 ]
 
 [project.scripts]

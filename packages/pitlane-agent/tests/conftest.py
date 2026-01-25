@@ -42,3 +42,32 @@ def sample_driver_data():
         "gp": "Monaco",
         "session": "Q",
     }
+
+
+@pytest.fixture
+def enable_tracing(monkeypatch):
+    """Enable tracing for specific tests."""
+    from pitlane_agent import tracing
+
+    monkeypatch.setenv("PITLANE_TRACING_ENABLED", "1")
+    # Reset global state
+    tracing._tracing_enabled = None
+    tracing._tracer = None
+    tracing._provider_initialized = False
+    yield
+    # Cleanup after test
+    tracing._tracing_enabled = None
+    tracing._tracer = None
+    tracing._provider_initialized = False
+
+
+@pytest.fixture
+def disable_tracing(monkeypatch):
+    """Ensure tracing is disabled for specific tests."""
+    from pitlane_agent import tracing
+
+    monkeypatch.delenv("PITLANE_TRACING_ENABLED", raising=False)
+    tracing._tracing_enabled = None
+    tracing._tracer = None
+    tracing._provider_initialized = False
+    yield
