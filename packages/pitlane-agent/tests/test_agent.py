@@ -115,7 +115,8 @@ class TestF1AgentChat:
 
             assert options.cwd == str(PACKAGE_DIR)
             assert options.setting_sources == ["project"]
-            assert options.allowed_tools == ["Skill", "Bash", "Read", "Write"]
+            assert options.allowed_tools == ["Skill", "Bash", "Read", "Write", "WebFetch"]
+            assert options.can_use_tool is not None
 
     @pytest.mark.asyncio
     async def test_chat_handles_multiple_text_blocks(self):
@@ -310,3 +311,99 @@ class TestF1AgentConstants:
         """Test that CHARTS_DIR has expected value."""
         expected_dir = Path("/tmp/pitlane_charts")
         assert expected_dir == CHARTS_DIR
+
+
+class TestF1AgentTracing:
+    """Tests for F1Agent tracing integration."""
+
+    def test_init_with_tracing_enabled(self, disable_tracing):
+        """Test initialization with tracing enabled programmatically."""
+        from pitlane_agent import tracing
+
+        F1Agent(enable_tracing=True)
+
+        # Tracing should be enabled
+        assert tracing.is_tracing_enabled()
+
+        # Cleanup
+        tracing.disable_tracing()
+
+    def test_init_with_tracing_disabled(self, enable_tracing):
+        """Test initialization with tracing explicitly disabled."""
+        from pitlane_agent import tracing
+
+        # Even though enable_tracing fixture sets env var
+        F1Agent(enable_tracing=False)
+
+        # Tracing should be disabled due to programmatic override
+        assert not tracing.is_tracing_enabled()
+
+    def test_init_with_tracing_none_uses_env_var(self, enable_tracing):
+        """Test initialization with enable_tracing=None uses environment variable."""
+        from pitlane_agent import tracing
+
+        F1Agent(enable_tracing=None)
+
+        # Should use environment variable (set by fixture)
+        assert tracing.is_tracing_enabled()
+
+    @pytest.mark.asyncio
+    async def test_chat_registers_hooks_when_tracing_enabled(self, enable_tracing):
+        """Test that hooks are registered when tracing is enabled."""
+        from pitlane_agent import tracing
+
+        mock_client = AsyncMock()
+        mock_client.query = AsyncMock()
+
+        async def mock_receive():
+            return
+            yield  # Make it an async generator
+
+        mock_client.receive_response = mock_receive
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("pitlane_agent.agent.ClaudeSDKClient") as mock_sdk_client:
+            mock_sdk_client.return_value = mock_client
+
+            agent = F1Agent()
+            async for _ in agent.chat("Test"):
+                pass
+
+            # Verify hooks were registered
+            call_args = mock_sdk_client.call_args
+            options = call_args.kwargs["options"]
+
+            assert options.hooks is not None
+            assert "PreToolUse" in options.hooks
+            assert "PostToolUse" in options.hooks
+
+        # Cleanup
+        tracing.disable_tracing()
+
+    @pytest.mark.asyncio
+    async def test_chat_no_hooks_when_tracing_disabled(self, disable_tracing):
+        """Test that hooks are not registered when tracing is disabled."""
+        mock_client = AsyncMock()
+        mock_client.query = AsyncMock()
+
+        async def mock_receive():
+            return
+            yield  # Make it an async generator
+
+        mock_client.receive_response = mock_receive
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("pitlane_agent.agent.ClaudeSDKClient") as mock_sdk_client:
+            mock_sdk_client.return_value = mock_client
+
+            agent = F1Agent()
+            async for _ in agent.chat("Test"):
+                pass
+
+            # Verify hooks were not registered
+            call_args = mock_sdk_client.call_args
+            options = call_args.kwargs["options"]
+
+            assert options.hooks is None

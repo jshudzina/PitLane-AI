@@ -22,9 +22,7 @@ class TestTyreStrategyBusinessLogic:
 
     @patch("pitlane_agent.scripts.tyre_strategy.plt")
     @patch("pitlane_agent.scripts.tyre_strategy.fastf1")
-    def test_generate_tyre_strategy_chart_success(
-        self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session
-    ):
+    def test_generate_tyre_strategy_chart_success(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
         """Test successful chart generation."""
         # Setup mocks
         mock_fastf1.get_session.return_value = mock_fastf1_session
@@ -32,9 +30,7 @@ class TestTyreStrategyBusinessLogic:
         # Mock drivers and results
         import pandas as pd
 
-        mock_results = pd.DataFrame(
-            [{"Abbreviation": "VER", "Position": 1}, {"Abbreviation": "HAM", "Position": 2}]
-        )
+        mock_results = pd.DataFrame([{"Abbreviation": "VER", "Position": 1}, {"Abbreviation": "HAM", "Position": 2}])
         mock_fastf1_session.results.sort_values.return_value = mock_results
 
         # Mock laps data
@@ -54,9 +50,7 @@ class TestTyreStrategyBusinessLogic:
 
         # Call function
         output_path = str(tmp_output_dir / "tyre_strategy.png")
-        result = generate_tyre_strategy_chart(
-            year=2024, gp="Monaco", session_type="R", output_path=output_path
-        )
+        result = generate_tyre_strategy_chart(year=2024, gp="Monaco", session_type="R", output_path=output_path)
 
         # Assertions
         assert result["year"] == 2024
@@ -77,9 +71,7 @@ class TestTyreStrategyBusinessLogic:
 
         # Expect exception to be raised
         with pytest.raises(Exception, match="Session not found"):
-            generate_tyre_strategy_chart(
-                year=2024, gp="InvalidGP", session_type="R", output_path="/tmp/test.png"
-            )
+            generate_tyre_strategy_chart(year=2024, gp="InvalidGP", session_type="R", output_path="/tmp/test.png")
 
 
 class TestTyreStrategyCLI:
@@ -124,9 +116,7 @@ class TestTyreStrategyCLI:
         assert output["event_name"] == "Monaco Grand Prix"
 
         # Verify function was called with correct args
-        mock_generate.assert_called_once_with(
-            year=2024, gp="Monaco", session_type="R", output_path="/tmp/test.png"
-        )
+        mock_generate.assert_called_once_with(year=2024, gp="Monaco", session_type="R", output_path="/tmp/test.png")
 
     @patch("pitlane_agent.scripts.tyre_strategy.generate_tyre_strategy_chart")
     def test_cli_default_session(self, mock_generate):

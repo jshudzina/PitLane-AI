@@ -18,9 +18,7 @@ class TestLapTimesBusinessLogic:
 
     @patch("pitlane_agent.scripts.lap_times.plt")
     @patch("pitlane_agent.scripts.lap_times.fastf1")
-    def test_generate_lap_times_chart_success(
-        self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session
-    ):
+    def test_generate_lap_times_chart_success(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
         """Test successful chart generation."""
         # Setup mocks
         mock_fastf1.get_session.return_value = mock_fastf1_session
