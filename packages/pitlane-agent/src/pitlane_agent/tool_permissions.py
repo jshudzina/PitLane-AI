@@ -1,14 +1,18 @@
 """Restrictions for tool calls.
 
-Allows WebFetch calls for a limit set of domains.
+Allows WebFetch calls for a limited set of domains.
 """
 
+import logging
 from typing import Any
 from urllib.parse import urlparse
 
 from claude_agent_sdk.types import PermissionResultAllow, PermissionResultDeny, ToolPermissionContext
 
 from pitlane_agent import tracing
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Allowed domains for WebFetch tool
 ALLOWED_WEBFETCH_DOMAINS = {
@@ -45,6 +49,10 @@ async def can_use_tool(
     url = input_params.get("url", "")
     if not url:
         denial_msg = "WebFetch requires a URL parameter"
+        logger.warning(
+            "WebFetch permission denied: missing URL parameter",
+            extra={"tool": tool_name, "reason": "missing_url"},
+        )
         tracing.log_permission_check(tool_name, False, denial_msg)
         return PermissionResultDeny(message=denial_msg)
 
@@ -69,10 +77,28 @@ async def can_use_tool(
             f"Domain '{domain}' is not in the allowed list. "
             f"Allowed domains: {', '.join(sorted(ALLOWED_WEBFETCH_DOMAINS))}"
         )
+        logger.warning(
+            "WebFetch permission denied: domain not allowed",
+            extra={
+                "tool": tool_name,
+                "domain": domain,
+                "url": url,
+                "reason": "domain_not_allowed",
+            },
+        )
         tracing.log_permission_check(tool_name, False, denial_msg)
         return PermissionResultDeny(message=denial_msg)
 
     except Exception as e:
         denial_msg = f"Failed to parse URL: {e}"
+        logger.warning(
+            "WebFetch permission denied: invalid URL",
+            extra={
+                "tool": tool_name,
+                "url": url,
+                "reason": "parse_error",
+                "error": str(e),
+            },
+        )
         tracing.log_permission_check(tool_name, False, denial_msg)
         return PermissionResultDeny(message=denial_msg)

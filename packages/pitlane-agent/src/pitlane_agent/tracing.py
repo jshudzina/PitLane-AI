@@ -3,6 +3,16 @@
 This module provides simple console-based tracing to demonstrate what the agent
 is doing during execution. Tracing is disabled by default and can be enabled via
 environment variable or programmatically.
+
+Thread Safety:
+    This module uses module-level globals for tracer state and is designed for
+    asyncio-based applications. It is async-safe (multiple coroutines can safely
+    access the tracer concurrently) but NOT thread-safe. If you need to use this
+    from multiple threads, you must add external synchronization.
+
+    The lazy initialization in get_tracer() has a benign race condition: multiple
+    concurrent calls may create multiple TracerProvider instances, but OpenTelemetry's
+    global set_tracer_provider() handles this safely by using the last one set.
 """
 
 import os
@@ -19,7 +29,7 @@ from claude_agent_sdk.types import (
 from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
 
 # Global tracer instance
 _tracer = None
@@ -46,6 +56,13 @@ def _initialize_tracer_provider() -> None:
 
     This is called automatically when tracing is enabled. It sets up a console
     exporter that outputs to stderr to avoid mixing with agent responses.
+
+    The span processor can be configured via PITLANE_SPAN_PROCESSOR environment
+    variable:
+    - "simple" (default): Uses SimpleSpanProcessor for synchronous export.
+      Required for tests to ensure spans are flushed before assertions.
+    - "batch": Uses BatchSpanProcessor for better production performance.
+      Spans are exported asynchronously in batches.
     """
     global _provider_initialized
 
@@ -61,9 +78,14 @@ def _initialize_tracer_provider() -> None:
     # Create console exporter (outputs to stderr)
     console_exporter = ConsoleSpanExporter(out=sys.stderr)
 
-    # Add simple span processor (synchronous export)
-    # Using SimpleSpanProcessor instead of BatchSpanProcessor to avoid async issues in tests
-    span_processor = SimpleSpanProcessor(console_exporter)
+    # Create span processor based on configuration
+    processor_type = os.getenv("PITLANE_SPAN_PROCESSOR", "simple").lower()
+    if processor_type == "batch":
+        span_processor = BatchSpanProcessor(console_exporter)
+    else:
+        # Default to SimpleSpanProcessor for test compatibility
+        span_processor = SimpleSpanProcessor(console_exporter)
+
     provider.add_span_processor(span_processor)
 
     # Set as global tracer provider
@@ -76,6 +98,12 @@ def get_tracer() -> trace.Tracer:
     """Get the OpenTelemetry tracer instance.
 
     Lazily initializes the tracer provider if tracing is enabled.
+
+    Note:
+        This function has a benign race condition when called concurrently
+        from multiple coroutines during initial startup. Multiple TracerProvider
+        instances may be created, but this is harmless as OpenTelemetry's global
+        tracer provider is set atomically.
 
     Returns:
         Tracer instance (may be a no-op tracer if tracing is disabled).

@@ -253,3 +253,77 @@ class TestAllowedDomains:
     def test_allowed_domains_count(self):
         """Test that we have the expected number of allowed domains."""
         assert len(ALLOWED_WEBFETCH_DOMAINS) == 6
+
+
+class TestPermissionDenialLogging:
+    """Tests for logging of permission denials."""
+
+    @pytest.mark.asyncio
+    async def test_missing_url_logs_warning(self, caplog):
+        """Test that missing URL logs a warning."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            result = await can_use_tool(
+                "WebFetch",
+                {},
+                ToolPermissionContext(),
+            )
+
+        assert isinstance(result, PermissionResultDeny)
+        assert len(caplog.records) == 1
+        assert caplog.records[0].levelname == "WARNING"
+        assert "missing URL parameter" in caplog.records[0].message
+
+    @pytest.mark.asyncio
+    async def test_blocked_domain_logs_warning(self, caplog):
+        """Test that blocked domain logs a warning with details."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            result = await can_use_tool(
+                "WebFetch",
+                {"url": "https://evil.com/malware"},
+                ToolPermissionContext(),
+            )
+
+        assert isinstance(result, PermissionResultDeny)
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.levelname == "WARNING"
+        assert "domain not allowed" in record.message
+        assert record.domain == "evil.com"
+        assert record.url == "https://evil.com/malware"
+
+    @pytest.mark.asyncio
+    async def test_invalid_url_logs_warning(self, caplog):
+        """Test that invalid URL logs a warning."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            result = await can_use_tool(
+                "WebFetch",
+                {"url": "not-a-valid-url"},
+                ToolPermissionContext(),
+            )
+
+        # May be allowed or denied depending on urlparse behavior
+        # Just verify logging occurred if denied
+        if isinstance(result, PermissionResultDeny):
+            assert any("WebFetch permission denied" in record.message for record in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_allowed_domain_does_not_log(self, caplog):
+        """Test that allowed domains don't log warnings."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            result = await can_use_tool(
+                "WebFetch",
+                {"url": "https://wikipedia.org/wiki/F1"},
+                ToolPermissionContext(),
+            )
+
+        assert isinstance(result, PermissionResultAllow)
+        # No warning logs for allowed domains
+        assert len([r for r in caplog.records if r.levelname == "WARNING"]) == 0

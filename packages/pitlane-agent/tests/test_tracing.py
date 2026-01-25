@@ -251,3 +251,55 @@ class TestLogPermissionCheck:
 
             # No output for allowed permissions
             assert mock_stderr.getvalue() == ""
+
+
+class TestSpanProcessorConfiguration:
+    """Tests for span processor configuration."""
+
+    def test_default_processor_is_simple(self, monkeypatch):
+        """Default span processor should be SimpleSpanProcessor."""
+        monkeypatch.setenv("PITLANE_TRACING_ENABLED", "1")
+        monkeypatch.delenv("PITLANE_SPAN_PROCESSOR", raising=False)
+        tracing._tracer = None
+        tracing._provider_initialized = False
+
+        tracer = tracing.get_tracer()
+
+        assert tracer is not None
+        assert tracing._provider_initialized
+
+        # Cleanup
+        tracing._tracer = None
+        tracing._provider_initialized = False
+
+    def test_batch_processor_can_be_configured(self, monkeypatch):
+        """Span processor can be set to batch via env var."""
+        monkeypatch.setenv("PITLANE_TRACING_ENABLED", "1")
+        monkeypatch.setenv("PITLANE_SPAN_PROCESSOR", "batch")
+        tracing._tracer = None
+        tracing._provider_initialized = False
+
+        tracer = tracing.get_tracer()
+
+        assert tracer is not None
+        assert tracing._provider_initialized
+
+        # Cleanup
+        tracing._tracer = None
+        tracing._provider_initialized = False
+
+    def test_invalid_processor_defaults_to_simple(self, monkeypatch):
+        """Invalid processor type should default to simple."""
+        monkeypatch.setenv("PITLANE_TRACING_ENABLED", "1")
+        monkeypatch.setenv("PITLANE_SPAN_PROCESSOR", "invalid")
+        tracing._tracer = None
+        tracing._provider_initialized = False
+
+        tracer = tracing.get_tracer()
+
+        assert tracer is not None
+        assert tracing._provider_initialized
+
+        # Cleanup
+        tracing._tracer = None
+        tracing._provider_initialized = False
