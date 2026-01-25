@@ -6,10 +6,12 @@ Usage:
     pitlane lap-times --year 2024 --gp Monaco --session Q --drivers VER --drivers HAM
     pitlane tyre-strategy --year 2024 --gp Monaco --session R
     pitlane event-schedule --year 2024
+    pitlane driver-info --driver-code VER
 """
 
 import click
 
+from pitlane_agent.scripts.driver_info import cli as driver_info_cli
 from pitlane_agent.scripts.event_schedule import cli as event_schedule_cli
 from pitlane_agent.scripts.lap_times import cli as lap_times_cli
 from pitlane_agent.scripts.session_info import cli as session_info_cli
@@ -23,6 +25,7 @@ def pitlane():
 
 
 # Register subcommands
+pitlane.add_command(driver_info_cli, name="driver-info")
 pitlane.add_command(event_schedule_cli, name="event-schedule")
 pitlane.add_command(lap_times_cli, name="lap-times")
 pitlane.add_command(session_info_cli, name="session-info")
