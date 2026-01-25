@@ -12,6 +12,7 @@ from datetime import datetime
 
 import click
 import fastf1
+import pandas as pd
 
 
 def get_event_schedule(
@@ -48,12 +49,12 @@ def get_event_schedule(
 
         # Build event dict with all relevant fields
         event_data = {
-            "round": int(event["RoundNumber"]) if event["RoundNumber"] else 0,
+            "round": int(event["RoundNumber"]) if pd.notna(event["RoundNumber"]) else 0,
             "country": event["Country"],
             "location": event["Location"],
             "official_name": event["OfficialEventName"],
             "event_name": event["EventName"],
-            "event_date": event["EventDate"].isoformat() if event["EventDate"] else None,
+            "event_date": event["EventDate"].isoformat() if pd.notna(event["EventDate"]) else None,
             "event_format": event["EventFormat"],
             "f1_api_support": bool(event["F1ApiSupport"]),
             "sessions": [],
@@ -70,17 +71,15 @@ def get_event_schedule(
             if session_name and session_name != "" and str(session_name) != "None":
                 # Check if session date is valid (not NaT)
                 session_date = event.get(session_date_key)
-                if session_date is not None and str(session_date) != "NaT":
+                if pd.notna(session_date):
                     session_info = {
                         "name": session_name,
                         "date_local": (
-                            event[session_date_key].isoformat()
-                            if event.get(session_date_key)
-                            else None
+                            event[session_date_key].isoformat() if pd.notna(event.get(session_date_key)) else None
                         ),
                         "date_utc": (
                             event[session_date_utc_key].isoformat()
-                            if event.get(session_date_utc_key)
+                            if pd.notna(event.get(session_date_utc_key))
                             else None
                         ),
                     }
