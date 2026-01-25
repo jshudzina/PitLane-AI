@@ -12,6 +12,7 @@ from datetime import datetime
 
 import click
 import fastf1.ergast as ergast
+import pandas as pd
 
 
 def get_driver_info(
@@ -43,9 +44,6 @@ def get_driver_info(
         # If no results and it looks like a 3-letter code,
         # fetch recent season data and filter by driver code
         if len(driver_data) == 0 and len(driver_code) == 3:
-            # Try current season first (most common use case)
-            from datetime import datetime
-
             current_year = datetime.now().year
             for year in range(current_year, current_year - 5, -1):
                 season_drivers = ergast_api.get_driver_info(season=year)
@@ -69,8 +67,8 @@ def get_driver_info(
 
         # Handle date_of_birth - convert Timestamp to string
         date_of_birth = driver.get("dateOfBirth")
-        if date_of_birth is not None:
-            date_of_birth = str(date_of_birth) if hasattr(date_of_birth, "isoformat") else date_of_birth
+        if date_of_birth is not None and isinstance(date_of_birth, pd.Timestamp | datetime):
+            date_of_birth = date_of_birth.strftime("%Y-%m-%d")
 
         drivers.append(
             {
