@@ -67,14 +67,19 @@ def get_driver_info(
 
         # Handle date_of_birth - convert Timestamp to string
         date_of_birth = driver.get("dateOfBirth")
-        if date_of_birth is not None and isinstance(date_of_birth, pd.Timestamp | datetime):
+        if pd.isna(date_of_birth):
+            date_of_birth = "Unknown"
+        elif isinstance(date_of_birth, pd.Timestamp | datetime):
             date_of_birth = date_of_birth.strftime("%Y-%m-%d")
+
+        driver_number = driver.get("driverNumber")
+        driver_number = int(driver_number) if pd.notna(driver_number) else None
 
         drivers.append(
             {
                 "driver_id": driver.get("driverId"),
                 "driver_code": driver.get("driverCode"),
-                "driver_number": int(driver["driverNumber"]) if driver.get("driverNumber") else None,
+                "driver_number": driver_number,
                 "given_name": driver.get("givenName"),
                 "family_name": driver.get("familyName"),
                 "full_name": f"{driver.get('givenName', '')} {driver.get('familyName', '')}".strip(),
