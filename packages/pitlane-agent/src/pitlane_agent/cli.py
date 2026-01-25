@@ -9,6 +9,9 @@ Usage:
     pitlane driver-info --driver-code VER
 """
 
+import logging
+import warnings
+
 import click
 
 from pitlane_agent.scripts.driver_info import cli as driver_info_cli
@@ -21,7 +24,10 @@ from pitlane_agent.scripts.tyre_strategy import cli as tyre_strategy_cli
 @click.group()
 def pitlane():
     """PitLane AI - F1 data analysis tools powered by FastF1 and Claude."""
-    pass
+    # Suppress logging from underlying libraries
+    logging.getLogger("fastf1").setLevel(logging.WARNING)
+    # Suppress deprecation warnings from FastF1
+    warnings.filterwarnings("ignore", category=FutureWarning, module="fastf1")
 
 
 # Register subcommands
