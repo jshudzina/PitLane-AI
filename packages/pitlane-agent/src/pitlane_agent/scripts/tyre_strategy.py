@@ -17,6 +17,7 @@ import click
 import fastf1
 import fastf1.plotting
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # Tyre compound colors (F1 2024 style)
 COMPOUND_COLORS = {
@@ -125,7 +126,7 @@ def generate_tyre_strategy_chart(
 
         # Draw stints as horizontal bars
         for stint in stints:
-            compound = stint["compound"] if stint["compound"] else "UNKNOWN"
+            compound = stint["compound"] if pd.notna(stint["compound"]) else "UNKNOWN"
             color = COMPOUND_COLORS.get(compound.upper(), COMPOUND_COLORS["UNKNOWN"])
 
             ax.barh(
@@ -189,7 +190,9 @@ def generate_tyre_strategy_chart(
         "event_name": session.event["EventName"],
         "session_name": session.name,
         "year": year,
-        "total_laps": int(session.total_laps) if hasattr(session, "total_laps") else None,
+        "total_laps": int(session.total_laps)
+        if hasattr(session, "total_laps") and pd.notna(session.total_laps)
+        else None,
         "strategies": strategies,
     }
 

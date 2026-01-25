@@ -12,6 +12,7 @@ import sys
 
 import click
 import fastf1
+import pandas as pd
 
 
 def get_session_info(year: int, gp: str, session_type: str) -> dict:
@@ -40,8 +41,8 @@ def get_session_info(year: int, gp: str, session_type: str) -> dict:
                 "abbreviation": driver["Abbreviation"],
                 "name": f"{driver['FirstName']} {driver['LastName']}",
                 "team": driver["TeamName"],
-                "number": int(driver["DriverNumber"]) if driver["DriverNumber"] else None,
-                "position": int(driver["Position"]) if driver["Position"] else None,
+                "number": int(driver["DriverNumber"]) if pd.notna(driver["DriverNumber"]) else None,
+                "position": int(driver["Position"]) if pd.notna(driver["Position"]) else None,
             }
         )
 
@@ -51,8 +52,10 @@ def get_session_info(year: int, gp: str, session_type: str) -> dict:
         "country": session.event["Country"],
         "session_type": session_type,
         "session_name": session.name,
-        "date": str(session.date.date()) if session.date else None,
-        "total_laps": int(session.total_laps) if hasattr(session, "total_laps") else None,
+        "date": str(session.date.date()) if pd.notna(session.date) else None,
+        "total_laps": int(session.total_laps)
+        if hasattr(session, "total_laps") and pd.notna(session.total_laps)
+        else None,
         "drivers": drivers,
     }
 
