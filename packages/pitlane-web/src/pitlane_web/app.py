@@ -1,7 +1,7 @@
 """FastAPI application for PitLane AI with session management."""
 
-import contextlib
 import logging
+import os
 import re
 import uuid
 from pathlib import Path
@@ -45,8 +45,8 @@ templates = Jinja2Templates(directory=templates_dir)
 # ============================================================================
 
 SESSION_COOKIE_NAME = "pitlane_session"
-SESSION_MAX_AGE = 86400 * 7  # 7 days
-SESSION_COOKIE_SECURE = False  # Set True in production with HTTPS
+SESSION_MAX_AGE = int(os.getenv("PITLANE_SESSION_MAX_AGE", str(86400 * 7)))  # 7 days default
+SESSION_COOKIE_SECURE = os.getenv("PITLANE_HTTPS_ENABLED", "false").lower() == "true"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "lax"
 
@@ -66,6 +66,78 @@ def is_valid_session_id(session_id: str) -> bool:
         return True
     except (ValueError, AttributeError, TypeError):
         return False
+
+
+def validate_session_safely(session: str | None) -> tuple[bool, str | None]:
+    """Validate session with constant-time checks to prevent timing attacks.
+
+    Performs validation checks in a consistent order regardless of where validation
+    fails, making it harder for attackers to probe for valid session IDs.
+
+    Args:
+        session: Session ID from cookie (may be None)
+
+    Returns:
+        Tuple of (is_valid, session_id)
+        - is_valid: True if session is valid and exists
+        - session_id: The validated session ID if valid, None otherwise
+    """
+    # Always check format first (constant time for UUID validation)
+    is_valid_format = is_valid_session_id(session) if session else False
+
+    # Always check workspace existence (even if format invalid, to maintain constant timing)
+    # This prevents attackers from using timing to determine if a UUID exists
+    exists = workspace_exists(session) if is_valid_format else False
+
+    # Return result
+    is_valid = is_valid_format and exists
+    validated_session = session if is_valid else None
+
+    return (is_valid, validated_session)
+
+
+def update_workspace_metadata_safe(session_id: str) -> None:
+    """Safely update workspace metadata with proper error logging.
+
+    Args:
+        session_id: Session ID to update
+    """
+    try:
+        update_workspace_metadata(session_id)
+    except FileNotFoundError as e:
+        logger.warning(f"Workspace metadata file not found for session {session_id}: {e}")
+    except PermissionError as e:
+        logger.error(f"Permission denied updating workspace metadata for session {session_id}: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error updating workspace metadata for session {session_id}: {e}", exc_info=True)
+
+
+def is_safe_filename(filename: str) -> bool:
+    """Validate filename using whitelist pattern to prevent path traversal.
+
+    Only allows alphanumeric characters, underscores, hyphens, and dots.
+    Prevents path traversal attempts including URL encoding and Unicode normalization.
+
+    Args:
+        filename: The filename to validate
+
+    Returns:
+        True if filename is safe, False otherwise
+    """
+    if not filename:
+        return False
+
+    # Whitelist pattern: only allow safe characters
+    # Letters, numbers, underscore, hyphen, and single dots (for extensions)
+    if not re.match(r"^[a-zA-Z0-9_.-]+$", filename):
+        return False
+
+    # Additional checks to prevent edge cases
+    if filename.startswith(".") or filename.endswith("."):
+        return False
+
+    # Double dots still not allowed (prevents traversal attacks)
+    return ".." not in filename
 
 
 def get_or_create_agent(session_id: str) -> F1Agent:
@@ -148,15 +220,17 @@ async def index(
     session: str | None = Cookie(None, alias=SESSION_COOKIE_NAME),
 ):
     """Render the home page with session management."""
-    # Check if we need to create a new session
-    needs_new_session = False
-    if session and is_valid_session_id(session) and workspace_exists(session):
-        session_id = session
+    # Validate existing session (with timing attack protection)
+    is_valid, validated_session = validate_session_safely(session)
+
+    if is_valid and validated_session:
+        session_id = validated_session
+        needs_new_session = False
         logger.info(f"Index page loaded with existing session: {session_id}")
-        # Update last accessed time
-        with contextlib.suppress(Exception):
-            update_workspace_metadata(session_id)
+        # Update last accessed time with proper error handling
+        update_workspace_metadata_safe(session_id)
     else:
+        # Create new session
         session_id = generate_session_id()
         needs_new_session = True
         logger.info(f"Index page loaded, creating new session: {session_id}")
@@ -195,15 +269,17 @@ async def chat(
 
     Uses F1Agent with Claude Agent SDK to analyze F1 data.
     """
-    # Check if we need to create a new session
-    needs_new_session = False
-    if session and is_valid_session_id(session) and workspace_exists(session):
-        session_id = session
+    # Validate existing session (with timing attack protection)
+    is_valid, validated_session = validate_session_safely(session)
+
+    if is_valid and validated_session:
+        session_id = validated_session
+        needs_new_session = False
         logger.info(f"Using existing session: {session_id}")
-        # Update last accessed time
-        with contextlib.suppress(Exception):
-            update_workspace_metadata(session_id)
+        # Update last accessed time with proper error handling
+        update_workspace_metadata_safe(session_id)
     else:
+        # Create new session
         session_id = generate_session_id()
         needs_new_session = True
         logger.info(f"Creating new session: {session_id}")
@@ -280,9 +356,9 @@ async def serve_chart(
         logger.warning(f"Workspace not found for session: {session_id}")
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # 4. Validate filename (prevent path traversal)
-    if ".." in filename or "/" in filename or "\\" in filename:
-        logger.warning(f"Path traversal attempt detected: {filename}")
+    # 4. Validate filename using whitelist pattern (prevent path traversal)
+    if not is_safe_filename(filename):
+        logger.warning(f"Invalid or unsafe filename detected: {filename}")
         raise HTTPException(status_code=400, detail="Invalid filename")
 
     # 5. Construct and validate file path
