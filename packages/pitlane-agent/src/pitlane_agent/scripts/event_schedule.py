@@ -32,8 +32,11 @@ def get_event_schedule(
     Returns:
         Dictionary with schedule data and event information
     """
-    # Enable FastF1 cache for faster subsequent loads
-    fastf1.Cache.enable_cache("/tmp/fastf1_cache")
+    from pathlib import Path
+
+    # Enable FastF1 cache with shared directory
+    cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
+    fastf1.Cache.enable_cache(str(cache_dir))
 
     # Get the event schedule
     schedule = fastf1.get_event_schedule(year, include_testing=include_testing)

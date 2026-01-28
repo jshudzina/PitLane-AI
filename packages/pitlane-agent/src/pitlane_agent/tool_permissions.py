@@ -25,24 +25,144 @@ ALLOWED_WEBFETCH_DOMAINS = {
 }
 
 
+def _is_allowed_bash_command(command: str) -> bool:
+    """Check if Bash command is allowed (pitlane CLI only).
+
+    Args:
+        command: The bash command to validate.
+
+    Returns:
+        True if command is allowed, False otherwise.
+    """
+    if not command:
+        return False
+
+    cmd = command.strip()
+
+    # Remove environment variable assignments
+    # e.g., "FOO=bar BAR=baz pitlane ..." -> "pitlane ..."
+    parts = cmd.split()
+    for i, part in enumerate(parts):
+        if "=" not in part:
+            cmd = " ".join(parts[i:])
+            break
+    else:
+        # All parts have "=" (only env vars, no command)
+        return False
+
+    return cmd.startswith("pitlane ")
+
+
+def _is_within_workspace(file_path: str, workspace_dir: str | None) -> bool:
+    """Check if file path is within the workspace directory.
+
+    Args:
+        file_path: The file path to validate.
+        workspace_dir: The workspace directory path.
+
+    Returns:
+        True if file is within workspace, False otherwise.
+    """
+    if workspace_dir is None:
+        return False
+
+    try:
+        from pathlib import Path
+
+        file_resolved = Path(file_path).resolve()
+        workspace_resolved = Path(workspace_dir).resolve()
+
+        # Check if file_path is within workspace_dir
+        return str(file_resolved).startswith(str(workspace_resolved))
+    except Exception:
+        return False
+
+
 async def can_use_tool(
     tool_name: str,
     input_params: dict[str, Any],
     context: ToolPermissionContext,
 ) -> PermissionResultAllow | PermissionResultDeny:
-    """Validate tool usage with domain restrictions for WebFetch.
+    """Validate tool usage with restrictions for Bash, Read, Write, and WebFetch.
 
     Args:
         tool_name: Name of the tool being invoked.
         input_params: Parameters passed to the tool.
-        context: Permission context including suggestions.
+        context: Permission context including workspace directory.
 
     Returns:
         PermissionResultAllow if the tool usage is permitted.
         PermissionResultDeny if the tool usage should be blocked.
     """
-    # Only restrict WebFetch tool
-    if tool_name != "WebFetch":
+    # Restrict Bash to pitlane CLI only
+    if tool_name == "Bash":
+        command = input_params.get("command", "")
+
+        if not _is_allowed_bash_command(command):
+            denial_msg = (
+                "Bash is restricted to 'pitlane' CLI commands only. "
+                "Use 'pitlane <subcommand>' to execute F1 data operations."
+            )
+            logger.warning(
+                "Bash permission denied: command not allowed",
+                extra={
+                    "tool": tool_name,
+                    "command": command,
+                    "reason": "not_pitlane_command",
+                },
+            )
+            tracing.log_permission_check(tool_name, False, denial_msg)
+            return PermissionResultDeny(message=denial_msg)
+
+        return PermissionResultAllow()
+
+    # Restrict Read to workspace paths
+    if tool_name == "Read":
+        file_path = input_params.get("file_path", "")
+        workspace_dir = context.get("workspace_dir")
+
+        if not _is_within_workspace(file_path, workspace_dir):
+            denial_msg = f"Read access denied. File must be within workspace directory: {workspace_dir}"
+            logger.warning(
+                "Read permission denied: file outside workspace",
+                extra={
+                    "tool": tool_name,
+                    "file_path": file_path,
+                    "workspace_dir": workspace_dir,
+                    "reason": "outside_workspace",
+                },
+            )
+            tracing.log_permission_check(tool_name, False, denial_msg)
+            return PermissionResultDeny(message=denial_msg)
+
+        return PermissionResultAllow()
+
+    # Restrict Write to workspace paths
+    if tool_name == "Write":
+        file_path = input_params.get("file_path", "")
+        workspace_dir = context.get("workspace_dir")
+
+        if not _is_within_workspace(file_path, workspace_dir):
+            denial_msg = f"Write access denied. File must be within workspace directory: {workspace_dir}"
+            logger.warning(
+                "Write permission denied: file outside workspace",
+                extra={
+                    "tool": tool_name,
+                    "file_path": file_path,
+                    "workspace_dir": workspace_dir,
+                    "reason": "outside_workspace",
+                },
+            )
+            tracing.log_permission_check(tool_name, False, denial_msg)
+            return PermissionResultDeny(message=denial_msg)
+
+        return PermissionResultAllow()
+
+    # WebFetch domain restrictions (existing logic)
+    if tool_name == "WebFetch":
+        pass  # Continue to WebFetch validation below
+    else:
+        # Allow all other tools
         return PermissionResultAllow()
 
     # Extract URL from WebFetch parameters

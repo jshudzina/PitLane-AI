@@ -10,11 +10,8 @@ Usage:
         --output /tmp/charts/lap_times.png
 """
 
-import json
-import sys
 from pathlib import Path
 
-import click
 import fastf1
 import fastf1.plotting
 import matplotlib.pyplot as plt
@@ -46,7 +43,7 @@ def generate_lap_times_chart(
     gp: str,
     session_type: str,
     drivers: list[str],
-    output_path: str,
+    workspace_dir: Path,
 ) -> dict:
     """Generate a lap times scatter plot.
 
@@ -55,13 +52,17 @@ def generate_lap_times_chart(
         gp: Grand Prix name
         session_type: Session identifier
         drivers: List of driver abbreviations to include
-        output_path: Path to save the chart image
+        workspace_dir: Workspace directory for outputs and cache
 
     Returns:
         Dictionary with chart metadata and statistics
     """
-    # Enable FastF1 cache
-    fastf1.Cache.enable_cache("/tmp/fastf1_cache")
+    # Determine paths from workspace
+    output_path = workspace_dir / "charts" / "lap_times.png"
+    cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
+
+    # Enable FastF1 cache with shared directory
+    fastf1.Cache.enable_cache(str(cache_dir))
 
     # Load session with laps data
     session = fastf1.get_session(year, gp, session_type)
@@ -128,16 +129,16 @@ def generate_lap_times_chart(
     ax.set_ylim(y_min - y_range * 0.05, y_max + y_range * 0.05)
 
     # Ensure output directory exists
-    output_dir = Path(output_path).parent
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Save figure
     fig.tight_layout()
-    fig.savefig(output_path, dpi=150, facecolor=fig.get_facecolor(), edgecolor="none")
+    fig.savefig(str(output_path), dpi=150, facecolor=fig.get_facecolor(), edgecolor="none")
     plt.close(fig)
 
     return {
-        "output_path": str(output_path),
+        "chart_path": str(output_path),
+        "workspace": str(workspace_dir),
         "event_name": session.event["EventName"],
         "session_name": session.name,
         "year": year,
@@ -146,42 +147,5 @@ def generate_lap_times_chart(
     }
 
 
-@click.command()
-@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
-@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco, Silverstone)")
-@click.option(
-    "--session",
-    type=str,
-    required=True,
-    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
-)
-@click.option(
-    "--drivers",
-    multiple=True,
-    required=True,
-    help="Driver abbreviation (can be specified multiple times: --drivers VER --drivers HAM)",
-)
-@click.option(
-    "--output",
-    type=click.Path(),
-    default="/tmp/charts/lap_times.png",
-    help="Output path for the chart image",
-)
-def cli(year, gp, session, drivers, output):
-    """Generate lap times chart for specified drivers."""
-    try:
-        result = generate_lap_times_chart(
-            year=year,
-            gp=gp,
-            session_type=session,
-            drivers=list(drivers),  # Convert tuple to list
-            output_path=output,
-        )
-        click.echo(json.dumps(result, indent=2))
-    except Exception as e:
-        click.echo(json.dumps({"error": str(e)}), err=True)
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    cli()
+# CLI interface removed - use pitlane analyze lap-times instead
+# This module now only provides the generate_lap_times_chart function

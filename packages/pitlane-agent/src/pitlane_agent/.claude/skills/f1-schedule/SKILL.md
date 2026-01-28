@@ -1,12 +1,12 @@
 ---
 name: f1-schedule
 description: Answer questions about the F1 event schedule for a given year. The schedule includes dates, location (city and country), round number, and session information.
-allowed-tools: Bash(python:*), Read, Write
+allowed-tools: Bash(pitlane *), Read, Write
 ---
 
 # F1 Schedule Information
 
-You have access to F1 event schedule data via FastF1. Answer questions about race calendars, event dates, locations, and session schedules with accurate historical and current data.
+You have access to F1 event schedule data via the workspace-based PitLane CLI. Answer questions about race calendars, event dates, locations, and session schedules with accurate historical and current data.
 
 ## When to Use This Skill
 
@@ -19,7 +19,32 @@ Use this skill when users ask about:
 
 **Complementary with f1-analyst**: This skill provides "when and where" information. Use the f1-analyst skill for race results, lap times, and performance analysis.
 
-## Step 1: Identify the Query Parameters
+## Step 1: Create or Get Workspace Session ID
+
+**IMPORTANT**: Before running any fetch commands, you need a workspace session ID.
+
+### If this is a new conversation:
+Create a new workspace and capture the session ID from the output:
+
+```bash
+pitlane workspace create
+```
+
+This returns JSON like:
+```json
+{
+  "session_id": "abc-123-def",
+  "workspace_path": "/Users/user/.pitlane/workspaces/abc-123-def",
+  "created_at": "2024-01-27T10:30:00Z"
+}
+```
+
+**Extract the `session_id` from this output - you'll use it in all subsequent commands.**
+
+### If continuing an existing conversation:
+Use the same session ID you created earlier in this conversation.
+
+## Step 2: Identify the Query Parameters
 
 Extract from the user's question:
 - **Year**: e.g., 2024, 2023 (required)
@@ -29,35 +54,37 @@ Extract from the user's question:
 
 If the user doesn't specify a year, default to the most recent completed or current season.
 
-## Step 2: Get Schedule Using Script
+## Step 3: Get Schedule Using PitLane CLI
 
-Use the event_schedule script to fetch data:
+Use the PitLane CLI to fetch schedule data. All commands require a `--session-id` parameter which is provided by the F1Agent managing your workspace.
 
 ### Get Full Season Calendar
 ```bash
-python -m pitlane_agent.scripts.event_schedule --year 2024
+pitlane fetch event-schedule --session-id SESSION_ID --year 2024
 ```
-Returns JSON with all events for the season.
+Returns JSON with all events for the season and saves to workspace.
 
 ### Get Specific Round
 ```bash
-python -m pitlane_agent.scripts.event_schedule --year 2024 --round 6
+pitlane fetch event-schedule --session-id SESSION_ID --year 2024 --round 6
 ```
 Returns data for only round 6.
 
 ### Filter by Country
 ```bash
-python -m pitlane_agent.scripts.event_schedule --year 2024 --country Italy
+pitlane fetch event-schedule --session-id SESSION_ID --year 2024 --country Italy
 ```
 Returns all Italian races (e.g., Imola, Monza if both are scheduled).
 
 ### Exclude Testing Sessions
 ```bash
-python -m pitlane_agent.scripts.event_schedule --year 2024 --include-testing False
+pitlane fetch event-schedule --session-id SESSION_ID --year 2024 --no-testing
 ```
 Returns only championship rounds without pre-season testing.
 
-## Step 3: Format Your Response
+After fetching, data is saved to the workspace at `{workspace}/data/schedule.json` which you can read using the Read tool.
+
+## Step 4: Format Your Response
 
 Structure your response based on the question:
 
