@@ -86,6 +86,11 @@ class F1Agent:
         Yields:
             Text chunks from the assistant's response.
         """
+        import os
+
+        # Set session ID as environment variable so skills can access it
+        os.environ["PITLANE_SESSION_ID"] = self.session_id
+
         # Configure hooks for tracing
         hooks = None
         if tracing.is_tracing_enabled():
