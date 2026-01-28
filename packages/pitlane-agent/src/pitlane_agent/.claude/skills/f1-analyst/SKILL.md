@@ -12,30 +12,19 @@ You are an F1 data analyst with access to historical race data via FastF1. Answe
 
 Your workspace is managed by the F1Agent. The agent has a session ID and workspace directory that you'll use for all data operations. All PitLane CLI commands will automatically use the correct workspace context.
 
-## Step 1: Create or Get Workspace Session ID
+## Step 1: Get Workspace Session ID
 
-**IMPORTANT**: Before running any analysis commands, you need a workspace session ID.
+**IMPORTANT**: Your F1Agent has already created a workspace with a session ID. This is available in the `PITLANE_SESSION_ID` environment variable.
 
-### If this is a new conversation:
-Create a new workspace and capture the session ID from the output:
+To get your session ID, run:
 
 ```bash
-pitlane workspace create
+echo $PITLANE_SESSION_ID
 ```
 
-This returns JSON like:
-```json
-{
-  "session_id": "abc-123-def",
-  "workspace_path": "/Users/user/.pitlane/workspaces/abc-123-def",
-  "created_at": "2024-01-27T10:30:00Z"
-}
-```
+**Use this session ID in all subsequent pitlane commands.**
 
-**Extract the `session_id` from this output - you'll use it in all subsequent commands.**
-
-### If continuing an existing conversation:
-Use the same session ID you created earlier in this conversation.
+The workspace has already been created for you, so you do NOT need to run `pitlane workspace create`.
 
 ## Step 2: Identify the Session Parameters
 
@@ -52,14 +41,14 @@ Use the PitLane CLI with the workspace architecture to fetch data and generate v
 
 ### Get Session Information
 ```bash
-pitlane fetch session-info --session-id SESSION_ID --year 2024 --gp Monaco --session R
+pitlane fetch session-info --session-id $PITLANE_SESSION_ID --year 2024 --gp Monaco --session R
 ```
 Returns JSON with: event name, date, session type, list of drivers with abbreviations. Data is saved to workspace.
 
 ### Generate Lap Times Chart
 ```bash
 pitlane analyze lap-times \
-  --session-id SESSION_ID \
+  --session-id $PITLANE_SESSION_ID \
   --year 2024 \
   --gp Monaco \
   --session Q \
@@ -70,7 +59,7 @@ Creates a lap times scatter plot comparing drivers. Returns JSON with the chart 
 ### Generate Tyre Strategy Chart
 ```bash
 pitlane analyze tyre-strategy \
-  --session-id SESSION_ID \
+  --session-id $PITLANE_SESSION_ID \
   --year 2024 \
   --gp Monaco \
   --session R
@@ -97,18 +86,20 @@ A 2-3 sentence direct answer to their question. Lead with the key finding.
 - Note any surprising or notable patterns
 
 ### Visualization
-If you generated a chart, **YOU MUST include it using markdown image syntax** with the workspace chart path. The chart files are located in the workspace charts directory and will be served appropriately by the web app.
+If you generated a chart, **YOU MUST include it using markdown image syntax**. The chart files are located in the workspace charts directory and will be served appropriately by the web app.
 
-For web deployments, use:
+**Important**: Use the full workspace path returned by the analyze command in your markdown. The web app will automatically rewrite these paths to web-relative URLs.
+
+Example:
 ```markdown
-![Lap Times Comparison](/charts/{session_id}/lap_times.png)
+![Lap Times Comparison](/Users/user/.pitlane/workspaces/{session_id}/charts/lap_times.png)
 ```
 
-For CLI usage, reference the full workspace path returned by the analyze command.
+The path rewriting system will automatically convert this to `/charts/{session_id}/lap_times.png` for web display, while CLI users will see the full path.
 
 Example with caption:
 ```markdown
-![Verstappen vs Hamilton Lap Times at Monaco 2024 Qualifying](/charts/{session_id}/lap_times.png)
+![Verstappen vs Hamilton Lap Times at Monaco 2024 Qualifying](/Users/user/.pitlane/workspaces/{session_id}/charts/lap_times.png)
 
 *The chart shows lap time distribution across qualifying sessions.*
 ```
