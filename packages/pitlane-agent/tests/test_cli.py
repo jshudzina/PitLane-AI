@@ -8,45 +8,48 @@ class TestCLIGroup:
     """Tests for the main CLI group."""
 
     def test_main_help(self):
-        """Test main CLI help output shows all subcommands."""
+        """Test main CLI help output shows all command groups."""
         runner = CliRunner()
         result = runner.invoke(pitlane, ["--help"])
 
         assert result.exit_code == 0
         assert "PitLane AI" in result.output
-        assert "lap-times" in result.output
-        assert "session-info" in result.output
-        assert "tyre-strategy" in result.output
+        assert "workspace" in result.output
+        assert "fetch" in result.output
+        assert "analyze" in result.output
 
     def test_subcommand_lap_times_help(self):
-        """Test lap-times subcommand help."""
+        """Test analyze lap-times subcommand help."""
         runner = CliRunner()
-        result = runner.invoke(pitlane, ["lap-times", "--help"])
+        result = runner.invoke(pitlane, ["analyze", "lap-times", "--help"])
 
         assert result.exit_code == 0
         assert "Generate lap times chart" in result.output
+        assert "--session-id" in result.output
         assert "--year" in result.output
         assert "--gp" in result.output
         assert "--drivers" in result.output
 
     def test_subcommand_session_info_help(self):
-        """Test session-info subcommand help."""
+        """Test fetch session-info subcommand help."""
         runner = CliRunner()
-        result = runner.invoke(pitlane, ["session-info", "--help"])
+        result = runner.invoke(pitlane, ["fetch", "session-info", "--help"])
 
         assert result.exit_code == 0
-        assert "Get F1 session information" in result.output
+        assert "Fetch session information" in result.output
+        assert "--session-id" in result.output
         assert "--year" in result.output
         assert "--gp" in result.output
         assert "--session" in result.output
 
     def test_subcommand_tyre_strategy_help(self):
-        """Test tyre-strategy subcommand help."""
+        """Test analyze tyre-strategy subcommand help."""
         runner = CliRunner()
-        result = runner.invoke(pitlane, ["tyre-strategy", "--help"])
+        result = runner.invoke(pitlane, ["analyze", "tyre-strategy", "--help"])
 
         assert result.exit_code == 0
         assert "Generate tyre strategy" in result.output
+        assert "--session-id" in result.output
         assert "--year" in result.output
         assert "--gp" in result.output
 

@@ -81,19 +81,22 @@ def _is_within_workspace(file_path: str, workspace_dir: str | None) -> bool:
 async def can_use_tool(
     tool_name: str,
     input_params: dict[str, Any],
-    context: ToolPermissionContext,
+    context: ToolPermissionContext | dict[str, Any],
 ) -> PermissionResultAllow | PermissionResultDeny:
     """Validate tool usage with restrictions for Bash, Read, Write, and WebFetch.
 
     Args:
         tool_name: Name of the tool being invoked.
         input_params: Parameters passed to the tool.
-        context: Permission context including workspace directory.
+        context: Permission context including workspace directory (dict or ToolPermissionContext).
 
     Returns:
         PermissionResultAllow if the tool usage is permitted.
         PermissionResultDeny if the tool usage should be blocked.
     """
+    # Convert context to dict if needed
+    context_dict = context if isinstance(context, dict) else {}
+
     # Restrict Bash to pitlane CLI only
     if tool_name == "Bash":
         command = input_params.get("command", "")
@@ -119,7 +122,7 @@ async def can_use_tool(
     # Restrict Read to workspace paths
     if tool_name == "Read":
         file_path = input_params.get("file_path", "")
-        workspace_dir = context.get("workspace_dir")
+        workspace_dir = context_dict.get("workspace_dir")
 
         if not _is_within_workspace(file_path, workspace_dir):
             denial_msg = f"Read access denied. File must be within workspace directory: {workspace_dir}"
@@ -140,7 +143,7 @@ async def can_use_tool(
     # Restrict Write to workspace paths
     if tool_name == "Write":
         file_path = input_params.get("file_path", "")
-        workspace_dir = context.get("workspace_dir")
+        workspace_dir = context_dict.get("workspace_dir")
 
         if not _is_within_workspace(file_path, workspace_dir):
             denial_msg = f"Write access denied. File must be within workspace directory: {workspace_dir}"
