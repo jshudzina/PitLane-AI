@@ -1,28 +1,33 @@
 """FastAPI application for PitLane AI with session management."""
 
 import logging
-import os
-import re
-import uuid
 from pathlib import Path
 
-import markdown
 from fastapi import Cookie, FastAPI, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pitlane_agent import F1Agent
-from pitlane_agent.scripts.workspace import (
+from pitlane_agent.scripts.workspace import get_workspace_path, workspace_exists
+
+from .agent_manager import _agent_cache
+from .config import (
+    SESSION_COOKIE_HTTPONLY,
+    SESSION_COOKIE_NAME,
+    SESSION_COOKIE_SAMESITE,
+    SESSION_COOKIE_SECURE,
+    SESSION_MAX_AGE,
+)
+from .filters import register_filters
+from .security import is_safe_filename, is_valid_session_id
+from .session import (
     generate_session_id,
-    get_workspace_path,
-    update_workspace_metadata,
-    workspace_exists,
+    update_workspace_metadata_safe,
+    validate_session_safely,
 )
 
 # ============================================================================
 # Logging Configuration
 # ============================================================================
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -40,174 +45,8 @@ app = FastAPI(title="PitLane AI", description="F1 data analysis powered by AI")
 templates_dir = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=templates_dir)
 
-# ============================================================================
-# Session Configuration
-# ============================================================================
-
-SESSION_COOKIE_NAME = "pitlane_session"
-SESSION_MAX_AGE = int(os.getenv("PITLANE_SESSION_MAX_AGE", str(86400 * 7)))  # 7 days default
-SESSION_COOKIE_SECURE = os.getenv("PITLANE_HTTPS_ENABLED", "false").lower() == "true"
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = "lax"
-
-# Agent cache: maps session_id -> F1Agent instance
-_agent_cache: dict[str, F1Agent] = {}
-_CACHE_MAX_SIZE = 100  # Maximum concurrent sessions
-
-# ============================================================================
-# Helper Functions
-# ============================================================================
-
-
-def is_valid_session_id(session_id: str) -> bool:
-    """Validate that session_id is a valid UUID."""
-    try:
-        uuid.UUID(session_id)
-        return True
-    except (ValueError, AttributeError, TypeError):
-        return False
-
-
-def validate_session_safely(session: str | None) -> tuple[bool, str | None]:
-    """Validate session with constant-time checks to prevent timing attacks.
-
-    Performs validation checks in a consistent order regardless of where validation
-    fails, making it harder for attackers to probe for valid session IDs.
-
-    Args:
-        session: Session ID from cookie (may be None)
-
-    Returns:
-        Tuple of (is_valid, session_id)
-        - is_valid: True if session is valid and exists
-        - session_id: The validated session ID if valid, None otherwise
-    """
-    # Always check format first (constant time for UUID validation)
-    is_valid_format = is_valid_session_id(session) if session else False
-
-    # Always check workspace existence (even if format invalid, to maintain constant timing)
-    # This prevents attackers from using timing to determine if a UUID exists
-    exists = workspace_exists(session) if is_valid_format else False
-
-    # Return result
-    is_valid = is_valid_format and exists
-    validated_session = session if is_valid else None
-
-    return (is_valid, validated_session)
-
-
-def update_workspace_metadata_safe(session_id: str) -> None:
-    """Safely update workspace metadata with proper error logging.
-
-    Args:
-        session_id: Session ID to update
-    """
-    try:
-        update_workspace_metadata(session_id)
-    except FileNotFoundError as e:
-        logger.warning(f"Workspace metadata file not found for session {session_id}: {e}")
-    except PermissionError as e:
-        logger.error(f"Permission denied updating workspace metadata for session {session_id}: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error updating workspace metadata for session {session_id}: {e}", exc_info=True)
-
-
-def is_safe_filename(filename: str) -> bool:
-    """Validate filename using whitelist pattern to prevent path traversal.
-
-    Only allows alphanumeric characters, underscores, hyphens, and dots.
-    Prevents path traversal attempts including URL encoding and Unicode normalization.
-
-    Args:
-        filename: The filename to validate
-
-    Returns:
-        True if filename is safe, False otherwise
-    """
-    if not filename:
-        return False
-
-    # Whitelist pattern: only allow safe characters
-    # Letters, numbers, underscore, hyphen, and single dots (for extensions)
-    if not re.match(r"^[a-zA-Z0-9_.-]+$", filename):
-        return False
-
-    # Additional checks to prevent edge cases
-    if filename.startswith(".") or filename.endswith("."):
-        return False
-
-    # Double dots still not allowed (prevents traversal attacks)
-    return ".." not in filename
-
-
-def get_or_create_agent(session_id: str) -> F1Agent:
-    """Get cached agent or create new one for session.
-
-    Implements LRU-style eviction when cache is full.
-    """
-    if session_id in _agent_cache:
-        logger.debug(f"Using cached agent for session: {session_id}")
-        return _agent_cache[session_id]
-
-    # Evict oldest entry if cache is full
-    if len(_agent_cache) >= _CACHE_MAX_SIZE:
-        # Remove first item (oldest in insertion order)
-        oldest_session = next(iter(_agent_cache))
-        logger.info(f"Agent cache full ({_CACHE_MAX_SIZE}), evicting oldest session: {oldest_session}")
-        del _agent_cache[oldest_session]
-
-    # Create new agent
-    logger.info(f"Creating new agent for session: {session_id}")
-    agent = F1Agent(session_id=session_id)
-    _agent_cache[session_id] = agent
-    logger.debug(f"Agent cache size: {len(_agent_cache)}/{_CACHE_MAX_SIZE}")
-    return agent
-
-
-def rewrite_workspace_paths(text: str, session_id: str) -> str:
-    """Rewrite absolute workspace paths to web-relative URLs.
-
-    Transforms:
-      /Users/.../.pitlane/workspaces/{session-id}/charts/lap_times.png
-      → /charts/{session-id}/lap_times.png
-
-    Args:
-        text: Response text containing absolute paths
-        session_id: Current session ID
-
-    Returns:
-        Text with rewritten paths
-    """
-    workspace_base = str(Path.home() / ".pitlane" / "workspaces")
-    escaped_base = re.escape(workspace_base)
-
-    # Pattern: /path/to/workspaces/{uuid}/{charts|data}/{filename}
-    pattern = rf"{escaped_base}/([a-f0-9\-]+)/(charts|data)/([^\s\)]+)"
-
-    def replacer(match):
-        matched_session = match.group(1)
-        subdir = match.group(2)
-        filename = match.group(3)
-
-        # Only rewrite current session's paths (security)
-        if matched_session == session_id:
-            return f"/{subdir}/{matched_session}/{filename}"
-        return match.group(0)
-
-    return re.sub(pattern, replacer, text)
-
-
-def md_to_html(text: str) -> str:
-    """Convert markdown to HTML."""
-    return markdown.markdown(text, extensions=["fenced_code", "tables"])
-
-
-# ============================================================================
-# Jinja2 Filters
-# ============================================================================
-
-templates.env.filters["markdown"] = md_to_html
-templates.env.filters["rewrite_paths"] = rewrite_workspace_paths
+# Register Jinja2 filters
+register_filters(templates)
 
 # ============================================================================
 # Routes
@@ -286,7 +125,7 @@ async def chat(
 
     try:
         # Get or create agent for this session
-        agent = get_or_create_agent(session_id)
+        agent = _agent_cache.get_or_create(session_id)
 
         # Process question
         response_text = await agent.chat_full(question)
