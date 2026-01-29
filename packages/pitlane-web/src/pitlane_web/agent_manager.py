@@ -28,7 +28,8 @@ class AgentCache:
     def get_or_create(self, session_id: str) -> F1Agent:
         """Get cached agent or create new one for session.
 
-        Implements LRU-style eviction when cache is full (FIFO order).
+        Implements LRU-style eviction when cache is full.
+        When accessing an existing agent, it's moved to the end (most recently used).
 
         Args:
             session_id: Session ID for the agent
@@ -38,13 +39,15 @@ class AgentCache:
         """
         if session_id in self._cache:
             logger.debug(f"Using cached agent for session: {session_id}")
+            # Move to end to mark as recently used (LRU)
+            self._cache[session_id] = self._cache.pop(session_id)
             return self._cache[session_id]
 
         # Evict oldest entry if cache is full
         if len(self._cache) >= self._max_size:
-            # Remove first item (oldest in insertion order)
+            # Remove first item (least recently used)
             oldest_session = next(iter(self._cache))
-            logger.info(f"Agent cache full ({self._max_size}), evicting oldest session: {oldest_session}")
+            logger.info(f"Agent cache full ({self._max_size}), evicting least recently used session: {oldest_session}")
             del self._cache[oldest_session]
 
         # Create new agent

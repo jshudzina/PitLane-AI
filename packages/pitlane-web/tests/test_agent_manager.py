@@ -138,8 +138,8 @@ class TestAgentCacheLRUEviction:
                 # If evicted, this should create a new agent
                 mock_agent_class.assert_called_once()
 
-    def test_create_many_agents_evicts_in_fifo_order(self):
-        """Test that creating many agents evicts in FIFO order."""
+    def test_create_many_agents_evicts_in_lru_order(self):
+        """Test that creating many agents evicts in LRU order."""
         cache = AgentCache(max_size=5)
 
         with patch("pitlane_web.agent_manager.F1Agent") as mock_agent_class:
@@ -153,29 +153,36 @@ class TestAgentCacheLRUEviction:
             for sid in session_ids:
                 cache.get_or_create(sid)
 
-            # Only last 5 should remain
+            # Only last 5 should remain (sessions 5-9)
             assert cache.size() == 5
 
-            # Reset call count to test subsequent calls
             initial_call_count = mock_agent_class.call_count
             assert initial_call_count == 10  # 10 agents were created
 
-            # First 5 should be evicted - getting them should create new agents
-            for i in range(5):
-                cache.get_or_create(session_ids[i])
-
-            # Should have created 5 more agents (for the evicted sessions)
-            assert mock_agent_class.call_count == initial_call_count + 5
-
-            # Last 5 should still be cached - getting them should NOT create new agents
-            cache_size_before = cache.size()
+            # Access sessions 5-9 to mark them as recently used
             for i in range(5, 10):
                 cache.get_or_create(session_ids[i])
 
-            # Call count should not have increased (agents were cached)
+            # Call count should not increase (all were cached)
+            assert mock_agent_class.call_count == initial_call_count
+
+            # Now access sessions 0-4 (evicted) - should create new agents
+            # and evict sessions 5-9 since they're now the LRU entries
+            for i in range(5):
+                cache.get_or_create(session_ids[i])
+
+            # Should have created 5 more agents (for sessions 0-4)
             assert mock_agent_class.call_count == initial_call_count + 5
-            # Cache size should stay the same
-            assert cache.size() == cache_size_before
+
+            # Cache size should stay at 5
+            assert cache.size() == 5
+
+            # Sessions 0-4 should now be cached
+            for i in range(5):
+                cache.get_or_create(session_ids[i])
+
+            # Call count should not increase (all were cached)
+            assert mock_agent_class.call_count == initial_call_count + 5
 
     def test_cache_size_stays_at_limit_after_eviction(self):
         """Test that cache size stays at limit after eviction occurs."""

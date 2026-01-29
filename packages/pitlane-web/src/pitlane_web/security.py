@@ -65,6 +65,10 @@ def validate_file_path(file_path: Path, workspace_path: Path) -> bool:
         True if file is within workspace, False otherwise
     """
     try:
+        # Reject broken symlinks - check if it's a symlink and the target doesn't exist
+        if file_path.is_symlink() and not file_path.exists():
+            return False
+
         resolved_file = file_path.resolve()
         resolved_workspace = workspace_path.resolve()
 

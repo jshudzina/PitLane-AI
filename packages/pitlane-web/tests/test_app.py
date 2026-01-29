@@ -143,9 +143,10 @@ class TestChatRoute:
         mock_cache = MagicMock()
         mock_cache.get_or_create = MagicMock(return_value=mock_agent)
 
-        from pitlane_web import agent_manager
+        # Patch where _agent_cache is used, not where it's defined
+        from pitlane_web import app
 
-        monkeypatch.setattr(agent_manager, "_agent_cache", mock_cache)
+        monkeypatch.setattr(app, "_agent_cache", mock_cache)
 
         response = app_client.post("/api/chat", data={"question": "Test question"})
 
@@ -161,9 +162,10 @@ class TestChatRoute:
         mock_cache = MagicMock()
         mock_cache.get_or_create = MagicMock(return_value=mock_agent)
 
-        from pitlane_web import agent_manager
+        # Patch where _agent_cache is used, not where it's defined
+        from pitlane_web import app
 
-        monkeypatch.setattr(agent_manager, "_agent_cache", mock_cache)
+        monkeypatch.setattr(app, "_agent_cache", mock_cache)
 
         response = app_client.post("/api/chat", data={"question": "Test question"})
 
@@ -212,9 +214,10 @@ class TestServeChartRoute:
         self, app_client, test_session_id, sample_chart_file, monkeypatch
     ):
         """Test that PNG chart is served with correct media type."""
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", MagicMock(return_value=True))
+        # Patch where functions are used, not where they're defined
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_workspace_path",
+            "pitlane_web.app.get_workspace_path",
             MagicMock(return_value=sample_chart_file.parent.parent),
         )
 
@@ -231,8 +234,8 @@ class TestServeChartRoute:
         jpg_file = tmp_workspace / "charts" / "chart.jpg"
         jpg_file.write_bytes(b"fake jpg content")
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", MagicMock(return_value=True))
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.get_workspace_path", MagicMock(return_value=tmp_workspace))
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.get_workspace_path", MagicMock(return_value=tmp_workspace))
 
         response = app_client.get(
             f"/charts/{test_session_id}/chart.jpg", cookies={SESSION_COOKIE_NAME: test_session_id}
@@ -247,8 +250,8 @@ class TestServeChartRoute:
         svg_file = tmp_workspace / "charts" / "chart.svg"
         svg_file.write_text("<svg></svg>")
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", MagicMock(return_value=True))
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.get_workspace_path", MagicMock(return_value=tmp_workspace))
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.get_workspace_path", MagicMock(return_value=tmp_workspace))
 
         response = app_client.get(
             f"/charts/{test_session_id}/chart.svg", cookies={SESSION_COOKIE_NAME: test_session_id}
@@ -259,9 +262,9 @@ class TestServeChartRoute:
 
     def test_sets_cache_control_header(self, app_client, test_session_id, sample_chart_file, monkeypatch):
         """Test that Cache-Control header is set correctly."""
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_workspace_path",
+            "pitlane_web.app.get_workspace_path",
             MagicMock(return_value=sample_chart_file.parent.parent),
         )
 
@@ -275,9 +278,9 @@ class TestServeChartRoute:
 
     def test_includes_session_id_in_response_headers(self, app_client, test_session_id, sample_chart_file, monkeypatch):
         """Test that X-Session-ID header is included."""
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_workspace_path",
+            "pitlane_web.app.get_workspace_path",
             MagicMock(return_value=sample_chart_file.parent.parent),
         )
 
@@ -309,7 +312,7 @@ class TestServeChartRoute:
 
     def test_workspace_doesnt_exist_returns_404(self, app_client, test_session_id, monkeypatch):
         """Test that non-existent workspace returns 404."""
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", MagicMock(return_value=False))
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=False))
 
         response = app_client.get(
             f"/charts/{test_session_id}/chart.png", cookies={SESSION_COOKIE_NAME: test_session_id}
@@ -318,12 +321,14 @@ class TestServeChartRoute:
         assert response.status_code == 404
         assert "session not found" in response.json()["detail"].lower()
 
-    def test_unsafe_filename_returns_400(self, app_client, test_session_id, monkeypatch):
+    def test_unsafe_filename_returns_400(self, app_client, test_session_id, monkeypatch, tmp_workspace):
         """Test that unsafe filename (path traversal) returns 400."""
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.get_workspace_path", MagicMock(return_value=tmp_workspace))
 
+        # Test with filename containing .. (path traversal pattern)
         response = app_client.get(
-            f"/charts/{test_session_id}/../../../etc/passwd", cookies={SESSION_COOKIE_NAME: test_session_id}
+            f"/charts/{test_session_id}/..malicious.png", cookies={SESSION_COOKIE_NAME: test_session_id}
         )
 
         assert response.status_code == 400
@@ -331,8 +336,8 @@ class TestServeChartRoute:
 
     def test_file_doesnt_exist_returns_404(self, app_client, test_session_id, tmp_workspace, monkeypatch):
         """Test that non-existent file returns 404."""
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", MagicMock(return_value=True))
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.get_workspace_path", MagicMock(return_value=tmp_workspace))
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.get_workspace_path", MagicMock(return_value=tmp_workspace))
 
         response = app_client.get(
             f"/charts/{test_session_id}/nonexistent.png", cookies={SESSION_COOKIE_NAME: test_session_id}
@@ -347,8 +352,8 @@ class TestServeChartRoute:
         evil_file = tmp_workspace / "charts" / "evil.sh"
         evil_file.write_text("#!/bin/bash\necho 'evil'")
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", MagicMock(return_value=True))
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.get_workspace_path", MagicMock(return_value=tmp_workspace))
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.get_workspace_path", MagicMock(return_value=tmp_workspace))
 
         response = app_client.get(f"/charts/{test_session_id}/evil.sh", cookies={SESSION_COOKIE_NAME: test_session_id})
 
@@ -363,8 +368,8 @@ class TestServeChartRoute:
         png_file = tmp_workspace / "charts" / "chart.PNG"
         png_file.write_bytes(b"fake png content")
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", MagicMock(return_value=True))
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.get_workspace_path", MagicMock(return_value=tmp_workspace))
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.get_workspace_path", MagicMock(return_value=tmp_workspace))
 
         response = app_client.get(
             f"/charts/{test_session_id}/chart.PNG", cookies={SESSION_COOKIE_NAME: test_session_id}
@@ -378,8 +383,8 @@ class TestServeChartRoute:
         png_file = tmp_workspace / "charts" / "lap.times.2024.png"
         png_file.write_bytes(b"fake png content")
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", MagicMock(return_value=True))
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.get_workspace_path", MagicMock(return_value=tmp_workspace))
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.get_workspace_path", MagicMock(return_value=tmp_workspace))
 
         response = app_client.get(
             f"/charts/{test_session_id}/lap.times.2024.png", cookies={SESSION_COOKIE_NAME: test_session_id}
@@ -400,8 +405,8 @@ class TestServeChartRoute:
         symlink = tmp_workspace / "charts" / "innocent.png"
         symlink.symlink_to(outside_file)
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", MagicMock(return_value=True))
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.get_workspace_path", MagicMock(return_value=tmp_workspace))
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.get_workspace_path", MagicMock(return_value=tmp_workspace))
 
         response = app_client.get(
             f"/charts/{test_session_id}/innocent.png", cookies={SESSION_COOKIE_NAME: test_session_id}

@@ -94,15 +94,16 @@ def mock_workspace_functions(monkeypatch, test_session_id, tmp_workspace):
 def app_client(mock_workspace_functions, monkeypatch, mock_agent):
     """FastAPI TestClient for endpoint testing."""
     # Mock the agent cache to return our mock agent
+    # Patch both locations to ensure consistency across all tests
     from pitlane_web import agent_manager
+    from pitlane_web import app as web_app
 
     mock_cache = MagicMock()
     mock_cache.get_or_create = MagicMock(return_value=mock_agent)
     monkeypatch.setattr(agent_manager, "_agent_cache", mock_cache)
+    monkeypatch.setattr(web_app, "_agent_cache", mock_cache)
 
-    from pitlane_web.app import app
-
-    return TestClient(app)
+    return TestClient(web_app.app)
 
 
 @pytest.fixture
