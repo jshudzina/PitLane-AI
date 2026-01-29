@@ -10,36 +10,45 @@ from pitlane_agent.agent import CHARTS_DIR, PACKAGE_DIR, F1Agent
 class TestF1AgentInitialization:
     """Tests for F1Agent initialization."""
 
-    def test_init_default_charts_dir(self, tmp_path):
-        """Test initialization with default charts directory."""
-        with patch("pitlane_agent.agent.CHARTS_DIR", tmp_path / "default_charts"):
+    def test_init_default_workspace(self, tmp_path):
+        """Test initialization creates workspace with auto-generated session ID."""
+        with patch("pitlane_agent.agent.get_workspace_path", return_value=tmp_path / "workspace"):
             agent = F1Agent()
 
-            assert agent.charts_dir == tmp_path / "default_charts"
-            assert agent.charts_dir.exists()
+            assert agent.session_id is not None
+            assert agent.workspace_dir == tmp_path / "workspace"
+            assert agent.charts_dir == tmp_path / "workspace" / "charts"
 
-    def test_init_custom_charts_dir(self, tmp_path):
-        """Test initialization with custom charts directory."""
-        custom_dir = tmp_path / "custom_charts"
-        agent = F1Agent(charts_dir=custom_dir)
+    def test_init_custom_session_id(self, tmp_path):
+        """Test initialization with custom session ID."""
+        custom_session = "test-session-123"
+        with (
+            patch("pitlane_agent.agent.get_workspace_path", return_value=tmp_path / custom_session),
+            patch("pitlane_agent.agent.workspace_exists", return_value=False),
+            patch("pitlane_agent.agent.create_workspace"),
+        ):
+            agent = F1Agent(session_id=custom_session)
 
-        assert agent.charts_dir == custom_dir
-        assert agent.charts_dir.exists()
+            assert agent.session_id == custom_session
+            assert agent.workspace_dir == tmp_path / custom_session
 
-    def test_init_creates_charts_dir_if_missing(self, tmp_path):
-        """Test that charts directory is created if it doesn't exist."""
-        charts_dir = tmp_path / "new" / "nested" / "charts"
-        assert not charts_dir.exists()
+    def test_init_custom_workspace_dir(self, tmp_path):
+        """Test initialization with explicit workspace directory."""
+        workspace_dir = tmp_path / "custom_workspace"
+        workspace_dir.mkdir(parents=True)
 
-        agent = F1Agent(charts_dir=charts_dir)
+        agent = F1Agent(workspace_dir=workspace_dir)
 
-        assert agent.charts_dir == charts_dir
-        assert charts_dir.exists()
+        assert agent.workspace_dir == workspace_dir
+        assert agent.charts_dir == workspace_dir / "charts"
 
-    def test_init_uses_default_charts_dir_constant(self):
-        """Test that default uses CHARTS_DIR constant."""
-        agent = F1Agent()
-        assert agent.charts_dir == CHARTS_DIR
+    def test_charts_dir_property(self, tmp_path):
+        """Test that charts_dir property returns workspace/charts path."""
+        workspace_dir = tmp_path / "workspace"
+        workspace_dir.mkdir(parents=True)
+
+        agent = F1Agent(workspace_dir=workspace_dir)
+        assert agent.charts_dir == workspace_dir / "charts"
 
 
 class TestF1AgentChat:

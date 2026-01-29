@@ -26,8 +26,11 @@ def get_session_info(year: int, gp: str, session_type: str) -> dict:
     Returns:
         Dictionary with session metadata and driver info
     """
-    # Enable FastF1 cache for faster subsequent loads
-    fastf1.Cache.enable_cache("/tmp/fastf1_cache")
+    from pathlib import Path
+
+    # Enable FastF1 cache with shared directory
+    cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
+    fastf1.Cache.enable_cache(str(cache_dir))
 
     # Load the session
     session = fastf1.get_session(year, gp, session_type)

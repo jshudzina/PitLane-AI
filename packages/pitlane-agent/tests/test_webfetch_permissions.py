@@ -179,33 +179,66 @@ class TestCanUseToolOtherTools:
 
     @pytest.mark.asyncio
     async def test_bash_tool_allowed(self):
-        """Test that Bash tool is not restricted."""
+        """Test that Bash tool allows pitlane commands."""
+        result = await can_use_tool(
+            "Bash",
+            {"command": "pitlane workspace list"},
+            {},
+        )
+        assert isinstance(result, PermissionResultAllow)
+
+    @pytest.mark.asyncio
+    async def test_bash_tool_denied(self):
+        """Test that Bash tool denies non-pitlane commands."""
         result = await can_use_tool(
             "Bash",
             {"command": "ls -la"},
-            ToolPermissionContext(),
+            {},
         )
-        assert isinstance(result, PermissionResultAllow)
+        assert isinstance(result, PermissionResultDeny)
+        assert "pitlane" in result.message.lower()
 
     @pytest.mark.asyncio
     async def test_read_tool_allowed(self):
-        """Test that Read tool is not restricted."""
+        """Test that Read tool is allowed within workspace."""
         result = await can_use_tool(
             "Read",
-            {"file_path": "/some/file.txt"},
-            ToolPermissionContext(),
+            {"file_path": "/tmp/workspace/data/file.txt"},
+            {"workspace_dir": "/tmp/workspace"},
         )
         assert isinstance(result, PermissionResultAllow)
 
     @pytest.mark.asyncio
+    async def test_read_tool_denied(self):
+        """Test that Read tool is denied outside workspace."""
+        result = await can_use_tool(
+            "Read",
+            {"file_path": "/etc/passwd"},
+            {"workspace_dir": "/tmp/workspace"},
+        )
+        assert isinstance(result, PermissionResultDeny)
+        assert "workspace" in result.message.lower()
+
+    @pytest.mark.asyncio
     async def test_write_tool_allowed(self):
-        """Test that Write tool is not restricted."""
+        """Test that Write tool is allowed within workspace."""
         result = await can_use_tool(
             "Write",
-            {"file_path": "/some/file.txt", "content": "data"},
-            ToolPermissionContext(),
+            {"file_path": "/tmp/workspace/data/file.txt", "content": "data"},
+            {"workspace_dir": "/tmp/workspace"},
         )
         assert isinstance(result, PermissionResultAllow)
+
+    @pytest.mark.asyncio
+    async def test_write_tool_denied(self):
+        """Test that Write tool is denied outside workspace."""
+        result = await can_use_tool(
+            "Write",
+            {"file_path": "/etc/hosts", "content": "data"},
+            {"workspace_dir": "/tmp/workspace"},
+        )
+        assert isinstance(result, PermissionResultDeny)
+        assert "workspace" in result.message.lower()
 
     @pytest.mark.asyncio
     async def test_skill_tool_allowed(self):

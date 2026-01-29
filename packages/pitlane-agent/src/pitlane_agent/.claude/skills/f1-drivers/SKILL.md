@@ -1,12 +1,12 @@
 ---
 name: f1-drivers
 description: Get information about F1 drivers including driver codes, names, nationalities, and Wikipedia links. Use when user asks about driver details, driver codes, or who drove in a specific season.
-allowed-tools: Bash(python:*), Read
+allowed-tools: Bash(pitlane *), Read
 ---
 
 # F1 Driver Information
 
-You have access to F1 driver information via FastF1's Ergast API. Answer questions about F1 drivers past and present with accurate reference data.
+You have access to F1 driver information via the workspace-based PitLane CLI which uses FastF1's Ergast API. Answer questions about F1 drivers past and present with accurate reference data.
 
 ## When to Use This Skill
 
@@ -19,7 +19,32 @@ Use this skill when users ask about:
 
 **Complementary with f1-analyst**: This skill provides driver reference data. Use f1-analyst for performance analysis (lap times, race results).
 
-## Step 1: Identify Query Parameters
+## Step 1: Create or Get Workspace Session ID
+
+**IMPORTANT**: Before running any fetch commands, you need a workspace session ID.
+
+### If this is a new conversation:
+Create a new workspace and capture the session ID from the output:
+
+```bash
+pitlane workspace create
+```
+
+This returns JSON like:
+```json
+{
+  "session_id": "abc-123-def",
+  "workspace_path": "/Users/user/.pitlane/workspaces/abc-123-def",
+  "created_at": "2024-01-27T10:30:00Z"
+}
+```
+
+**Extract the `session_id` from this output - you'll use it in all subsequent commands.**
+
+### If continuing an existing conversation:
+Use the same session ID you created earlier in this conversation.
+
+## Step 2: Identify Query Parameters
 
 Extract from the user's question:
 - **Driver Code**: 3-letter abbreviation (e.g., "VER", "HAM", "LEC")
@@ -27,33 +52,37 @@ Extract from the user's question:
 - **Limit**: Number of results (default: 100)
 - **Offset**: Pagination offset (default: 0)
 
-## Step 2: Get Driver Data Using Script
+## Step 3: Get Driver Data Using PitLane CLI
+
+All commands require a `--session-id` parameter which is provided by the F1Agent managing your workspace.
 
 ### Search by Driver Code
 ```bash
-python -m pitlane_agent.scripts.driver_info --driver-code VER
+pitlane fetch driver-info --session-id SESSION_ID --driver-code VER
 ```
-Returns information for Max Verstappen.
+Returns information for Max Verstappen and saves to workspace.
 
 ### Get All Drivers from a Season
 ```bash
-python -m pitlane_agent.scripts.driver_info --season 2024
+pitlane fetch driver-info --session-id SESSION_ID --season 2024
 ```
 Returns all drivers who participated in the 2024 season (~20 drivers).
 
 ### Get All F1 Drivers in History
 ```bash
-python -m pitlane_agent.scripts.driver_info --limit 50
+pitlane fetch driver-info --session-id SESSION_ID --limit 50
 ```
 Returns up to 50 drivers from F1 history (1950-present).
 
 ### Pagination for Large Results
 ```bash
-python -m pitlane_agent.scripts.driver_info --limit 100 --offset 100
+pitlane fetch driver-info --session-id SESSION_ID --limit 100 --offset 100
 ```
 Gets drivers 101-200 from the complete dataset.
 
-## Step 3: Format Your Response
+After fetching, data is saved to the workspace at `{workspace}/data/drivers.json` which you can read using the Read tool.
+
+## Step 4: Format Your Response
 
 ### For Single Driver Queries
 ```markdown

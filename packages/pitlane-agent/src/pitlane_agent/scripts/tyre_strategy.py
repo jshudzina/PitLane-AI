@@ -9,11 +9,8 @@ Usage:
         --output /tmp/pitlane_charts/tyre_strategy.png
 """
 
-import json
-import sys
 from pathlib import Path
 
-import click
 import fastf1
 import fastf1.plotting
 import matplotlib.pyplot as plt
@@ -55,7 +52,7 @@ def generate_tyre_strategy_chart(
     year: int,
     gp: str,
     session_type: str,
-    output_path: str,
+    workspace_dir: Path,
 ) -> dict:
     """Generate a tyre strategy visualization.
 
@@ -63,13 +60,17 @@ def generate_tyre_strategy_chart(
         year: Season year
         gp: Grand Prix name
         session_type: Session identifier (typically 'R' for race)
-        output_path: Path to save the chart image
+        workspace_dir: Workspace directory for outputs and cache
 
     Returns:
         Dictionary with chart metadata and strategy info
     """
-    # Enable FastF1 cache
-    fastf1.Cache.enable_cache("/tmp/fastf1_cache")
+    # Determine paths from workspace
+    output_path = workspace_dir / "charts" / "tyre_strategy.png"
+    cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
+
+    # Enable FastF1 cache with shared directory
+    fastf1.Cache.enable_cache(str(cache_dir))
 
     # Load session with laps data
     session = fastf1.get_session(year, gp, session_type)
@@ -177,16 +178,16 @@ def generate_tyre_strategy_chart(
     )
 
     # Ensure output directory exists
-    output_dir = Path(output_path).parent
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Save figure
     fig.tight_layout()
-    fig.savefig(output_path, dpi=150, facecolor=fig.get_facecolor(), edgecolor="none")
+    fig.savefig(str(output_path), dpi=150, facecolor=fig.get_facecolor(), edgecolor="none")
     plt.close(fig)
 
     return {
-        "output_path": str(output_path),
+        "chart_path": str(output_path),
+        "workspace": str(workspace_dir),
         "event_name": session.event["EventName"],
         "session_name": session.name,
         "year": year,
@@ -197,30 +198,5 @@ def generate_tyre_strategy_chart(
     }
 
 
-@click.command()
-@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
-@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco, Silverstone)")
-@click.option("--session", type=str, default="R", help="Session type (default: R for Race)")
-@click.option(
-    "--output",
-    type=click.Path(),
-    default="/tmp/pitlane_charts/tyre_strategy.png",
-    help="Output path for the chart image",
-)
-def cli(year, gp, session, output):
-    """Generate tyre strategy visualization for a race."""
-    try:
-        result = generate_tyre_strategy_chart(
-            year=year,
-            gp=gp,
-            session_type=session,
-            output_path=output,
-        )
-        click.echo(json.dumps(result, indent=2))
-    except Exception as e:
-        click.echo(json.dumps({"error": str(e)}), err=True)
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    cli()
+# CLI interface removed - use pitlane analyze tyre-strategy instead
+# This module now only provides the generate_tyre_strategy_chart function

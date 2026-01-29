@@ -7,10 +7,11 @@ import pytest
 
 @pytest.fixture
 def tmp_output_dir(tmp_path):
-    """Provide a temporary directory for chart output."""
-    output_dir = tmp_path / "charts"
-    output_dir.mkdir()
-    return output_dir
+    """Provide a temporary workspace directory.
+
+    The workspace will have data/ and charts/ subdirectories created by functions.
+    """
+    return tmp_path
 
 
 @pytest.fixture

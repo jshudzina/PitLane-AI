@@ -101,6 +101,6 @@
         <strong>Q:</strong> {{ question }}
     </div>
     <div class="message-content">
-        {{ content | markdown | safe }}
+        {{ content | rewrite_paths(session_id) | markdown | safe }}
     </div>
 </article>
