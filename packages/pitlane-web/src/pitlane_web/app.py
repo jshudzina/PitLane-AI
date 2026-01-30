@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import Cookie, FastAPI, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pitlane_agent.scripts.workspace import get_workspace_path, workspace_exists
 
@@ -47,6 +48,10 @@ templates = Jinja2Templates(directory=templates_dir)
 
 # Register Jinja2 filters
 register_filters(templates)
+
+# Mount static files
+static_dir = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # ============================================================================
 # Routes
