@@ -9,6 +9,7 @@ Usage:
         --output /tmp/pitlane_charts/tyre_strategy.png
 """
 
+import re
 from pathlib import Path
 
 import fastf1
@@ -25,6 +26,36 @@ COMPOUND_COLORS = {
     "WET": "#0067AD",
     "UNKNOWN": "#888888",
 }
+
+
+def sanitize_filename(text: str) -> str:
+    """Sanitize text for use in filenames.
+
+    Converts text to lowercase and replaces spaces and special characters
+    with underscores to create filesystem-safe filenames.
+
+    Args:
+        text: Input text (e.g., GP name like "Abu Dhabi" or "São Paulo")
+
+    Returns:
+        Sanitized string safe for filenames (e.g., "abu_dhabi", "s_o_paulo")
+
+    Examples:
+        >>> sanitize_filename("Monaco")
+        'monaco'
+        >>> sanitize_filename("Abu Dhabi")
+        'abu_dhabi'
+        >>> sanitize_filename("Emilia-Romagna")
+        'emilia_romagna'
+    """
+    # Convert to lowercase
+    text = text.lower()
+    # Replace any non-word characters (not letters, digits, underscore) with underscore
+    text = re.sub(r"[^\w]+", "_", text)
+    # Collapse multiple consecutive underscores into one
+    text = re.sub(r"_+", "_", text)
+    # Remove leading/trailing underscores
+    return text.strip("_")
 
 
 def setup_plot_style():
@@ -66,7 +97,9 @@ def generate_tyre_strategy_chart(
         Dictionary with chart metadata and strategy info
     """
     # Determine paths from workspace
-    output_path = workspace_dir / "charts" / "tyre_strategy.png"
+    gp_sanitized = sanitize_filename(gp)
+    filename = f"tyre_strategy_{year}_{gp_sanitized}_{session_type}.png"
+    output_path = workspace_dir / "charts" / filename
     cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
 
     # Enable FastF1 cache with shared directory

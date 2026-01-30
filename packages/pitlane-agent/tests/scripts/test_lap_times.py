@@ -3,7 +3,11 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pitlane_agent.scripts.lap_times import generate_lap_times_chart, setup_plot_style
+from pitlane_agent.scripts.lap_times import (
+    generate_lap_times_chart,
+    sanitize_filename,
+    setup_plot_style,
+)
 
 
 class TestLapTimesBusinessLogic:
@@ -54,7 +58,7 @@ class TestLapTimesBusinessLogic:
         assert result["year"] == 2024
         assert result["event_name"] == "Monaco Grand Prix"
         assert "statistics" in result
-        assert result["chart_path"] == str(tmp_output_dir / "charts" / "lap_times.png")
+        assert result["chart_path"] == str(tmp_output_dir / "charts" / "lap_times_2024_monaco_Q_HAM_VER.png")
         assert result["workspace"] == str(tmp_output_dir)
         assert len(result["drivers_plotted"]) <= 2
 
@@ -77,3 +81,31 @@ class TestLapTimesBusinessLogic:
                 drivers=["VER"],
                 workspace_dir=tmp_output_dir,
             )
+
+
+class TestSanitizeFilename:
+    """Unit tests for filename sanitization."""
+
+    def test_sanitize_simple_name(self):
+        """Test sanitization of simple name."""
+        assert sanitize_filename("Monaco") == "monaco"
+
+    def test_sanitize_name_with_spaces(self):
+        """Test sanitization of name with spaces."""
+        assert sanitize_filename("Abu Dhabi") == "abu_dhabi"
+
+    def test_sanitize_name_with_hyphens(self):
+        """Test sanitization of name with hyphens."""
+        assert sanitize_filename("Emilia-Romagna") == "emilia_romagna"
+
+    def test_sanitize_name_with_special_chars(self):
+        """Test sanitization of name with special characters."""
+        assert sanitize_filename("São Paulo") == "são_paulo"
+
+    def test_sanitize_multiple_spaces(self):
+        """Test sanitization of name with multiple consecutive spaces."""
+        assert sanitize_filename("Great  Britain") == "great_britain"
+
+    def test_sanitize_leading_trailing_spaces(self):
+        """Test sanitization removes leading/trailing underscores."""
+        assert sanitize_filename(" Monaco ") == "monaco"
