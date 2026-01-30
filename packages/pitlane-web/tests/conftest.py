@@ -2,7 +2,7 @@
 
 import json
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -42,10 +42,11 @@ def tmp_workspace(tmp_path, test_session_id):
     (workspace / "data").mkdir()
 
     # Create metadata file
+    now = datetime.now(UTC)
     metadata = {
         "session_id": test_session_id,
-        "created_at": datetime.utcnow().isoformat() + "Z",
-        "last_accessed": datetime.utcnow().isoformat() + "Z",
+        "created_at": now.isoformat() + "Z",
+        "last_accessed": now.isoformat() + "Z",
     }
 
     with open(workspace / ".metadata.json", "w") as f:
