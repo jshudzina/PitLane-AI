@@ -16,6 +16,8 @@ import fastf1
 import fastf1.plotting
 import matplotlib.pyplot as plt
 
+from pitlane_agent.utils import sanitize_filename
+
 
 def setup_plot_style():
     """Configure matplotlib for F1-style dark theme."""
@@ -58,7 +60,11 @@ def generate_lap_times_chart(
         Dictionary with chart metadata and statistics
     """
     # Determine paths from workspace
-    output_path = workspace_dir / "charts" / "lap_times.png"
+    gp_sanitized = sanitize_filename(gp)
+    # Handle long driver lists to prevent excessive filename lengths
+    drivers_str = f"{len(drivers)}drivers" if len(drivers) > 5 else "_".join(sorted(drivers))
+    filename = f"lap_times_{year}_{gp_sanitized}_{session_type}_{drivers_str}.png"
+    output_path = workspace_dir / "charts" / filename
     cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
 
     # Enable FastF1 cache with shared directory

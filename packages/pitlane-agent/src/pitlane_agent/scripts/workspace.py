@@ -7,7 +7,7 @@ workspace directories used by the F1Agent.
 import json
 import shutil
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 
@@ -98,11 +98,13 @@ def create_workspace(session_id: str | None = None, description: str | None = No
     cache_dir = get_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
+    now = datetime.now(UTC)
+
     # Write metadata
     metadata = {
         "session_id": session_id,
-        "created_at": datetime.utcnow().isoformat() + "Z",
-        "last_accessed": datetime.utcnow().isoformat() + "Z",
+        "created_at": now.isoformat() + "Z",
+        "last_accessed": now.isoformat() + "Z",
     }
 
     if description:
@@ -136,16 +138,17 @@ def update_workspace_metadata(session_id: str) -> None:
 
     if not metadata_path.exists():
         # Metadata missing, recreate it
+        now = datetime.now(UTC)
         metadata = {
             "session_id": session_id,
-            "created_at": datetime.utcnow().isoformat() + "Z",
-            "last_accessed": datetime.utcnow().isoformat() + "Z",
+            "created_at": now.isoformat() + "Z",
+            "last_accessed": now.isoformat() + "Z",
         }
     else:
         with open(metadata_path) as f:
             metadata = json.load(f)
 
-        metadata["last_accessed"] = datetime.utcnow().isoformat() + "Z"
+        metadata["last_accessed"] = datetime.now(UTC).isoformat() + "Z"
 
     with open(metadata_path, "w") as f:
         json.dump(metadata, f, indent=2)
@@ -296,8 +299,8 @@ def clean_workspaces(older_than_days: int | None = None, remove_all: bool = Fals
         if not should_remove and older_than_days is not None:
             try:
                 info = get_workspace_info(session_id)
-                last_accessed = datetime.fromisoformat(info["last_accessed"].rstrip("Z"))
-                age = datetime.utcnow() - last_accessed
+                last_accessed = datetime.fromisoformat(info["last_accessed"].rstrip("Z")).replace(tzinfo=UTC)
+                age = datetime.now(UTC) - last_accessed
 
                 if age > timedelta(days=older_than_days):
                     should_remove = True

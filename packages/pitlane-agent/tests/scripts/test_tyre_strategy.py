@@ -7,6 +7,7 @@ from pitlane_agent.scripts.tyre_strategy import (
     generate_tyre_strategy_chart,
     setup_plot_style,
 )
+from pitlane_agent.utils import sanitize_filename
 
 
 class TestTyreStrategyBusinessLogic:
@@ -53,7 +54,7 @@ class TestTyreStrategyBusinessLogic:
         assert result["event_name"] == "Monaco Grand Prix"
         assert result["session_name"] == "Qualifying"
         assert "strategies" in result
-        assert result["chart_path"] == str(tmp_output_dir / "charts" / "tyre_strategy.png")
+        assert result["chart_path"] == str(tmp_output_dir / "charts" / "tyre_strategy_2024_monaco_R.png")
         assert result["workspace"] == str(tmp_output_dir)
 
         # Verify FastF1 was called correctly
@@ -69,3 +70,31 @@ class TestTyreStrategyBusinessLogic:
         # Expect exception to be raised
         with pytest.raises(Exception, match="Session not found"):
             generate_tyre_strategy_chart(year=2024, gp="InvalidGP", session_type="R", workspace_dir=tmp_output_dir)
+
+
+class TestSanitizeFilename:
+    """Unit tests for filename sanitization."""
+
+    def test_sanitize_simple_name(self):
+        """Test sanitization of simple name."""
+        assert sanitize_filename("Monaco") == "monaco"
+
+    def test_sanitize_name_with_spaces(self):
+        """Test sanitization of name with spaces."""
+        assert sanitize_filename("Abu Dhabi") == "abu_dhabi"
+
+    def test_sanitize_name_with_hyphens(self):
+        """Test sanitization of name with hyphens."""
+        assert sanitize_filename("Emilia-Romagna") == "emilia_romagna"
+
+    def test_sanitize_name_with_special_chars(self):
+        """Test sanitization of name with special characters."""
+        assert sanitize_filename("São Paulo") == "são_paulo"
+
+    def test_sanitize_multiple_spaces(self):
+        """Test sanitization of name with multiple consecutive spaces."""
+        assert sanitize_filename("Great  Britain") == "great_britain"
+
+    def test_sanitize_leading_trailing_spaces(self):
+        """Test sanitization removes leading/trailing underscores."""
+        assert sanitize_filename(" Monaco ") == "monaco"

@@ -16,6 +16,8 @@ import fastf1.plotting
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from pitlane_agent.utils import sanitize_filename
+
 # Tyre compound colors (F1 2024 style)
 COMPOUND_COLORS = {
     "SOFT": "#FF3333",
@@ -66,7 +68,9 @@ def generate_tyre_strategy_chart(
         Dictionary with chart metadata and strategy info
     """
     # Determine paths from workspace
-    output_path = workspace_dir / "charts" / "tyre_strategy.png"
+    gp_sanitized = sanitize_filename(gp)
+    filename = f"tyre_strategy_{year}_{gp_sanitized}_{session_type}.png"
+    output_path = workspace_dir / "charts" / filename
     cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
 
     # Enable FastF1 cache with shared directory
