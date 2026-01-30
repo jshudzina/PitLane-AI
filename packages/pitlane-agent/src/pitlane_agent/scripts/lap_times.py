@@ -10,42 +10,13 @@ Usage:
         --output /tmp/charts/lap_times.png
 """
 
-import re
 from pathlib import Path
 
 import fastf1
 import fastf1.plotting
 import matplotlib.pyplot as plt
 
-
-def sanitize_filename(text: str) -> str:
-    """Sanitize text for use in filenames.
-
-    Converts text to lowercase and replaces spaces and special characters
-    with underscores to create filesystem-safe filenames.
-
-    Args:
-        text: Input text (e.g., GP name like "Abu Dhabi" or "São Paulo")
-
-    Returns:
-        Sanitized string safe for filenames (e.g., "abu_dhabi", "s_o_paulo")
-
-    Examples:
-        >>> sanitize_filename("Monaco")
-        'monaco'
-        >>> sanitize_filename("Abu Dhabi")
-        'abu_dhabi'
-        >>> sanitize_filename("Emilia-Romagna")
-        'emilia_romagna'
-    """
-    # Convert to lowercase
-    text = text.lower()
-    # Replace any non-word characters (not letters, digits, underscore) with underscore
-    text = re.sub(r"[^\w]+", "_", text)
-    # Collapse multiple consecutive underscores into one
-    text = re.sub(r"_+", "_", text)
-    # Remove leading/trailing underscores
-    return text.strip("_")
+from pitlane_agent.utils import sanitize_filename
 
 
 def setup_plot_style():
@@ -90,7 +61,8 @@ def generate_lap_times_chart(
     """
     # Determine paths from workspace
     gp_sanitized = sanitize_filename(gp)
-    drivers_str = "_".join(sorted(drivers))  # Sort for consistency
+    # Handle long driver lists to prevent excessive filename lengths
+    drivers_str = f"{len(drivers)}drivers" if len(drivers) > 5 else "_".join(sorted(drivers))
     filename = f"lap_times_{year}_{gp_sanitized}_{session_type}_{drivers_str}.png"
     output_path = workspace_dir / "charts" / filename
     cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"

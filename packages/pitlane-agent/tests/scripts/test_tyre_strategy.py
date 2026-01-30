@@ -5,9 +5,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pitlane_agent.scripts.tyre_strategy import (
     generate_tyre_strategy_chart,
-    sanitize_filename,
     setup_plot_style,
 )
+from pitlane_agent.utils import sanitize_filename
 
 
 class TestTyreStrategyBusinessLogic:

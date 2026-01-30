@@ -5,9 +5,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pitlane_agent.scripts.lap_times import (
     generate_lap_times_chart,
-    sanitize_filename,
     setup_plot_style,
 )
+from pitlane_agent.utils import sanitize_filename
 
 
 class TestLapTimesBusinessLogic:
@@ -81,6 +81,46 @@ class TestLapTimesBusinessLogic:
                 drivers=["VER"],
                 workspace_dir=tmp_output_dir,
             )
+
+    @patch("pitlane_agent.scripts.lap_times.plt")
+    @patch("pitlane_agent.scripts.lap_times.fastf1")
+    def test_generate_lap_times_chart_many_drivers(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
+        """Test chart generation with many drivers uses shortened filename."""
+        # Setup mocks
+        mock_fastf1.get_session.return_value = mock_fastf1_session
+
+        # Mock driver laps
+        import pandas as pd
+
+        mock_laps = pd.DataFrame(
+            [
+                {"LapNumber": 1, "LapTime": pd.Timedelta(seconds=90)},
+                {"LapNumber": 2, "LapTime": pd.Timedelta(seconds=89)},
+            ]
+        )
+        mock_fastf1_session.laps.pick_driver.return_value.pick_quicklaps.return_value = mock_laps
+
+        # Mock pyplot
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+        mock_ax.get_ylim.return_value = (85, 95)
+
+        # Mock driver color
+        mock_fastf1.plotting.get_driver_color.return_value = "#0600EF"
+
+        # Call function with 6 drivers (more than 5)
+        drivers = ["VER", "HAM", "LEC", "NOR", "PIA", "SAI"]
+        result = generate_lap_times_chart(
+            year=2024,
+            gp="Monaco",
+            session_type="Q",
+            drivers=drivers,
+            workspace_dir=tmp_output_dir,
+        )
+
+        # Assertions - filename should use count instead of listing all drivers
+        assert result["chart_path"] == str(tmp_output_dir / "charts" / "lap_times_2024_monaco_Q_6drivers.png")
 
 
 class TestSanitizeFilename:
