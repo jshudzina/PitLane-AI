@@ -81,8 +81,17 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
 
-      - name: Run tests with coverage
-        run: uv run pytest --cov --cov-report=xml --cov-report=term
+      - name: Run tests for pitlane-agent
+        run: |
+          cd packages/pitlane-agent
+          uv run pytest --cov --cov-report=xml --cov-report=term
+          cd ../..
+
+      - name: Run tests for pitlane-web
+        run: |
+          cd packages/pitlane-web
+          uv run pytest --cov --cov-report=xml --cov-report=term
+          cd ../..
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v5
