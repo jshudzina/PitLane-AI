@@ -53,25 +53,12 @@ jobs:
         run: |
           python scripts/bump_version.py ${{ steps.parse-version.outputs.version }}
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install git-cliff
         run: |
-          # Install git-cliff with SHA256 verification
-          VERSION="2.7.0"
-          TARBALL="git-cliff-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
-
-          # Download binary and checksum
-          cd /tmp
-          wget -q "https://github.com/orhun/git-cliff/releases/download/v${VERSION}/${TARBALL}"
-          wget -q "https://github.com/orhun/git-cliff/releases/download/v${VERSION}/git-cliff-${VERSION}-checksums.txt"
-
-          # Verify SHA256 checksum
-          sha256sum --ignore-missing -c "git-cliff-${VERSION}-checksums.txt"
-
-          # Extract and install
-          tar xzf "${TARBALL}"
-          sudo mv "git-cliff-${VERSION}/git-cliff" /usr/local/bin/
-
-          # Verify installation
+          cargo install git-cliff
           git-cliff --version
 
       - name: Generate changelog
