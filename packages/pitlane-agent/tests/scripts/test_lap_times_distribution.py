@@ -76,6 +76,7 @@ class TestLapTimesDistributionBusinessLogic:
             assert "best_time" in stat
             assert "best_time_formatted" in stat
             assert "median_time" in stat
+            assert "std_dev" in stat
             assert "lap_count" in stat
             assert "compounds_used" in stat
 
@@ -289,6 +290,65 @@ class TestLapTimesDistributionBusinessLogic:
 
         # Verify despine was called
         mock_sns.despine.assert_called_once()
+
+    @patch("pitlane_agent.scripts.lap_times_distribution.sns")
+    @patch("pitlane_agent.scripts.lap_times_distribution.plt")
+    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    def test_generate_distribution_chart_with_excluded_drivers(
+        self, mock_fastf1, mock_plt, mock_sns, tmp_output_dir, mock_fastf1_session
+    ):
+        """Test that drivers with no quick laps are excluded with warning."""
+        # Setup mocks
+        mock_fastf1.get_session.return_value = mock_fastf1_session
+
+        # Mock driver laps - only VER has laps, HAM has none
+        import pandas as pd
+
+        mock_laps = pd.DataFrame(
+            [
+                {"Driver": "VER", "LapNumber": 1, "LapTime": pd.Timedelta(seconds=85.5), "Compound": "SOFT"},
+                {"Driver": "VER", "LapNumber": 2, "LapTime": pd.Timedelta(seconds=85.2), "Compound": "MEDIUM"},
+            ]
+        )
+        mock_fastf1_session.laps.pick_drivers.return_value.pick_quicklaps.return_value = mock_laps
+
+        # Mock pyplot
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+
+        # Mock color mappings
+        mock_fastf1.plotting.get_driver_color_mapping.return_value = {"VER": "#0600EF"}
+        mock_fastf1.plotting.get_compound_mapping.return_value = {
+            "SOFT": "#FF0000",
+            "MEDIUM": "#FFFF00",
+            "HARD": "#FFFFFF",
+        }
+
+        # Call function with two drivers, but only VER has laps
+        result = generate_lap_times_distribution_chart(
+            year=2024,
+            gp="Monaco",
+            session_type="Q",
+            drivers=["VER", "HAM"],
+            workspace_dir=tmp_output_dir,
+        )
+
+        # Assertions - HAM should be excluded
+        assert len(result["drivers_plotted"]) == 1
+        assert "VER" in result["drivers_plotted"]
+        assert "HAM" not in result["drivers_plotted"]
+
+        # Verify warning metadata
+        assert "excluded_drivers" in result
+        assert "HAM" in result["excluded_drivers"]
+        assert "warning" in result
+        assert "HAM" in result["warning"]
+        assert "no quick laps" in result["warning"]
+
+        # Verify only VER has statistics
+        assert len(result["statistics"]) == 1
+        assert result["statistics"][0]["driver"] == "VER"
 
 
 class TestSanitizeFilename:

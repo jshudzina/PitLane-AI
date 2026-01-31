@@ -16,7 +16,7 @@ import fastf1
 import fastf1.plotting
 import matplotlib.pyplot as plt
 
-from pitlane_agent.utils import sanitize_filename
+from pitlane_agent.utils import get_fastf1_cache_dir, sanitize_filename
 
 
 def setup_plot_style():
@@ -65,10 +65,9 @@ def generate_lap_times_chart(
     drivers_str = f"{len(drivers)}drivers" if len(drivers) > 5 else "_".join(sorted(drivers))
     filename = f"lap_times_{year}_{gp_sanitized}_{session_type}_{drivers_str}.png"
     output_path = workspace_dir / "charts" / filename
-    cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
 
     # Enable FastF1 cache with shared directory
-    fastf1.Cache.enable_cache(str(cache_dir))
+    fastf1.Cache.enable_cache(str(get_fastf1_cache_dir()))
 
     # Load session with laps data
     session = fastf1.get_session(year, gp, session_type)

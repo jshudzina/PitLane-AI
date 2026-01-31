@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from pitlane_agent.scripts.lap_times import setup_plot_style
-from pitlane_agent.utils import sanitize_filename
+from pitlane_agent.utils import get_fastf1_cache_dir, sanitize_filename
 
 
 def generate_lap_times_distribution_chart(
@@ -52,10 +52,9 @@ def generate_lap_times_distribution_chart(
 
     filename = f"lap_times_distribution_{year}_{gp_sanitized}_{session_type}_{drivers_str}.png"
     output_path = workspace_dir / "charts" / filename
-    cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
 
     # Enable FastF1 cache with shared directory
-    fastf1.Cache.enable_cache(str(cache_dir))
+    fastf1.Cache.enable_cache(str(get_fastf1_cache_dir()))
 
     # Load session with laps data
     session = fastf1.get_session(year, gp, session_type)
@@ -78,10 +77,14 @@ def generate_lap_times_distribution_chart(
     driver_laps = driver_laps.reset_index()
 
     # Get finishing order for proper ordering in plot
+    # Track drivers with no quick laps for warning
     finishing_order = []
+    excluded_drivers = []
     for driver_abbr in selected_drivers:
         if driver_abbr in driver_laps["Driver"].values:
             finishing_order.append(driver_abbr)
+        else:
+            excluded_drivers.append(driver_abbr)
 
     # Setup plotting
     setup_plot_style()
@@ -149,6 +152,7 @@ def generate_lap_times_distribution_chart(
                 "best_time": float(lap_times_sec.min()),
                 "best_time_formatted": str(driver_data["LapTime"].min())[10:18],
                 "median_time": float(lap_times_sec.median()),
+                "std_dev": float(lap_times_sec.std()),
                 "lap_count": len(driver_data),
                 "compounds_used": compounds_used,
             }
@@ -162,7 +166,7 @@ def generate_lap_times_distribution_chart(
     fig.savefig(str(output_path), dpi=150, facecolor=fig.get_facecolor(), edgecolor="none")
     plt.close(fig)
 
-    return {
+    result = {
         "chart_path": str(output_path),
         "workspace": str(workspace_dir),
         "event_name": session.event["EventName"],
@@ -171,3 +175,10 @@ def generate_lap_times_distribution_chart(
         "drivers_plotted": finishing_order,
         "statistics": stats,
     }
+
+    # Add warning if any drivers were excluded due to no quick laps
+    if excluded_drivers:
+        result["excluded_drivers"] = excluded_drivers
+        result["warning"] = f"Drivers excluded (no quick laps): {', '.join(excluded_drivers)}"
+
+    return result
