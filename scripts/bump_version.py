@@ -9,9 +9,13 @@ This script updates the version number in all 5 locations:
 4. /packages/pitlane-agent/src/pitlane_agent/__init__.py
 5. /packages/pitlane-web/src/pitlane_web/__init__.py
 
+Supports full semantic versioning including pre-release and build metadata.
+
 Usage:
     python scripts/bump_version.py 0.2.0
-    python scripts/bump_version.py v0.2.0  # 'v' prefix is automatically stripped
+    python scripts/bump_version.py v0.2.0        # 'v' prefix is automatically stripped
+    python scripts/bump_version.py 0.2.0-beta    # Pre-release version
+    python scripts/bump_version.py 0.2.0-rc.1    # Release candidate
 """
 
 import re
@@ -23,8 +27,14 @@ def validate_version(version: str) -> str:
     """
     Validate and normalize semantic version format.
 
+    Supports full semantic versioning including pre-release and build metadata:
+    - 0.2.0
+    - 0.2.0-beta
+    - 0.2.0-beta.1
+    - 0.2.0-rc.1+build.123
+
     Args:
-        version: Version string (e.g., "0.2.0" or "v0.2.0")
+        version: Version string (e.g., "0.2.0", "v0.2.0-beta", "0.2.0-rc.1")
 
     Returns:
         Normalized version string without 'v' prefix
@@ -35,11 +45,14 @@ def validate_version(version: str) -> str:
     # Strip 'v' prefix if present
     normalized = version.lstrip("v")
 
-    # Validate semantic version format (X.Y.Z)
-    pattern = r"^\d+\.\d+\.\d+$"
+    # Validate semantic version format (X.Y.Z[-prerelease][+build])
+    # Based on https://semver.org/
+    pattern = r"^\d+\.\d+\.\d+(-[\w\.-]+)?(\+[\w\.-]+)?$"
     if not re.match(pattern, normalized):
         raise ValueError(
-            f"Invalid version format: {version}. " f"Expected semantic version format: X.Y.Z (e.g., 0.2.0)"
+            f"Invalid version format: {version}. "
+            f"Expected semantic version format: X.Y.Z[-prerelease][+build] "
+            f"(e.g., 0.2.0, 0.2.0-beta, 0.2.0-rc.1)"
         )
 
     return normalized
