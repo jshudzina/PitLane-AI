@@ -55,11 +55,28 @@ jobs:
 
       - name: Install git-cliff
         run: |
-          curl -LsSf https://github.com/orhun/git-cliff/releases/latest/download/git-cliff-installer.sh | sh
+          # Install git-cliff with SHA256 verification
+          VERSION="2.7.0"
+          TARBALL="git-cliff-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+
+          # Download binary and checksum
+          cd /tmp
+          wget -q "https://github.com/orhun/git-cliff/releases/download/v${VERSION}/${TARBALL}"
+          wget -q "https://github.com/orhun/git-cliff/releases/download/v${VERSION}/git-cliff-${VERSION}-checksums.txt"
+
+          # Verify SHA256 checksum
+          sha256sum --ignore-missing -c "git-cliff-${VERSION}-checksums.txt"
+
+          # Extract and install
+          tar xzf "${TARBALL}"
+          sudo mv "git-cliff-${VERSION}/git-cliff" /usr/local/bin/
+
+          # Verify installation
+          git-cliff --version
 
       - name: Generate changelog
         run: |
-          git cliff --tag v${{ steps.parse-version.outputs.version }} -o CHANGELOG.md
+          git-cliff --config .github/cliff.toml --tag v${{ steps.parse-version.outputs.version }} -o CHANGELOG.md
           echo "Generated CHANGELOG.md:"
           cat CHANGELOG.md
 
