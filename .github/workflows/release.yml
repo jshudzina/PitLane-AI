@@ -1,0 +1,159 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.2.0 or v0.2.0)'
+        required: true
+        type: string
+      publish_to_pypi:
+        description: 'Publish to PyPI'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write  # Required for pushing version bump commits
+
+jobs:
+  version-bump:
+    name: Bump Version and Update Changelog
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.parse-version.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for changelog generation
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Parse version from tag or input
+        id: parse-version
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          # Strip 'v' prefix if present
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Parsed version: $VERSION"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bump version in all files
+        run: |
+          python scripts/bump_version.py ${{ steps.parse-version.outputs.version }}
+
+      - name: Install git-cliff
+        run: |
+          curl -LsSf https://github.com/orhun/git-cliff/releases/latest/download/git-cliff-installer.sh | sh
+
+      - name: Generate changelog
+        run: |
+          git cliff --tag v${{ steps.parse-version.outputs.version }} -o CHANGELOG.md
+          echo "Generated CHANGELOG.md:"
+          cat CHANGELOG.md
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml \
+                  packages/*/pyproject.toml \
+                  packages/*/src/*/__init__.py \
+                  CHANGELOG.md
+          git commit -m "chore: bump version to ${{ steps.parse-version.outputs.version }}"
+          git push origin main
+
+  build:
+    name: Build Packages
+    runs-on: ubuntu-latest
+    needs: version-bump
+
+    steps:
+      - name: Checkout updated code
+        uses: actions/checkout@v4
+        with:
+          ref: main  # Get the version-bumped code
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.26"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Build all packages
+        run: |
+          echo "Building all packages..."
+          uv build --all-packages
+          echo "Build complete. Contents of dist/:"
+          ls -lh dist/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 90
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [version-bump, build]
+    if: |
+      (github.event_name == 'release' && vars.AUTO_PUBLISH_PYPI == 'true') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_pypi == 'true')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pitlane-ai
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.26"
+
+      - name: Publish to PyPI
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          echo "Publishing packages to PyPI..."
+          uv publish --token $UV_PUBLISH_TOKEN
+          echo "Successfully published to PyPI"
+
+  upload-to-release:
+    name: Upload Artifacts to Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'release'
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          fail_on_unmatched_files: true
