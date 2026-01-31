@@ -141,7 +141,7 @@ class TestChatRoute:
         mock_agent.chat_full = AsyncMock(return_value="   ")  # Empty/whitespace response
 
         mock_cache = MagicMock()
-        mock_cache.get_or_create = MagicMock(return_value=mock_agent)
+        mock_cache.get_or_create = AsyncMock(return_value=mock_agent)
 
         # Patch where _agent_cache is used, not where it's defined
         from pitlane_web import app
@@ -160,7 +160,7 @@ class TestChatRoute:
         mock_agent.chat_full = AsyncMock(side_effect=Exception("Agent error"))
 
         mock_cache = MagicMock()
-        mock_cache.get_or_create = MagicMock(return_value=mock_agent)
+        mock_cache.get_or_create = AsyncMock(return_value=mock_agent)
 
         # Patch where _agent_cache is used, not where it's defined
         from pitlane_web import app

@@ -100,7 +100,7 @@ def app_client(mock_workspace_functions, monkeypatch, mock_agent):
     from pitlane_web import app as web_app
 
     mock_cache = MagicMock()
-    mock_cache.get_or_create = MagicMock(return_value=mock_agent)
+    mock_cache.get_or_create = AsyncMock(return_value=mock_agent)
     monkeypatch.setattr(agent_manager, "_agent_cache", mock_cache)
     monkeypatch.setattr(web_app, "_agent_cache", mock_cache)
 

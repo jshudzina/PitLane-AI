@@ -52,8 +52,11 @@ If pitlane_web is not found run  `uv sync --reinstall-package pitlane-web --rein
 Enable OpenTelemetry tracing to observe agent behavior in the web app:
 
 ```bash
+# Local development (sets secure cookie flag to false for HTTP)
+PITLANE_ENV=development uv run --directory packages/pitlane-web uvicorn pitlane_web.app:app --reload
+
 # Enable tracing to see tool calls, permission checks, and decision flows
-PITLANE_TRACING_ENABLED=1 uv run --directory packages/pitlane-web uvicorn pitlane_web.app:app --reload
+PITLANE_ENV=development PITLANE_TRACING_ENABLED=1 uv run --directory packages/pitlane-web uvicorn pitlane_web.app:app --reload
 
 # Use batch processor for production workloads
 PITLANE_TRACING_ENABLED=1 PITLANE_SPAN_PROCESSOR=batch uv run --directory packages/pitlane-web uvicorn pitlane_web.app:app --reload
