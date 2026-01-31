@@ -183,7 +183,7 @@ class TestLapTimesDistributionBusinessLogic:
         mock_plt.subplots.return_value = (mock_fig, mock_ax)
 
         # Mock color mappings
-        mock_fastf1.plotting.get_driver_color_mapping.return_value = {d: "#000000" for d in drivers}
+        mock_fastf1.plotting.get_driver_color_mapping.return_value = dict.fromkeys(drivers, "#000000")
         mock_fastf1.plotting.get_compound_mapping.return_value = {
             "SOFT": "#FF0000",
             "MEDIUM": "#FFFF00",
