@@ -6,7 +6,11 @@ from claude_agent_sdk.types import (
     PermissionResultDeny,
     ToolPermissionContext,
 )
-from pitlane_agent.tool_permissions import ALLOWED_WEBFETCH_DOMAINS, can_use_tool
+from pitlane_agent.tool_permissions import (
+    ALLOWED_WEBFETCH_DOMAINS,
+    _is_allowed_bash_command,
+    can_use_tool,
+)
 
 
 class TestCanUseToolWebFetchAllowed:
@@ -360,3 +364,75 @@ class TestPermissionDenialLogging:
         assert isinstance(result, PermissionResultAllow)
         # No warning logs for allowed domains
         assert len([r for r in caplog.records if r.levelname == "WARNING"]) == 0
+
+
+class TestBashEnvironmentVariableValidation:
+    """Tests for environment variable validation in Bash commands."""
+
+    def test_bash_allowed_env_vars_pitlane_session_id(self):
+        """Test that PITLANE_SESSION_ID is allowed."""
+        assert _is_allowed_bash_command("PITLANE_SESSION_ID=abc123 pitlane analyze")
+
+    def test_bash_allowed_env_vars_pitlane_cache_dir(self):
+        """Test that PITLANE_CACHE_DIR is allowed."""
+        assert _is_allowed_bash_command("PITLANE_CACHE_DIR=/tmp pitlane drivers")
+
+    def test_bash_allowed_env_vars_pitlane_tracing(self):
+        """Test that PITLANE_TRACING_ENABLED is allowed."""
+        assert _is_allowed_bash_command("PITLANE_TRACING_ENABLED=1 pitlane lap-times")
+
+    def test_bash_allowed_env_vars_pitlane_span_processor(self):
+        """Test that PITLANE_SPAN_PROCESSOR is allowed."""
+        assert _is_allowed_bash_command("PITLANE_SPAN_PROCESSOR=batch pitlane schedule")
+
+    def test_bash_multiple_allowed_env_vars(self):
+        """Test that multiple whitelisted env vars are allowed."""
+        assert _is_allowed_bash_command("PITLANE_SESSION_ID=abc PITLANE_CACHE_DIR=/tmp pitlane analyze")
+
+    def test_bash_blocked_env_var_pythonpath(self):
+        """Test that PYTHONPATH is blocked."""
+        assert not _is_allowed_bash_command("PYTHONPATH=/evil pitlane analyze")
+
+    def test_bash_blocked_env_var_ld_preload(self):
+        """Test that LD_PRELOAD is blocked."""
+        assert not _is_allowed_bash_command("LD_PRELOAD=/malicious.so pitlane drivers")
+
+    def test_bash_blocked_env_var_path(self):
+        """Test that PATH is blocked."""
+        assert not _is_allowed_bash_command("PATH=/tmp pitlane lap-times")
+
+    def test_bash_blocked_env_var_home(self):
+        """Test that HOME is blocked."""
+        assert not _is_allowed_bash_command("HOME=/tmp pitlane analyze")
+
+    def test_bash_blocked_env_var_ld_library_path(self):
+        """Test that LD_LIBRARY_PATH is blocked."""
+        assert not _is_allowed_bash_command("LD_LIBRARY_PATH=/evil pitlane schedule")
+
+    def test_bash_mixed_allowed_and_blocked_env_vars(self):
+        """Test commands with both allowed and blocked env vars are rejected."""
+        assert not _is_allowed_bash_command("PITLANE_SESSION_ID=abc PYTHONPATH=/evil pitlane analyze")
+
+    def test_bash_mixed_blocked_and_allowed_env_vars(self):
+        """Test commands with blocked vars first are rejected."""
+        assert not _is_allowed_bash_command("PYTHONPATH=/evil PITLANE_SESSION_ID=abc pitlane analyze")
+
+    def test_bash_no_env_vars(self):
+        """Test that commands without env vars still work."""
+        assert _is_allowed_bash_command("pitlane analyze")
+
+    def test_bash_only_env_vars_no_command(self):
+        """Test that only env vars without a command is rejected."""
+        assert not _is_allowed_bash_command("PITLANE_SESSION_ID=abc")
+
+    def test_bash_env_var_with_non_pitlane_command(self):
+        """Test that allowed env vars with non-pitlane command are rejected."""
+        assert not _is_allowed_bash_command("PITLANE_SESSION_ID=abc ls -la")
+
+    def test_bash_empty_command(self):
+        """Test that empty command is rejected."""
+        assert not _is_allowed_bash_command("")
+
+    def test_bash_whitespace_only(self):
+        """Test that whitespace-only command is rejected."""
+        assert not _is_allowed_bash_command("   ")

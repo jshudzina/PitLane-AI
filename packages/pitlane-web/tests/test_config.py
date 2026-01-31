@@ -28,7 +28,18 @@ class TestSessionConfig:
         assert config.SESSION_MAX_AGE == 3600
 
     def test_session_cookie_secure_default(self, monkeypatch):
-        """Test session cookie secure flag defaults to False."""
+        """Test session cookie secure flag defaults to True in production."""
+        monkeypatch.delenv("PITLANE_HTTPS_ENABLED", raising=False)
+        monkeypatch.delenv("PITLANE_ENV", raising=False)
+        import importlib
+
+        importlib.reload(config)
+        # Default environment is production, so secure should be True
+        assert config.SESSION_COOKIE_SECURE is True
+
+    def test_session_cookie_secure_development(self, monkeypatch):
+        """Test session cookie secure flag is False in development."""
+        monkeypatch.setenv("PITLANE_ENV", "development")
         monkeypatch.delenv("PITLANE_HTTPS_ENABLED", raising=False)
         import importlib
 

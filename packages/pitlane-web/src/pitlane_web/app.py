@@ -8,9 +8,16 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pitlane_agent.scripts.workspace import get_workspace_path, workspace_exists
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from .agent_manager import _agent_cache
 from .config import (
+    RATE_LIMIT_CHART,
+    RATE_LIMIT_CHAT,
+    RATE_LIMIT_ENABLED,
+    RATE_LIMIT_SESSION_CREATE,
     SESSION_COOKIE_HTTPONLY,
     SESSION_COOKIE_NAME,
     SESSION_COOKIE_SAMESITE,
@@ -43,6 +50,15 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="PitLane AI", description="F1 data analysis powered by AI")
 
+# Rate limiting setup
+limiter = Limiter(
+    key_func=get_remote_address,
+    enabled=RATE_LIMIT_ENABLED,
+    storage_uri="memory://",
+)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 templates_dir = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=templates_dir)
 
@@ -59,6 +75,7 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 @app.get("/", response_class=HTMLResponse)
+@limiter.limit(RATE_LIMIT_SESSION_CREATE)
 async def index(
     request: Request,
     session: str | None = Cookie(None, alias=SESSION_COOKIE_NAME),
@@ -104,6 +121,7 @@ async def health():
 
 
 @app.post("/api/chat", response_class=HTMLResponse)
+@limiter.limit(RATE_LIMIT_CHAT)
 async def chat(
     request: Request,
     question: str = Form(...),
@@ -130,7 +148,7 @@ async def chat(
 
     try:
         # Get or create agent for this session
-        agent = _agent_cache.get_or_create(session_id)
+        agent = await _agent_cache.get_or_create(session_id)
 
         # Process question
         response_text = await agent.chat_full(question)
@@ -165,7 +183,9 @@ async def chat(
 
 
 @app.get("/charts/{session_id}/{filename}")
+@limiter.limit(RATE_LIMIT_CHART)
 async def serve_chart(
+    request: Request,
     session_id: str,
     filename: str,
     current_session: str | None = Cookie(None, alias=SESSION_COOKIE_NAME),
@@ -223,16 +243,16 @@ async def serve_chart(
         logger.error(f"Error resolving chart path: {e}")
         raise HTTPException(status_code=404, detail="File not found") from None
 
-    # 6. Check file exists and is a file
-    if not chart_path.exists() or not chart_path.is_file():
-        logger.warning(f"Chart not found: {chart_path}")
-        raise HTTPException(status_code=404, detail="Chart not found")
-
-    # 7. Validate file type (only images)
+    # 6. Validate file type (only images)
     allowed_extensions = {".png", ".jpg", ".jpeg", ".svg", ".webp"}
     if chart_path.suffix.lower() not in allowed_extensions:
         logger.warning(f"Invalid file type requested: {chart_path.suffix}")
         raise HTTPException(status_code=400, detail="Invalid file type")
+
+    # 7. Check file exists
+    if not chart_path.exists():
+        logger.warning(f"Chart file not found: {chart_path}")
+        raise HTTPException(status_code=404, detail="Chart not found")
 
     # 8. Determine media type
     media_type_map = {

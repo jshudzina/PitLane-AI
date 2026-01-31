@@ -1,6 +1,8 @@
 """Session management functions for PitLane AI web application."""
 
 import logging
+from threading import Lock
+from time import time
 
 from fastapi import Response
 from pitlane_agent.scripts.workspace import (
@@ -19,6 +21,88 @@ from .config import (
 from .security import is_valid_session_id
 
 logger = logging.getLogger(__name__)
+
+
+class WorkspaceExistenceCache:
+    """Thread-safe TTL cache for workspace existence checks.
+
+    Caches workspace_exists() results to reduce filesystem I/O on repeated
+    session validation requests (e.g., chart serving).
+    """
+
+    def __init__(self, ttl: int = 60):
+        """Initialize the cache.
+
+        Args:
+            ttl: Time-to-live in seconds for cache entries (default: 60)
+        """
+        self._cache: dict[str, tuple[bool, float]] = {}
+        self._lock = Lock()
+        self._ttl = ttl
+
+    def get(self, session_id: str) -> bool | None:
+        """Get cached workspace existence result if still valid.
+
+        Args:
+            session_id: Session ID to check
+
+        Returns:
+            Cached result (True/False) if valid, None if expired or not cached
+        """
+        with self._lock:
+            if session_id in self._cache:
+                result, timestamp = self._cache[session_id]
+                if time() - timestamp < self._ttl:
+                    return result
+                # Expired, remove from cache
+                del self._cache[session_id]
+        return None
+
+    def set(self, session_id: str, exists: bool) -> None:
+        """Cache workspace existence result.
+
+        Args:
+            session_id: Session ID
+            exists: Whether workspace exists
+        """
+        with self._lock:
+            self._cache[session_id] = (exists, time())
+
+    def invalidate(self, session_id: str) -> None:
+        """Invalidate cached entry for session.
+
+        Args:
+            session_id: Session ID to invalidate
+        """
+        with self._lock:
+            self._cache.pop(session_id, None)
+
+    def clear(self) -> None:
+        """Clear all cached entries."""
+        with self._lock:
+            self._cache.clear()
+
+
+# Global cache instance
+_workspace_cache = WorkspaceExistenceCache(ttl=60)
+
+
+def workspace_exists_cached(session_id: str) -> bool:
+    """Check workspace existence with caching.
+
+    Args:
+        session_id: Session ID to check
+
+    Returns:
+        True if workspace exists, False otherwise
+    """
+    cached = _workspace_cache.get(session_id)
+    if cached is not None:
+        return cached
+
+    exists = workspace_exists(session_id)
+    _workspace_cache.set(session_id, exists)
+    return exists
 
 
 def validate_session_safely(session: str | None) -> tuple[bool, str | None]:
@@ -40,7 +124,8 @@ def validate_session_safely(session: str | None) -> tuple[bool, str | None]:
 
     # Always check workspace existence (even if format invalid, to maintain constant timing)
     # This prevents attackers from using timing to determine if a UUID exists
-    exists = workspace_exists(session) if is_valid_format else False
+    # Use cached version for better performance
+    exists = workspace_exists_cached(session) if is_valid_format else False
 
     # Return result
     is_valid = is_valid_format and exists

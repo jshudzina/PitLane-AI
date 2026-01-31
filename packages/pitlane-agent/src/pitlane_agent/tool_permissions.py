@@ -24,9 +24,22 @@ ALLOWED_WEBFETCH_DOMAINS = {
     "www.formula1.com",
 }
 
+# Allowed environment variables for Bash commands
+# Only these environment variables can be set when running pitlane CLI commands
+ALLOWED_ENV_VARS = {
+    "PITLANE_SESSION_ID",
+    "PITLANE_CACHE_DIR",
+    "PITLANE_TRACING_ENABLED",
+    "PITLANE_SPAN_PROCESSOR",
+}
+
 
 def _is_allowed_bash_command(command: str) -> bool:
     """Check if Bash command is allowed (pitlane CLI only).
+
+    Validates that:
+    1. Only whitelisted environment variables are used
+    2. The command starts with "pitlane "
 
     Args:
         command: The bash command to validate.
@@ -38,17 +51,26 @@ def _is_allowed_bash_command(command: str) -> bool:
         return False
 
     cmd = command.strip()
-
-    # Remove environment variable assignments
-    # e.g., "FOO=bar BAR=baz pitlane ..." -> "pitlane ..."
     parts = cmd.split()
+
+    # Extract and validate environment variables
+    env_vars = []
     for i, part in enumerate(parts):
         if "=" not in part:
+            # Found the actual command (not an env var assignment)
             cmd = " ".join(parts[i:])
             break
+        # Extract env var name before '='
+        env_var = part.split("=")[0]
+        env_vars.append(env_var)
     else:
-        # All parts have "=" (only env vars, no command)
+        # All parts are env vars, no command
         return False
+
+    # Check if any env var is not in whitelist
+    for env_var in env_vars:
+        if env_var not in ALLOWED_ENV_VARS:
+            return False
 
     return cmd.startswith("pitlane ")
 

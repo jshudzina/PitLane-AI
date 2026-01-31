@@ -5,8 +5,11 @@ workspace directories used by the F1Agent.
 """
 
 import json
+import os
 import shutil
+import tempfile
 import uuid
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -63,12 +66,15 @@ def workspace_exists(session_id: str) -> bool:
     return workspace_path.exists() and workspace_path.is_dir()
 
 
-def create_workspace(session_id: str | None = None, description: str | None = None) -> dict:
+def create_workspace(session_id: str | None = None, description: str | None = None, max_retries: int = 3) -> dict:
     """Create a new workspace directory structure.
+
+    Implements collision retry logic for auto-generated session IDs.
 
     Args:
         session_id: Session identifier. Auto-generated if None.
         description: Optional description for the workspace.
+        max_retries: Maximum retry attempts for UUID collision (default: 3).
 
     Returns:
         Dictionary with workspace information:
@@ -80,13 +86,33 @@ def create_workspace(session_id: str | None = None, description: str | None = No
 
     Raises:
         ValueError: If workspace already exists for the given session_id.
+        RuntimeError: If failed to generate unique session ID after max_retries.
     """
-    if session_id is None:
+    if session_id is not None:
+        # Explicit session_id provided - no retry logic
+        if workspace_exists(session_id):
+            raise ValueError(f"Workspace already exists for session ID: {session_id}")
+        return _create_workspace_internal(session_id, description)
+
+    # Auto-generate session ID with collision retry
+    for _attempt in range(max_retries):
         session_id = generate_session_id()
+        if not workspace_exists(session_id):
+            return _create_workspace_internal(session_id, description)
 
-    if workspace_exists(session_id):
-        raise ValueError(f"Workspace already exists for session ID: {session_id}")
+    raise RuntimeError(f"Failed to generate unique session ID after {max_retries} attempts")
 
+
+def _create_workspace_internal(session_id: str, description: str | None) -> dict:
+    """Internal workspace creation logic.
+
+    Args:
+        session_id: The session identifier.
+        description: Optional description for the workspace.
+
+    Returns:
+        Dictionary with workspace information.
+    """
     workspace_path = get_workspace_path(session_id)
 
     # Create directory structure
@@ -136,6 +162,7 @@ def update_workspace_metadata(session_id: str) -> None:
     workspace_path = get_workspace_path(session_id)
     metadata_path = workspace_path / ".metadata.json"
 
+    # Read existing metadata or create new
     if not metadata_path.exists():
         # Metadata missing, recreate it
         now = datetime.now(UTC)
@@ -150,8 +177,21 @@ def update_workspace_metadata(session_id: str) -> None:
 
         metadata["last_accessed"] = datetime.now(UTC).isoformat() + "Z"
 
-    with open(metadata_path, "w") as f:
-        json.dump(metadata, f, indent=2)
+    # Atomic write using tempfile + rename
+    # Create temp file in same directory to ensure same filesystem
+    fd, temp_path = tempfile.mkstemp(dir=workspace_path, prefix=".metadata.tmp.", suffix=".json")
+
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(metadata, f, indent=2)
+
+        # Atomic rename (POSIX guarantee)
+        os.replace(temp_path, metadata_path)
+    except Exception:
+        # Clean up temp file on error
+        with suppress(Exception):
+            os.unlink(temp_path)
+        raise
 
 
 def get_workspace_info(session_id: str) -> dict:
