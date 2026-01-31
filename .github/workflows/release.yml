@@ -15,7 +15,8 @@ on:
         default: false
 
 permissions:
-  contents: write  # Required for pushing version bump commits
+  contents: write  # Required for creating branches and commits
+  pull-requests: write  # Required for creating PRs
 
 jobs:
   version-bump:
@@ -67,16 +68,22 @@ jobs:
           echo "Generated CHANGELOG.md:"
           cat CHANGELOG.md
 
-      - name: Commit and push changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pyproject.toml \
-                  packages/*/pyproject.toml \
-                  packages/*/src/*/__init__.py \
-                  CHANGELOG.md
-          git commit -m "chore: bump version to ${{ steps.parse-version.outputs.version }}"
-          git push origin main
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore: bump version to ${{ steps.parse-version.outputs.version }}"
+          branch: release/v${{ steps.parse-version.outputs.version }}
+          delete-branch: true
+          title: "chore: release v${{ steps.parse-version.outputs.version }}"
+          body: |
+            Automated version bump to v${{ steps.parse-version.outputs.version }} and changelog update.
+
+            ## Changes
+            - Bump version to ${{ steps.parse-version.outputs.version }} in all package files
+            - Update CHANGELOG.md
+
+            This PR was automatically created by the release workflow.
+          labels: release,automated
 
   build:
     name: Build Packages
@@ -87,7 +94,7 @@ jobs:
       - name: Checkout updated code
         uses: actions/checkout@v4
         with:
-          ref: main  # Get the version-bumped code
+          ref: release/v${{ needs.version-bump.outputs.version }}  # Get the version-bumped code from PR branch
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
