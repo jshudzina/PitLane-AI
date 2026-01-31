@@ -10,6 +10,7 @@ import sys
 import click
 
 from pitlane_agent.scripts.lap_times import generate_lap_times_chart
+from pitlane_agent.scripts.lap_times_distribution import generate_lap_times_distribution_chart
 from pitlane_agent.scripts.tyre_strategy import generate_tyre_strategy_chart
 from pitlane_agent.scripts.workspace import get_workspace_path, workspace_exists
 
@@ -55,6 +56,57 @@ def lap_times(session_id: str, year: int, gp: str, session: str, drivers: tuple[
             gp=gp,
             session_type=session,
             drivers=list(drivers),
+            workspace_dir=workspace_path,
+        )
+
+        # Add session info to result
+        result["session_id"] = session_id
+
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@analyze.command("lap-times-distribution")
+@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
+@click.option(
+    "--session",
+    type=str,
+    required=True,
+    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
+)
+@click.option(
+    "--drivers",
+    multiple=True,
+    required=False,
+    help="Driver abbreviations (optional; defaults to top 10 finishers)",
+)
+def lap_times_distribution(session_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
+    """Generate lap times distribution chart showing statistical spread."""
+    # Verify workspace exists
+    if not workspace_exists(session_id):
+        click.echo(
+            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(session_id)
+
+    try:
+        # Convert empty drivers tuple to None for default behavior
+        drivers_list = list(drivers) if drivers else None
+
+        # Generate chart
+        result = generate_lap_times_distribution_chart(
+            year=year,
+            gp=gp,
+            session_type=session,
+            drivers=drivers_list,
             workspace_dir=workspace_path,
         )
 
