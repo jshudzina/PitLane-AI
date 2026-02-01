@@ -1,6 +1,6 @@
 [project]
 name = "pitlane-agent"
-version = "0.1.0"
+version = "0.1.1.dev0"
 description = "AI agent for F1 data analysis using Claude Agent SDK and FastF1"
 requires-python = ">=3.11,<3.14"
 license = { text = "Apache-2.0" }
