@@ -2,7 +2,21 @@
 name = "pitlane-web"
 version = "0.1.0"
 description = "Web interface for PitLane AI"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "John Hudzina" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+]
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
@@ -12,6 +26,11 @@ dependencies = [
     "pitlane-agent",
     "slowapi>=0.1.9",
 ]
+
+[project.urls]
+Homepage = "https://github.com/johnhudzina/PitLane-AI"
+Repository = "https://github.com/johnhudzina/PitLane-AI"
+Issues = "https://github.com/johnhudzina/PitLane-AI/issues"
 
 [tool.uv.sources]
 pitlane-agent = { workspace = true }
