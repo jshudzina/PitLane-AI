@@ -1,6 +1,6 @@
 [project]
 name = "pitlane-ai"
-version = "0.1.0"
+version = "0.1.1.dev0"
 description = "F1 data analysis powered by AI agents"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
