@@ -2,7 +2,21 @@
 name = "pitlane-agent"
 version = "0.1.0"
 description = "AI agent for F1 data analysis using Claude Agent SDK and FastF1"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "John Hudzina" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+]
 dependencies = [
     "claude-agent-sdk",
     "click>=8.1.0",
@@ -16,6 +30,11 @@ dependencies = [
 
 [project.scripts]
 pitlane = "pitlane_agent.cli:pitlane"
+
+[project.urls]
+Homepage = "https://github.com/johnhudzina/PitLane-AI"
+Repository = "https://github.com/johnhudzina/PitLane-AI"
+Issues = "https://github.com/johnhudzina/PitLane-AI/issues"
 
 [build-system]
 requires = ["hatchling"]
