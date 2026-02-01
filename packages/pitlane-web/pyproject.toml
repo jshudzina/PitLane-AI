@@ -27,6 +27,9 @@ dependencies = [
     "slowapi>=0.1.9",
 ]
 
+[project.scripts]
+pitlane-web = "pitlane_web.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/johnhudzina/PitLane-AI"
 Repository = "https://github.com/johnhudzina/PitLane-AI"
