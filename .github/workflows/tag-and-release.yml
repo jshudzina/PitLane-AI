@@ -1,0 +1,132 @@
+name: Tag and Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to tag and release (e.g., 0.2.0 or v0.2.0)'
+        required: true
+        type: string
+      publish_to_pypi:
+        description: 'Publish to PyPI'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write  # Required for creating tags and releases
+  pull-requests: read
+
+jobs:
+  tag-and-release:
+    name: Tag and Build Release
+    runs-on: ubuntu-latest
+    # Only run if PR was merged and has the release label, or if manually triggered
+    if: |
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'release')) ||
+      github.event_name == 'workflow_dispatch'
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from PR or input
+        id: extract-version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Extract version from branch name (e.g., release/v0.2.0 -> 0.2.0)
+            BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+            VERSION="${BRANCH_NAME#release/v}"
+            VERSION="${VERSION#release/}"
+          fi
+          # Strip 'v' prefix if present
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Create and push tag
+        run: |
+          VERSION="v${{ steps.extract-version.outputs.version }}"
+          echo "Creating tag: $VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+          echo "✅ Tag $VERSION created and pushed"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.26"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Build all packages
+        run: |
+          echo "Building all packages..."
+          uv build --all-packages
+          echo "Build complete. Contents of dist/:"
+          ls -lh dist/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ steps.extract-version.outputs.version }}
+          path: dist/
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.extract-version.outputs.version }}
+          name: Release v${{ steps.extract-version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: dist/*
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: tag-and-release
+    if: |
+      (github.event_name == 'pull_request' && vars.AUTO_PUBLISH_PYPI == 'true') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_pypi == 'true')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pitlane-ai
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-${{ needs.tag-and-release.outputs.version }}
+          path: dist/
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.26"
+
+      - name: Publish to PyPI
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          echo "Publishing packages to PyPI..."
+          uv publish --token $UV_PUBLISH_TOKEN
+          echo "✅ Successfully published to PyPI"

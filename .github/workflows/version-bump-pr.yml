@@ -1,0 +1,88 @@
+name: Create Version Bump PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.2.0 or v0.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write  # Required for creating branches and commits
+  pull-requests: write  # Required for creating PRs
+
+jobs:
+  create-version-bump-pr:
+    name: Create Version Bump PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for changelog generation
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Parse version
+        id: parse-version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          # Strip 'v' prefix if present
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Parsed version: $VERSION"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bump version in all files
+        run: |
+          python scripts/bump_version.py ${{ steps.parse-version.outputs.version }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install git-cliff
+        run: |
+          cargo install git-cliff
+          git-cliff --version
+
+      - name: Generate changelog
+        run: |
+          git-cliff --config .github/cliff.toml --tag v${{ steps.parse-version.outputs.version }} -o CHANGELOG.md
+          echo "Generated CHANGELOG.md:"
+          cat CHANGELOG.md
+
+      - name: Create Pull Request
+        id: create-pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore: bump version to ${{ steps.parse-version.outputs.version }}"
+          branch: release/v${{ steps.parse-version.outputs.version }}
+          delete-branch: true
+          title: "chore: release v${{ steps.parse-version.outputs.version }}"
+          body: |
+            Automated version bump to v${{ steps.parse-version.outputs.version }} and changelog update.
+
+            ## Changes
+            - Bump version to ${{ steps.parse-version.outputs.version }} in all package files
+            - Update CHANGELOG.md
+
+            **Next Steps:**
+            1. Review and approve this PR
+            2. Merge to main
+            3. The tag-and-release workflow will automatically tag and build the release
+
+            This PR was automatically created by the version-bump-pr workflow.
+          labels: release,automated
+
+      - name: PR Created
+        if: steps.create-pr.outputs.pull-request-number
+        run: |
+          echo "✅ Pull request #${{ steps.create-pr.outputs.pull-request-number }} created successfully"
+          echo "🔗 PR URL: ${{ steps.create-pr.outputs.pull-request-url }}"
+          echo ""
+          echo "Please review and merge the PR to trigger the tag-and-release workflow."
