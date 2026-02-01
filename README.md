@@ -45,7 +45,7 @@ uv run ruff format .
 uv run --directory packages/pitlane-web uvicorn pitlane_web.app:app --reload
 ```
 
-If pitlane_web is not found run  `uv sync --reinstall-package pitlane-web --reinstall-package pitlane-agent` and retry
+> If pitlane_web is not found run  `uv sync --all-packages --reinstall` and retry
 
 ### Tracing
 

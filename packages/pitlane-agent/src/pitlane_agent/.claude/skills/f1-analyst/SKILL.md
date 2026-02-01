@@ -61,7 +61,7 @@ Based on the user's question, read the appropriate reference file for detailed i
 - "Show me gear shifts around Monaco"
 - "Where do drivers brake hardest?"
 
-**Status:** Not yet implemented. **Read:** [references/telemetry.md](references/telemetry.md) for details.
+**Read:** [references/telemetry.md](references/telemetry.md)
 
 ## Session Information
 

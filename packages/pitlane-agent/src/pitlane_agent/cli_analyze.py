@@ -11,6 +11,7 @@ import click
 
 from pitlane_agent.scripts.lap_times import generate_lap_times_chart
 from pitlane_agent.scripts.lap_times_distribution import generate_lap_times_distribution_chart
+from pitlane_agent.scripts.speed_trace import generate_speed_trace_chart
 from pitlane_agent.scripts.tyre_strategy import generate_tyre_strategy_chart
 from pitlane_agent.scripts.workspace import get_workspace_path, workspace_exists
 
@@ -143,6 +144,69 @@ def tyre_strategy(session_id: str, year: int, gp: str, session: str):
             year=year,
             gp=gp,
             session_type=session,
+            workspace_dir=workspace_path,
+        )
+
+        # Add session info to result
+        result["session_id"] = session_id
+
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@analyze.command("speed-trace")
+@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
+@click.option(
+    "--session",
+    type=str,
+    required=True,
+    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
+)
+@click.option(
+    "--drivers",
+    multiple=True,
+    required=True,
+    help="Driver abbreviations to compare (2-5 drivers: --drivers VER --drivers HAM)",
+)
+def speed_trace(session_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
+    """Generate speed trace comparison for fastest laps of specified drivers."""
+    # Verify workspace exists
+    if not workspace_exists(session_id):
+        click.echo(
+            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    # Validate driver count (2-5 drivers)
+    if len(drivers) < 2:
+        click.echo(
+            json.dumps({"error": "Speed trace requires at least 2 drivers for comparison"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    if len(drivers) > 5:
+        click.echo(
+            json.dumps({"error": "Speed trace supports maximum 5 drivers for readability"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(session_id)
+
+    try:
+        # Generate chart
+        result = generate_speed_trace_chart(
+            year=year,
+            gp=gp,
+            session_type=session,
+            drivers=list(drivers),
             workspace_dir=workspace_path,
         )
 
