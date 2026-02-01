@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11,<3.14"
 license = { text = "Apache-2.0" }
 authors = [
-    { name = "John Hudzina" },
+    { name = "John Hudzina" , email="pitlaneagent@gmail.com" },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -24,9 +24,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/johnhudzina/PitLane-AI"
-Repository = "https://github.com/johnhudzina/PitLane-AI"
-Issues = "https://github.com/johnhudzina/PitLane-AI/issues"
+Homepage = "https://github.com/jshudzina/PitLane-AI"
+Repository = "https://github.com/jshudzina/PitLane-AI"
+Issues = "https://github.com/jshudzina/PitLane-AI/issues"
 
 [tool.uv]
 config-settings = { editable_mode = "compat" }
