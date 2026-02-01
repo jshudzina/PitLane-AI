@@ -9,13 +9,16 @@ This script updates the version number in all 5 locations:
 4. /packages/pitlane-agent/src/pitlane_agent/__init__.py
 5. /packages/pitlane-web/src/pitlane_web/__init__.py
 
-Supports full semantic versioning including pre-release and build metadata.
+Supports PEP 440 versioning including pre-release and local versions.
 
 Usage:
-    python scripts/bump_version.py 0.2.0
+    python scripts/bump_version.py 0.2.0         # Release version
     python scripts/bump_version.py v0.2.0        # 'v' prefix is automatically stripped
-    python scripts/bump_version.py 0.2.0-beta    # Pre-release version
-    python scripts/bump_version.py 0.2.0-rc.1    # Release candidate
+    python scripts/bump_version.py 0.2.0a0       # Alpha version
+    python scripts/bump_version.py 0.2.0b1       # Beta version
+    python scripts/bump_version.py 0.2.0rc1      # Release candidate
+    python scripts/bump_version.py 0.2.0.dev0    # Development version
+    python scripts/bump_version.py 0.2.0+test    # Local version
 """
 
 import re
@@ -25,34 +28,38 @@ from pathlib import Path
 
 def validate_version(version: str) -> str:
     """
-    Validate and normalize semantic version format.
+    Validate and normalize PEP 440 version format.
 
-    Supports full semantic versioning including pre-release and build metadata:
+    Supports Python's PEP 440 versioning including pre-release and local versions:
     - 0.2.0
-    - 0.2.0-beta
-    - 0.2.0-beta.1
-    - 0.2.0-rc.1+build.123
+    - 0.2.0a0 or 0.2.0alpha0 (alpha)
+    - 0.2.0b1 or 0.2.0beta1 (beta)
+    - 0.2.0rc1 (release candidate)
+    - 0.2.0.post1 (post-release)
+    - 0.2.0.dev0 (development)
+    - 0.2.0+test (local version)
 
     Args:
-        version: Version string (e.g., "0.2.0", "v0.2.0-beta", "0.2.0-rc.1")
+        version: Version string (e.g., "0.2.0", "v0.2.0a0", "0.2.0rc1")
 
     Returns:
         Normalized version string without 'v' prefix
 
     Raises:
-        ValueError: If version format is invalid
+        ValueError: If version format is invalid per PEP 440
     """
     # Strip 'v' prefix if present
     normalized = version.lstrip("v")
 
-    # Validate semantic version format (X.Y.Z[-prerelease][+build])
-    # Based on https://semver.org/
-    pattern = r"^\d+\.\d+\.\d+(-[\w\.-]+)?(\+[\w\.-]+)?$"
+    # Validate PEP 440 version format
+    # Based on https://peps.python.org/pep-0440/
+    # [N!]N(.N)*[{a|alpha|b|beta|rc}N][.postN][.devN][+local]
+    pattern = r"^(\d+!)?\d+(\.\d+)*((a|alpha|b|beta|rc)\d+)?(\.post\d+)?(\.dev\d+)?(\+[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?$"
     if not re.match(pattern, normalized):
         raise ValueError(
             f"Invalid version format: {version}. "
-            f"Expected semantic version format: X.Y.Z[-prerelease][+build] "
-            f"(e.g., 0.2.0, 0.2.0-beta, 0.2.0-rc.1)"
+            f"Expected PEP 440 format: X.Y.Z[{{a|b|rc}}N][.postN][.devN][+local] "
+            f"(e.g., 0.2.0, 0.2.0a0, 0.2.0b1, 0.2.0rc1, 0.2.0.dev0, 0.2.0+test)"
         )
 
     return normalized
