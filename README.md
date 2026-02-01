@@ -41,25 +41,40 @@ uv run ruff format .
 
 ### Running the Web App
 
+#### Quick Start (Recommended)
+
+```bash
+# Development mode with auto-reload
+uvx pitlane-web --env development
+
+# With tracing enabled
+PITLANE_TRACING_ENABLED=1 uvx pitlane-web --env development
+
+# Custom port
+uvx pitlane-web --port 3000
+
+# See all options
+uvx pitlane-web --help
+```
+
+#### Alternative: Direct uvicorn (for workspace development)
+
 ```bash
 uv run --directory packages/pitlane-web uvicorn pitlane_web.app:app --reload
 ```
 
-> If pitlane_web is not found run  `uv sync --all-packages --reinstall` and retry
+> If pitlane_web is not found run `uv sync --all-packages --reinstall` and retry
 
 ### Tracing
 
-Enable OpenTelemetry tracing to observe agent behavior in the web app:
+Enable OpenTelemetry tracing to observe agent behavior:
 
 ```bash
-# Local development (sets secure cookie flag to false for HTTP)
-PITLANE_ENV=development uv run --directory packages/pitlane-web uvicorn pitlane_web.app:app --reload
-
 # Enable tracing to see tool calls, permission checks, and decision flows
-PITLANE_ENV=development PITLANE_TRACING_ENABLED=1 uv run --directory packages/pitlane-web uvicorn pitlane_web.app:app --reload
+PITLANE_TRACING_ENABLED=1 uvx pitlane-web --env development
 
 # Use batch processor for production workloads
-PITLANE_TRACING_ENABLED=1 PITLANE_SPAN_PROCESSOR=batch uv run --directory packages/pitlane-web uvicorn pitlane_web.app:app --reload
+PITLANE_TRACING_ENABLED=1 PITLANE_SPAN_PROCESSOR=batch uvx pitlane-web --env development
 ```
 
 Trace output is written to stderr and shows how the agent reasons through F1 analysis requests.
