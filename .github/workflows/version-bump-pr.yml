@@ -58,11 +58,12 @@ jobs:
 
       - name: Create Pull Request
         id: create-pr
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8.1.0
         with:
           commit-message: "chore: bump version to ${{ steps.parse-version.outputs.version }}"
           branch: release/v${{ steps.parse-version.outputs.version }}
           delete-branch: true
+          sign-commits: true
           title: "chore: release v${{ steps.parse-version.outputs.version }}"
           body: |
             Automated version bump to v${{ steps.parse-version.outputs.version }} and changelog update.
