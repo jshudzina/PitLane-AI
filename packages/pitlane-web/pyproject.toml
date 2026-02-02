@@ -1,6 +1,6 @@
 [project]
 name = "pitlane-web"
-version = "0.1.2.dev0"
+version = "0.1.2.dev2"
 description = "Web interface for PitLane AI"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
