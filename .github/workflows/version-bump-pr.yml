@@ -38,6 +38,14 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+
       - name: Bump version in all files
         run: |
           python scripts/bump_version.py ${{ steps.parse-version.outputs.version }}
@@ -61,6 +69,7 @@ jobs:
         uses: peter-evans/create-pull-request@v8.1.0
         with:
           commit-message: "chore: bump version to ${{ steps.parse-version.outputs.version }}"
+          committer: PitLane Agent <pitlaneagent@gmail.com>
           branch: release/v${{ steps.parse-version.outputs.version }}
           delete-branch: true
           sign-commits: true
