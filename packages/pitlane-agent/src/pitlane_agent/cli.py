@@ -24,6 +24,8 @@ from pitlane_agent.scripts.workspace import (
     remove_workspace,
     workspace_exists,
 )
+from pitlane_agent.temporal import get_temporal_context
+from pitlane_agent.temporal.formatter import format_as_text, format_for_system_prompt
 
 
 @click.group()
@@ -142,6 +144,48 @@ def remove(session_id: str, yes: bool):
     try:
         remove_workspace(session_id)
         click.echo(json.dumps({"message": f"Workspace {session_id} removed successfully"}))
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@pitlane.command()
+@click.option(
+    "--format",
+    type=click.Choice(["json", "text", "prompt"]),
+    default="text",
+    help="Output format",
+)
+@click.option("--refresh", is_flag=True, help="Force refresh from FastF1 (ignore cache)")
+@click.option(
+    "--verbosity",
+    type=click.Choice(["minimal", "normal", "detailed"]),
+    default="normal",
+    help="Detail level for prompt format",
+)
+def temporal_context(format: str, refresh: bool, verbosity: str):
+    """Show current F1 temporal context.
+
+    This command displays the current state of the F1 season including:
+    - Current season year and phase (pre/in/post/off-season)
+    - Active race weekend (if any)
+    - Current or recent sessions
+    - Next upcoming race
+    - Last completed race
+    """
+    try:
+        context = get_temporal_context(force_refresh=refresh)
+
+        if format == "json":
+            click.echo(json.dumps(context.to_dict(), indent=2, default=str))
+        elif format == "prompt":
+            prompt_text = format_for_system_prompt(context, verbosity=verbosity)
+            click.echo(prompt_text)
+        else:
+            # Human-readable text format
+            text_output = format_as_text(context)
+            click.echo(text_output)
+
     except Exception as e:
         click.echo(json.dumps({"error": str(e)}), err=True)
         sys.exit(1)
