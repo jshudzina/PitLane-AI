@@ -21,6 +21,7 @@ from pitlane_agent.scripts.workspace import (
     update_workspace_metadata,
     workspace_exists,
 )
+from pitlane_agent.temporal import format_for_system_prompt, get_temporal_context
 from pitlane_agent.tool_permissions import can_use_tool
 
 from . import tracing
@@ -41,6 +42,7 @@ class F1Agent:
         session_id: str | None = None,
         workspace_dir: Path | None = None,
         enable_tracing: bool | None = None,
+        inject_temporal_context: bool = True,
     ):
         """Initialize the F1 agent.
 
@@ -48,9 +50,11 @@ class F1Agent:
             session_id: Session identifier. Auto-generated if None.
             workspace_dir: Explicit workspace path. Derived from session_id if None.
             enable_tracing: Enable OpenTelemetry tracing. If None, uses PITLANE_TRACING_ENABLED env var.
+            inject_temporal_context: Enable temporal context in system prompt. Default True.
         """
         self.session_id = session_id or generate_session_id()
         self.workspace_dir = workspace_dir or get_workspace_path(self.session_id)
+        self.inject_temporal_context = inject_temporal_context
 
         # Verify workspace exists or create it
         if not self.workspace_dir.exists():
@@ -112,12 +116,33 @@ class F1Agent:
             }
             return await can_use_tool(tool_name, input_params, context_with_workspace)
 
+        # Build system prompt with temporal context
+        system_prompt_parts = []
+
+        if self.inject_temporal_context:
+            try:
+                temporal_ctx = get_temporal_context()
+                temporal_prompt = format_for_system_prompt(temporal_ctx, verbosity="normal")
+                system_prompt_parts.append(temporal_prompt)
+            except Exception:
+                # If temporal context fails, continue without it
+                pass
+
+        system_prompt_append = "\n\n".join(system_prompt_parts) if system_prompt_parts else None
+
         options = ClaudeAgentOptions(
             cwd=str(PACKAGE_DIR),
             setting_sources=["project"],
             allowed_tools=["Skill", "Bash", "Read", "Write", "WebFetch"],
             can_use_tool=can_use_tool_with_context,
             hooks=hooks,
+            system_prompt={
+                "type": "preset",
+                "preset": "claude_code",
+                "append": system_prompt_append,
+            }
+            if system_prompt_append
+            else None,
         )
 
         async with ClaudeSDKClient(options=options) as client:
