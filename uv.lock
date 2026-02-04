@@ -1271,10 +1271,10 @@ dev = [
 ]
 docs = [
     { name = "mkdocs-git-revision-date-localized-plugin", specifier = ">=1.2.0" },
-    { name = "mkdocs-material", specifier = ">=9.5.0" },
+    { name = "mkdocs-material", specifier = ">=9.7.1" },
     { name = "mkdocs-minify-plugin", specifier = ">=0.8.0" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.24.0" },
-    { name = "pymdown-extensions", specifier = ">=10.7.0" },
+    { name = "pymdown-extensions", specifier = ">=10.20.0" },
 ]
 
 [[package]]

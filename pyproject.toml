@@ -45,11 +45,11 @@ dev = [
     "pre-commit>=4.5.1",
 ]
 docs = [
-    "mkdocs-material>=9.5.0",
+    "mkdocs-material>=9.7.1",
     "mkdocstrings[python]>=0.24.0",
     "mkdocs-git-revision-date-localized-plugin>=1.2.0",
     "mkdocs-minify-plugin>=0.8.0",
-    "pymdown-extensions>=10.7.0",
+    "pymdown-extensions>=10.20.0",
 ]
 
 [tool.uv.workspace]
