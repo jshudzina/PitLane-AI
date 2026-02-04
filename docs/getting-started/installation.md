@@ -94,12 +94,18 @@ pitlane-web --help
 
 ## Dependencies
 
-PitLane-AI relies on several key dependencies:
+PitLane-AI is built on top of industry-standard F1 data APIs that handle all the analytical heavy lifting:
 
-- **FastF1** - F1 data access and telemetry
-- **Claude Agent SDK** - AI agent orchestration
-- **Matplotlib** - Visualization and charting
-- **FastAPI** - Web interface (pitlane-web only)
+### Core Data APIs
+
+- **[FastF1](https://docs.fastf1.dev/)** - F1 telemetry, timing, lap times, and session data access
+- **[jolpica-f1 (Ergast API)](https://github.com/jolpica/jolpica-f1)** - Historical F1 driver rosters, race results, and championship data (accessed via FastF1's ergast module)
+
+### Agent & Visualization
+
+- **Claude Agent SDK** - AI agent orchestration and skill system
+- **Matplotlib** - Chart generation and data visualization
+- **FastAPI** - Web interface backend (pitlane-web only)
 - **OpenTelemetry** - Optional tracing and observability
 
 All dependencies are automatically installed when you install PitLane-AI.

@@ -8,6 +8,14 @@
 
 AI-powered Formula 1 data analysis - from lap times and tyre strategy to race telemetry and historical insights. Built with [Claude's Agent SDK](https://github.com/anthropics/anthropic-sdk-python) to demonstrate practical applications of AI agents in domain-specific analysis.
 
+!!! note "Built on Open Source F1 Data APIs"
+    PitLane-AI leverages two powerful F1 data APIs for all analytical capabilities:
+
+    - **[FastF1](https://docs.fastf1.dev/)** - Comprehensive F1 telemetry, timing, and session data
+    - **[jolpica-f1 (Ergast API)](https://github.com/jolpica/jolpica-f1)** - Historical driver and race information
+
+    These APIs handle all the analytical heavy lifting, providing the data foundation for PitLane-AI's intelligent analysis.
+
 ## What It Analyzes
 
 - **Lap Time Analysis** - Compare driver performance with visual lap time distributions

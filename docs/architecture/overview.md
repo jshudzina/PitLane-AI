@@ -209,13 +209,23 @@ packages/
 |-------|-----------|
 | **Agent Framework** | Claude Agent SDK |
 | **LLM** | Claude 3.7 Sonnet |
-| **F1 Data** | FastF1, Ergast API |
+| **F1 Data Layer** | [FastF1](https://docs.fastf1.dev/) (telemetry, timing, sessions)<br>[jolpica-f1/Ergast API](https://github.com/jolpica/jolpica-f1) (driver info, historical data) |
 | **Visualization** | Matplotlib |
 | **Web Framework** | FastAPI |
 | **Streaming** | Server-Sent Events |
 | **Tracing** | OpenTelemetry |
 | **Package Manager** | uv (monorepo workspace) |
 | **Testing** | pytest, pytest-asyncio |
+
+### F1 Data Foundation
+
+PitLane-AI's analytical capabilities are built on two foundational F1 data APIs:
+
+- **FastF1** ([docs.fastf1.dev](https://docs.fastf1.dev/)) - Provides comprehensive access to F1 telemetry, timing data, session information, and event schedules. All lap time analysis, strategy visualization, and telemetry comparison features use FastF1 as the data source.
+
+- **jolpica-f1 (Ergast API)** ([github.com/jolpica/jolpica-f1](https://github.com/jolpica/jolpica-f1)) - Provides historical F1 data including driver rosters, race results, and championship standings from 1950 to present. Accessed via FastF1's `ergast` module.
+
+These APIs handle all the analytical heavy lifting - PitLane-AI adds an intelligent agent layer on top for natural language queries, visualization generation, and temporal context awareness.
 
 ## Deployment Models
 
