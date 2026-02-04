@@ -239,14 +239,8 @@ uvx pitlane-web --env development
 
 ### 3. Web Interface (Production)
 
-Multi-user deployment with uvicorn:
-
-```bash
-uvicorn pitlane_web.app:app \
-    --host 0.0.0.0 \
-    --port 8000 \
-    --workers 4
-```
+!!! info "Coming Soon"
+    Production deployment instructions are currently being finalized and will be available in a future release.
 
 Supports concurrent sessions via workspace isolation.
 
@@ -262,5 +256,6 @@ Explore specific architectural components:
 
 Or jump to usage documentation:
 
-- [User Guide](../user-guide/cli-reference.md) - Using PitLane-AI
+- [User Guide: Web Interface](../user-guide/web-interface.md) - Using PitLane-AI
+- [Agent CLI](../agent-cli/cli-reference.md) - CLI reference (for agents/developers)
 - [Developer Guide](../developer-guide/setup.md) - Contributing and extending

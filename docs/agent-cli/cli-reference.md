@@ -1,5 +1,9 @@
 # CLI Reference
 
+!!! warning "Agent-Only Tool"
+    This CLI is designed for agent use only, not direct user interaction.
+    End users should use the [Web Interface](../user-guide/web-interface.md) instead.
+
 The `pitlane` CLI provides workspace-based access to F1 data analysis tools. All commands operate within session-scoped workspaces for data isolation and concurrent usage.
 
 ## Installation
@@ -425,6 +429,6 @@ See [Ergast API](https://ergast.com/mrd/) for complete driver codes.
 
 ## Related Documentation
 
-- [Analysis Types](analysis-types.md) - Detailed analysis workflows
+- [Analysis Types](../user-guide/analysis-types.md) - Detailed analysis workflows
 - [Skills Usage](skills-usage.md) - Using skills in agent mode
 - [Architecture: Workspace Management](../architecture/workspace-management.md) - Workspace internals

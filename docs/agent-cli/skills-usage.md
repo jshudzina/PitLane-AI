@@ -1,5 +1,9 @@
 # Using Skills
 
+!!! warning "Agent-Only Documentation"
+    This documentation describes agent behavior and skills system design.
+    End users interact with these features through the [Web Interface](../user-guide/web-interface.md).
+
 Skills extend the F1 agent with specialized analysis capabilities. Each skill is automatically invoked based on your question.
 
 ## How Skills Work
@@ -308,7 +312,7 @@ McLaren's 2023 drivers:
 
 ## Related Documentation
 
-- [Analysis Types](analysis-types.md) - Available analysis workflows
+- [Analysis Types](../user-guide/analysis-types.md) - Available analysis workflows
 - [CLI Reference](cli-reference.md) - Underlying CLI commands
 - [Architecture: Skills](../architecture/skills.md) - Skill system internals
 - [Developer Guide: Adding Skills](../developer-guide/adding-skills.md) - Creating custom skills

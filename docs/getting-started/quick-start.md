@@ -229,6 +229,6 @@ pitlane analyze lap-times \
 ## Next Steps
 
 - [Configuration](configuration.md) - Configure environment variables and settings
-- [CLI Reference](../user-guide/cli-reference.md) - Complete CLI command reference
 - [Web Interface](../user-guide/web-interface.md) - Learn more about the web interface
 - [Analysis Types](../user-guide/analysis-types.md) - Detailed guide to analysis capabilities
+- [Agent CLI](../agent-cli/cli-reference.md) - CLI reference (for agents/developers)

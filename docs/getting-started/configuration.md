@@ -345,6 +345,7 @@ pitlane-web
 
 ## Next Steps
 
-- [CLI Reference](../user-guide/cli-reference.md) - Complete command reference
+- [Web Interface](../user-guide/web-interface.md) - Using the web app
+- [Agent CLI](../agent-cli/cli-reference.md) - CLI reference (for agents/developers)
 - [Architecture Overview](../architecture/overview.md) - Learn how PitLane-AI works
 - [Temporal Context](../architecture/temporal-context.md) - Deep dive into temporal awareness

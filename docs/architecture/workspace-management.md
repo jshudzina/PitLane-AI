@@ -293,7 +293,7 @@ pitlane workspace clean --older-than-days 7
 pitlane workspace clean --all
 ```
 
-See [User Guide: CLI Reference](../user-guide/cli-reference.md) for details.
+See [User Guide: CLI Reference](../agent-cli/cli-reference.md) for details.
 
 ## Benefits
 
@@ -329,4 +329,4 @@ Automatic cleanup prevents disk bloat:
 
 - [Agent System](agent-system.md) - How workspaces integrate with F1Agent
 - [Tool Permissions](tool-permissions.md) - Workspace path restrictions
-- [User Guide: CLI Reference](../user-guide/cli-reference.md) - Workspace CLI commands
+- [User Guide: CLI Reference](../agent-cli/cli-reference.md) - Workspace CLI commands

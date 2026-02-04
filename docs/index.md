@@ -80,9 +80,9 @@ AI-powered Formula 1 data analysis - from lap times and tyre strategy to race te
 
     ---
 
-    Learn how to use the CLI and web interface
+    Learn how to use the web interface for F1 data analysis
 
-    [:octicons-arrow-right-24: CLI Reference](user-guide/cli-reference.md)
+    [:octicons-arrow-right-24: Web Interface](user-guide/web-interface.md)
 
 -   :material-code-braces:{ .lg .middle } **Developer Guide**
 

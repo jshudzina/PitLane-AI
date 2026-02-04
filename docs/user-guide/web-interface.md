@@ -19,15 +19,8 @@ uvx pitlane-web --port 3000 --env development
 
 Visit [http://localhost:8000](http://localhost:8000)
 
-### Production Mode
-
-```bash
-# Using uvicorn directly
-uvicorn pitlane_web.app:app --host 0.0.0.0 --port 8000 --workers 4
-
-# Or via uvx
-uvx pitlane-web --port 8000
-```
+!!! info "Production Deployment"
+    Production deployment instructions are currently being finalized and will be available in a future release.
 
 ## Features
 
@@ -98,7 +91,7 @@ Agent: "I've generated a lap time distribution chart"
 
 ### 4. Rate Limiting
 
-Production deployments include rate limiting:
+The web interface includes rate limiting for API endpoints:
 
 | Endpoint | Limit |
 |----------|-------|
@@ -367,82 +360,13 @@ X-Content-Type-Options: nosniff  # Prevent MIME sniffing
 
 ## Deployment
 
-### Docker
+!!! note "Coming Soon"
+    Production deployment instructions (Docker, Kubernetes, cloud platforms) are currently being finalized and will be available in a future release.
 
-```dockerfile
-FROM python:3.12-slim
-
-# Install uv
-RUN pip install uv
-
-# Copy application
-COPY . /app
-WORKDIR /app
-
-# Install dependencies
-RUN uv sync
-
-# Expose port
-EXPOSE 8000
-
-# Run with uvicorn
-CMD ["uv", "run", "uvicorn", "pitlane_web.app:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-### Kubernetes
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: pitlane-web
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: pitlane-web
-  template:
-    metadata:
-      labels:
-        app: pitlane-web
-    spec:
-      containers:
-      - name: pitlane-web
-        image: pitlane-web:latest
-        ports:
-        - containerPort: 8000
-        env:
-        - name: PITLANE_TRACING_ENABLED
-          value: "1"
-        - name: SESSION_COOKIE_SECURE
-          value: "true"
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "500m"
-```
-
-### Nginx Reverse Proxy
-
-```nginx
-server {
-    listen 80;
-    server_name pitlane.example.com;
-
-    location / {
-        proxy_pass http://localhost:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-
-        # SSE configuration
-        proxy_buffering off;
-        proxy_cache off;
-        proxy_set_header Connection '';
-        proxy_http_version 1.1;
-        chunked_transfer_encoding on;
-    }
-}
-```
+    For now, use development mode for local testing:
+    ```bash
+    uvx pitlane-web --env development
+    ```
 
 ## Troubleshooting
 
@@ -492,7 +416,7 @@ PITLANE_TRACING_ENABLED=1 uvx pitlane-web --env development
 
 ## Related Documentation
 
-- [CLI Reference](cli-reference.md) - Command-line interface
 - [Analysis Types](analysis-types.md) - Available analysis workflows
 - [Architecture: Agent System](../architecture/agent-system.md) - Agent internals
 - [Architecture: Workspace Management](../architecture/workspace-management.md) - Session isolation
+- [Agent CLI Reference](../agent-cli/cli-reference.md) - CLI reference (for agents/developers)

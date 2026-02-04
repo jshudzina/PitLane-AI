@@ -142,11 +142,12 @@ nav:
       - Tool Permissions: architecture/tool-permissions.md
       - Workspace Management: architecture/workspace-management.md
   - User Guide:
-      - CLI Reference: user-guide/cli-reference.md
       - Web Interface: user-guide/web-interface.md
       - Analysis Types: user-guide/analysis-types.md
-      - Using Skills: user-guide/skills-usage.md
-      - Tracing: user-guide/tracing.md
+  - Agent CLI:
+      - CLI Reference: agent-cli/cli-reference.md
+      - Using Skills: agent-cli/skills-usage.md
+      - Tracing: agent-cli/tracing.md
   - Developer Guide:
       - Setup: developer-guide/setup.md
       - Project Structure: developer-guide/project-structure.md

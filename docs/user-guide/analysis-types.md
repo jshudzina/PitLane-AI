@@ -1,6 +1,6 @@
 # Analysis Types
 
-PitLane-AI provides several types of F1 data analysis through specialized skills. Each analysis type uses FastF1 for data access and matplotlib for visualizations.
+PitLane-AI provides several types of F1 data analysis through the web interface. Simply ask questions in natural language, and the AI agent will automatically fetch data, generate visualizations, and provide insights. Each analysis type uses FastF1 for data access and matplotlib for visualizations.
 
 ## Lap Time Analysis
 
@@ -20,30 +20,7 @@ Compare driver lap times with statistical visualizations.
 - "Show me lap time consistency for the top 5 drivers"
 - "Analyze pace during the race"
 
-### CLI Command
-
-```bash
-pitlane analyze lap-times \
-  --session-id abc123 \
-  --year 2024 \
-  --gp Monaco \
-  --session Q \
-  --drivers VER --drivers HAM
-```
-
-### Output
-
-**Chart:** `workspace/charts/lap_times.png`
-- Violin plot showing lap time distribution
-- Box plots for outlier detection
-- Statistical annotations
-
-**Data:** `workspace/data/lap_times.json`
-- Per-driver statistics
-- Raw lap times
-- Session metadata
-
-### Example Query
+### Example Interaction
 
 ```
 User: Compare Verstappen and Norris lap times in Silverstone 2024 qualifying
@@ -71,27 +48,13 @@ Visualize pit stop strategy and compound usage throughout a race.
 - "Compare one-stop vs. two-stop strategies"
 - "When did drivers pit?"
 
-### CLI Command
+### What You'll Get
 
-```bash
-pitlane analyze tyre-strategy \
-  --session-id abc123 \
-  --year 2024 \
-  --gp Monaco \
-  --session R
-```
-
-### Output
-
-**Chart:** `workspace/charts/strategy.png`
-- Horizontal timeline showing stint durations
-- Color-coded compounds
-- Pit stop markers
-
-**Data:** `workspace/data/strategy.json`
-- Per-driver stint information
-- Compound choices
-- Lap numbers for pit stops
+The agent will generate a horizontal timeline visualization showing:
+- Stint durations for each driver
+- Color-coded tyre compounds (Soft, Medium, Hard)
+- Pit stop timing markers
+- Strategy comparison across the field
 
 ## Driver Information
 
@@ -111,33 +74,13 @@ Query driver details, codes, and career information.
 - "List all drivers in the 2024 season"
 - "Show me Alpine's driver lineup"
 
-### CLI Command
+### What You'll Get
 
-```bash
-pitlane fetch drivers \
-  --session-id abc123 \
-  --year 2024 \
-  --team Ferrari  # optional
-```
-
-### Output
-
-**Data:** `workspace/data/drivers.json`
-```json
-{
-  "season": 2024,
-  "team": "Ferrari",
-  "drivers": [
-    {
-      "code": "LEC",
-      "givenName": "Charles",
-      "familyName": "Leclerc",
-      "nationality": "Monegasque",
-      "url": "https://en.wikipedia.org/wiki/Charles_Leclerc"
-    }
-  ]
-}
-```
+The agent will provide driver information including:
+- Driver names and three-letter codes (e.g., LEC for Leclerc)
+- Team affiliations for the requested season
+- Nationality and biographical details
+- Links to Wikipedia for more information
 
 ## Event Schedule
 
@@ -157,32 +100,13 @@ Query race calendar, dates, and session timings.
 - "What time is qualifying in Monaco?"
 - "List all sprint weekends"
 
-### CLI Command
+### What You'll Get
 
-```bash
-pitlane fetch schedule \
-  --session-id abc123 \
-  --year 2024
-```
-
-### Output
-
-**Data:** `workspace/data/schedule.json`
-```json
-{
-  "season": 2024,
-  "events": [
-    {
-      "round": 8,
-      "raceName": "Monaco Grand Prix",
-      "date": "2024-05-26",
-      "time": "13:00:00",
-      "location": "Monaco",
-      "country": "Monaco"
-    }
-  ]
-}
-```
+The agent will provide schedule information including:
+- Race dates and locations for the season
+- Session timings (Practice, Qualifying, Race)
+- Sprint weekend identification
+- Round numbers and Grand Prix names
 
 ## Telemetry Analysis
 
@@ -202,70 +126,40 @@ Compare detailed car telemetry between laps (speed, throttle, brake, gear).
 - "Where do drivers go flat out?"
 - "Analyze gear shifts around the lap"
 
-### CLI Command
+### What You'll Get
 
-```bash
-pitlane analyze telemetry \
-  --session-id abc123 \
-  --year 2024 \
-  --gp Monaco \
-  --session Q \
-  --drivers VER --drivers HAM \
-  --lap-number 10  # specific lap
-```
+The agent will generate a multi-panel telemetry plot showing:
+- Speed traces across lap distance
+- Throttle and brake application patterns
+- Gear shift visualization
+- Corner-by-corner driver comparison overlay
 
-### Output
+## How to Use
 
-**Chart:** `workspace/charts/telemetry.png`
-- Multi-panel plot (speed, throttle, brake, gear)
-- Lap distance on X-axis
-- Driver comparison overlay
+Using PitLane-AI is simple:
 
-**Data:** `workspace/data/telemetry.json`
-- Per-driver telemetry data
-- Distance, speed, throttle, brake, gear
-- Lap metadata
+1. **Open the Web Interface**
+   - Start the web app (see [Web Interface](web-interface.md))
+   - Navigate to [http://localhost:8000](http://localhost:8000)
 
-## Analysis Workflow
+2. **Ask Your Question**
+   - Type your question in natural language
+   - Be specific about the race, session, and drivers you're interested in
+   - Example: "Compare Verstappen and Hamilton qualifying pace in Monaco 2024"
 
-Typical analysis flow:
+3. **Review the Results**
+   - The agent will stream its analysis in real-time
+   - Visualizations (charts, plots) are generated automatically
+   - Interactive charts are displayed directly in the chat
 
-1. **Create Workspace**
-   ```bash
-   SESSION_ID=$(pitlane workspace create | jq -r '.session_id')
-   ```
+### Example Interaction
 
-2. **Fetch Session Info**
-   ```bash
-   pitlane fetch session-info --session-id $SESSION_ID --year 2024 --gp Monaco --session Q
-   ```
-
-3. **Run Analysis**
-   ```bash
-   pitlane analyze lap-times --session-id $SESSION_ID --year 2024 --gp Monaco --session Q --drivers VER --drivers HAM
-   ```
-
-4. **View Results**
-   ```bash
-   # Charts saved to workspace
-   open ~/.pitlane/workspaces/$SESSION_ID/charts/lap_times.png
-
-   # Data saved to workspace
-   cat ~/.pitlane/workspaces/$SESSION_ID/data/lap_times.json | jq
-   ```
-
-## Agent Mode
-
-In agent mode (CLI or web), simply ask natural language questions:
-
-**Chat Interface:**
 ```
 User: Compare Verstappen and Hamilton qualifying pace in Monaco 2024
 
-Agent: I'll analyze the qualifying lap times for VER and HAM...
+Agent: I'll analyze the qualifying lap times for VER and HAM in Monaco 2024...
 
-      [Invokes f1-analyst skill]
-      [Fetches session data via pitlane CLI]
+      [Fetches session data]
       [Generates lap time visualization]
 
       Here's the analysis:
@@ -278,17 +172,17 @@ Agent: I'll analyze the qualifying lap times for VER and HAM...
       - Mean: 1:12.567 (+/- 0.321s)
       - Best: 1:12.234
 
-      [lap_times.png displayed]
+      [lap_times.png displayed in chat]
 
       Verstappen was consistently faster by ~0.2s on average.
 ```
 
 The agent automatically:
-- Determines the relevant skill (f1-analyst)
+- Determines what analysis to perform
 - Extracts parameters (year, GP, session, drivers)
-- Executes CLI commands via Bash tool
-- Generates and references visualizations
-- Provides natural language summary
+- Fetches and processes F1 data
+- Generates visualizations
+- Provides natural language insights
 
 ## Data Sources
 
@@ -309,6 +203,6 @@ The agent automatically:
 
 ## Related Documentation
 
-- [CLI Reference](cli-reference.md) - Detailed CLI command syntax
-- [Skills Usage](skills-usage.md) - How agent skills work
-- [Architecture: Skills](../architecture/skills.md) - Skill system internals
+- [Web Interface](web-interface.md) - Getting started with the web app
+- [Architecture: Skills](../architecture/skills.md) - How the agent system works
+- [Agent CLI](../agent-cli/cli-reference.md) - CLI reference (for agents/developers)

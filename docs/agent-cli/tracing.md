@@ -1,5 +1,9 @@
 # Tracing
 
+!!! warning "Agent-Only Tool"
+    Tracing is designed for agent debugging and development, not direct user interaction.
+    End users should use the [Web Interface](../user-guide/web-interface.md).
+
 PitLane-AI includes OpenTelemetry-based tracing to observe agent behavior, tool calls, and permission checks. Tracing makes the agent's decision-making transparent and debuggable.
 
 ## Quick Start

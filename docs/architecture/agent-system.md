@@ -171,7 +171,7 @@ Enable tracing to observe:
 - Skill executions
 - Decision flows
 
-See [User Guide: Tracing](../user-guide/tracing.md) for configuration.
+See [Agent CLI: Tracing](../agent-cli/tracing.md) for configuration.
 
 ## Related Documentation
 

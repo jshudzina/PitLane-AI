@@ -238,4 +238,4 @@ See [Developer Guide: Adding Skills](../developer-guide/adding-skills.md) for cr
 - [Agent System](agent-system.md) - How skills integrate with F1Agent
 - [Tool Permissions](tool-permissions.md) - Tool restriction details
 - [Workspace Management](workspace-management.md) - Session isolation
-- [User Guide: Using Skills](../user-guide/skills-usage.md) - Skill usage examples
+- [Agent CLI: Using Skills](../agent-cli/skills-usage.md) - How agent skills work

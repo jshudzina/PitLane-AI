@@ -131,4 +131,5 @@ pip uninstall pitlane-ai pitlane-agent pitlane-web
 
 - [Quick Start Guide](quick-start.md) - Run your first analysis
 - [Configuration](configuration.md) - Configure PitLane-AI settings
-- [CLI Reference](../user-guide/cli-reference.md) - Learn the CLI commands
+- [Web Interface](../user-guide/web-interface.md) - Learn how to use the web app
+- [Agent CLI](../agent-cli/cli-reference.md) - CLI reference (for agents/developers)

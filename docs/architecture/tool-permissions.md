@@ -319,4 +319,4 @@ Error messages are clear and actionable:
 - [Agent System](agent-system.md) - How permissions integrate with F1Agent
 - [Skills](skills.md) - Skill-specific tool restrictions
 - [Workspace Management](workspace-management.md) - Session isolation
-- [User Guide: Tracing](../user-guide/tracing.md) - Observing permission checks
+- [Agent CLI: Tracing](../agent-cli/tracing.md) - Observing permission checks

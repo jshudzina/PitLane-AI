@@ -265,5 +265,5 @@ The Claude Agent SDK automatically discovers skills in `.claude/skills/`:
 ## Related Documentation
 
 - [Architecture: Skills](../architecture/skills.md) - Skill system internals
-- [User Guide: Skills Usage](../user-guide/skills-usage.md) - Using skills
-- [CLI Reference](../user-guide/cli-reference.md) - Available CLI commands
+- [Agent CLI: Using Skills](../agent-cli/skills-usage.md) - How agent skills work
+- [Agent CLI: CLI Reference](../agent-cli/cli-reference.md) - Available CLI commands
