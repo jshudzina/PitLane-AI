@@ -33,11 +33,17 @@ class TemporalCache:
         """Retrieve cached context if valid.
 
         Args:
-            current_time: Current time (UTC)
+            current_time: Current time (UTC, must be timezone-aware)
 
         Returns:
             Cached context if valid, None otherwise
+
+        Raises:
+            ValueError: If current_time is not timezone-aware
         """
+        if current_time.tzinfo is None:
+            raise ValueError("current_time must be timezone-aware (include tzinfo)")
+
         if not self.cache_file.exists():
             return None
 

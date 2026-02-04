@@ -124,14 +124,6 @@ class F1Agent:
                 temporal_ctx = get_temporal_context()
                 temporal_prompt = format_for_system_prompt(temporal_ctx, verbosity="normal")
                 system_prompt_parts.append(temporal_prompt)
-
-                # Also set environment variables for quick access
-                os.environ["PITLANE_CURRENT_SEASON"] = str(temporal_ctx.current_season)
-                os.environ["PITLANE_SEASON_PHASE"] = temporal_ctx.season_phase.value
-
-                if temporal_ctx.current_weekend:
-                    os.environ["PITLANE_CURRENT_RACE"] = temporal_ctx.current_weekend.event_name
-                    os.environ["PITLANE_CURRENT_ROUND"] = str(temporal_ctx.current_weekend.round_number)
             except Exception:
                 # If temporal context fails, continue without it
                 pass

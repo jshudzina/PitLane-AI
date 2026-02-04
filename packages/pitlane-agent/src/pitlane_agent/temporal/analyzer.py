@@ -42,8 +42,8 @@ class TemporalAnalyzer:
         # Fetch schedule
         try:
             schedule = fastf1.get_event_schedule(current_season, include_testing=False)
-        except Exception:
-            # If current season fails, try previous year
+        except (ValueError, KeyError, AttributeError, ImportError):
+            # If current season schedule isn't available, try previous year
             current_season = current_time.year - 1
             schedule = fastf1.get_event_schedule(current_season, include_testing=False)
 
@@ -100,7 +100,8 @@ class TemporalAnalyzer:
                 # Try current year first
                 fastf1.get_event_schedule(year, include_testing=False)
                 return year
-            except Exception:
+            except (ValueError, KeyError, AttributeError, ImportError):
+                # FastF1 schedule not available for current year yet
                 # Fall back to previous year
                 return year - 1
 
@@ -220,10 +221,14 @@ class TemporalAnalyzer:
                 if isinstance(date_local, pd.Timestamp):
                     date_local = date_local.to_pydatetime()
 
+                # Ensure UTC times have timezone info
                 if date_utc.tzinfo is None:
                     date_utc = date_utc.replace(tzinfo=UTC)
-                if date_local.tzinfo is None:
-                    date_local = date_local.replace(tzinfo=UTC)
+
+                # Keep local times as naive datetimes (no timezone)
+                # They represent the local time at the circuit
+                if date_local.tzinfo is not None:
+                    date_local = date_local.replace(tzinfo=None)
 
                 parsed_sessions.append(
                     {
@@ -316,8 +321,12 @@ class TemporalAnalyzer:
         if race_date.tzinfo is None:
             race_date = race_date.replace(tzinfo=UTC)
 
-        # Race is completed if it's more than 3 hours in the past
-        return current_time > race_date + timedelta(hours=3)
+        # Race is completed if it's more than 4 hours in the past
+        # Extended from 3 to 4 hours to handle edge cases:
+        # - Red-flagged races (e.g., Belgium 2021, Monaco 2011)
+        # - Very long races with multiple safety car periods
+        # - Post-race ceremonies and interviews
+        return current_time > race_date + timedelta(hours=4)
 
     def _parse_event_sessions(self, event: dict) -> list[dict]:
         """Parse sessions for an event with timezone handling.
@@ -338,10 +347,14 @@ class TemporalAnalyzer:
             if isinstance(date_local, pd.Timestamp):
                 date_local = date_local.to_pydatetime()
 
+            # Ensure UTC times have timezone info
             if date_utc.tzinfo is None:
                 date_utc = date_utc.replace(tzinfo=UTC)
-            if date_local.tzinfo is None:
-                date_local = date_local.replace(tzinfo=UTC)
+
+            # Keep local times as naive datetimes (no timezone)
+            # They represent the local time at the circuit
+            if date_local.tzinfo is not None:
+                date_local = date_local.replace(tzinfo=None)
 
             parsed_sessions.append(
                 {
@@ -389,7 +402,19 @@ class TemporalAnalyzer:
             # Calculate time deltas
             time_delta = (session["date_utc"] - current_time).total_seconds() / 60
 
-            is_live = -90 <= time_delta <= 120  # Live if within window
+            # Session-type aware live detection windows
+            # Format: (pre-session minutes, post-session minutes)
+            session_windows = {
+                "FP1": (-30, 90),  # 60 min session + 30 min buffer
+                "FP2": (-30, 90),  # 60 min session + 30 min buffer
+                "FP3": (-30, 90),  # 60 min session + 30 min buffer
+                "Q": (-30, 90),  # ~60 min session + 30 min buffer
+                "SQ": (-30, 60),  # Sprint Qualifying ~45 min
+                "S": (-30, 60),  # Sprint ~30 min + 30 min buffer
+                "R": (-30, 150),  # Race ~120 min + 30 min buffer
+            }
+            pre_window, post_window = session_windows.get(session_type, (-30, 120))
+            is_live = pre_window <= time_delta <= post_window
             is_recent = -1440 <= time_delta <= 0  # Recent if within last 24h
 
             minutes_until = int(time_delta) if time_delta > 0 else None

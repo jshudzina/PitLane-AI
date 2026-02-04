@@ -93,7 +93,7 @@ def _format_normal(context: TemporalContext) -> str:
         lines.append(
             f"- Round {context.next_race.round_number} in {context.next_race.location}, {context.next_race.country}"
         )
-        lines.append(f"- Race Weekend: {context.next_race.event_date.strftime('%B %d-%d, %Y')}")
+        lines.append(f"- Race Weekend: {context.next_race.event_date.strftime('%B %d, %Y')}")
 
         if context.days_until_next_race is not None:
             if context.days_until_next_race == 0:
