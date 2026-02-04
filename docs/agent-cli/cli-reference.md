@@ -1,0 +1,434 @@
+# CLI Reference
+
+!!! warning "Agent-Only Tool"
+    This CLI is designed for agent use only, not direct user interaction.
+    End users should use the [Web Interface](../user-guide/web-interface.md) instead.
+
+The `pitlane` CLI provides workspace-based access to F1 data analysis tools. All commands operate within session-scoped workspaces for data isolation and concurrent usage.
+
+## Installation
+
+```bash
+# Install from PyPI
+pip install pitlane-agent
+
+# Or use with uvx (no installation)
+uvx pitlane-agent <command>
+```
+
+## Command Structure
+
+```
+pitlane <command> [subcommand] [options]
+```
+
+**Available Commands:**
+- `workspace` - Manage session workspaces
+- `fetch` - Fetch F1 data (sessions, drivers, schedules)
+- `analyze` - Analyze and visualize F1 data
+- `temporal-context` - Show current F1 calendar context
+
+## Workspace Commands
+
+Manage session-based workspaces for data isolation.
+
+### `pitlane workspace create`
+
+Create a new workspace for analysis.
+
+**Usage:**
+```bash
+pitlane workspace create [--session-id ID] [--description TEXT]
+```
+
+**Options:**
+- `--session-id` - Explicit session ID (auto-generated if omitted)
+- `--description` - Optional workspace description
+
+**Examples:**
+```bash
+# Auto-generated session ID
+pitlane workspace create
+# Output: {"session_id": "abc123-...", "workspace_path": "~/.pitlane/workspaces/abc123-..."}
+
+# Explicit session ID
+pitlane workspace create --session-id monaco-2024 --description "Monaco Grand Prix analysis"
+
+# Use in scripts
+SESSION_ID=$(pitlane workspace create | jq -r '.session_id')
+```
+
+**Output:**
+```json
+{
+  "session_id": "abc123-def456-...",
+  "workspace_path": "/Users/alice/.pitlane/workspaces/abc123-...",
+  "created_at": "2024-05-23T14:30:00Z"
+}
+```
+
+### `pitlane workspace list`
+
+List all workspaces (10 most recent by default).
+
+**Usage:**
+```bash
+pitlane workspace list [--show-all]
+```
+
+**Options:**
+- `--show-all` - Show all workspaces (default: 10 most recent)
+
+**Examples:**
+```bash
+# List recent workspaces
+pitlane workspace list
+
+# List all workspaces
+pitlane workspace list --show-all
+```
+
+**Output:**
+```json
+{
+  "total": 3,
+  "workspaces": [
+    {
+      "session_id": "abc123-...",
+      "created_at": "2024-05-23T14:30:00Z",
+      "last_accessed": "2024-05-23T15:45:00Z",
+      "description": "Monaco 2024 analysis",
+      "workspace_path": "~/.pitlane/workspaces/abc123-...",
+      "data_files": ["session_info.json"],
+      "chart_files": ["lap_times.png"]
+    }
+  ]
+}
+```
+
+### `pitlane workspace info`
+
+Show detailed workspace information.
+
+**Usage:**
+```bash
+pitlane workspace info --session-id SESSION_ID
+```
+
+**Options:**
+- `--session-id` (required) - Session ID to inspect
+
+**Examples:**
+```bash
+pitlane workspace info --session-id abc123
+```
+
+**Output:**
+```json
+{
+  "session_id": "abc123",
+  "workspace_path": "~/.pitlane/workspaces/abc123",
+  "created_at": "2024-05-23T14:30:00Z",
+  "last_accessed": "2024-05-23T15:45:00Z",
+  "data_files": ["session_info.json", "drivers.json"],
+  "chart_files": ["lap_times.png", "strategy.png"]
+}
+```
+
+### `pitlane workspace clean`
+
+Remove old workspaces to free disk space.
+
+**Usage:**
+```bash
+pitlane workspace clean --older-than DAYS [--yes]
+pitlane workspace clean --all [--yes]
+```
+
+**Options:**
+- `--older-than` - Remove workspaces not accessed in N days
+- `--all` - Remove all workspaces
+- `--yes`, `-y` - Skip confirmation prompt
+
+**Examples:**
+```bash
+# Remove workspaces older than 7 days
+pitlane workspace clean --older-than 7
+
+# Remove all workspaces (with confirmation)
+pitlane workspace clean --all
+
+# Remove all workspaces (skip confirmation)
+pitlane workspace clean --all --yes
+```
+
+**Output:**
+```json
+{
+  "removed_count": 3,
+  "removed_sessions": ["abc123", "def456", "ghi789"]
+}
+```
+
+### `pitlane workspace remove`
+
+Remove a specific workspace.
+
+**Usage:**
+```bash
+pitlane workspace remove --session-id SESSION_ID [--yes]
+```
+
+**Options:**
+- `--session-id` (required) - Session ID to remove
+- `--yes`, `-y` - Skip confirmation prompt
+
+**Examples:**
+```bash
+# Remove with confirmation
+pitlane workspace remove --session-id abc123
+
+# Remove without confirmation
+pitlane workspace remove --session-id abc123 --yes
+```
+
+## Fetch Commands
+
+Fetch F1 data from FastF1 and Ergast API.
+
+### `pitlane fetch session-info`
+
+Fetch session information and driver list.
+
+**Usage:**
+```bash
+pitlane fetch session-info --session-id ID --year YEAR --gp GP_NAME --session SESSION_TYPE
+```
+
+**Options:**
+- `--session-id` (required) - Workspace session ID
+- `--year` (required) - Season year (e.g., 2024)
+- `--gp` (required) - Grand Prix name (e.g., Monaco, Silverstone)
+- `--session` (required) - Session type (R, Q, FP1, FP2, FP3, S, SQ)
+
+**Examples:**
+```bash
+pitlane fetch session-info --session-id abc123 --year 2024 --gp Monaco --session R
+pitlane fetch session-info --session-id abc123 --year 2024 --gp Silverstone --session Q
+```
+
+**Output:**
+```json
+{
+  "event_name": "Monaco Grand Prix",
+  "session_type": "Race",
+  "date": "2024-05-26",
+  "drivers": ["VER", "HAM", "LEC", ...],
+  "saved_to": "~/.pitlane/workspaces/abc123/data/session_info.json"
+}
+```
+
+### `pitlane fetch drivers`
+
+Fetch driver information for a season.
+
+**Usage:**
+```bash
+pitlane fetch drivers --session-id ID --year YEAR [--team TEAM]
+```
+
+**Options:**
+- `--session-id` (required) - Workspace session ID
+- `--year` (required) - Season year
+- `--team` (optional) - Filter by team (e.g., "Ferrari", "Mercedes")
+
+**Examples:**
+```bash
+pitlane fetch drivers --session-id abc123 --year 2024
+pitlane fetch drivers --session-id abc123 --year 2024 --team Ferrari
+```
+
+### `pitlane fetch schedule`
+
+Fetch season calendar with race dates.
+
+**Usage:**
+```bash
+pitlane fetch schedule --session-id ID --year YEAR
+```
+
+**Options:**
+- `--session-id` (required) - Workspace session ID
+- `--year` (required) - Season year
+
+**Examples:**
+```bash
+pitlane fetch schedule --session-id abc123 --year 2024
+```
+
+## Analyze Commands
+
+Analyze and visualize F1 data.
+
+### `pitlane analyze lap-times`
+
+Analyze lap time distributions with visualizations.
+
+**Usage:**
+```bash
+pitlane analyze lap-times --session-id ID --year YEAR --gp GP_NAME --session SESSION_TYPE --drivers DRIVER [--drivers DRIVER2 ...]
+```
+
+**Options:**
+- `--session-id` (required) - Workspace session ID
+- `--year` (required) - Season year
+- `--gp` (required) - Grand Prix name
+- `--session` (required) - Session type (R, Q, FP1, etc.)
+- `--drivers` (required, repeatable) - Driver codes (VER, HAM, etc.)
+
+**Examples:**
+```bash
+# Compare two drivers
+pitlane analyze lap-times --session-id abc123 --year 2024 --gp Monaco --session Q --drivers VER --drivers HAM
+
+# Compare multiple drivers
+pitlane analyze lap-times --session-id abc123 --year 2024 --gp Silverstone --session R --drivers VER --drivers HAM --drivers LEC
+```
+
+**Output:**
+```json
+{
+  "chart_saved_to": "~/.pitlane/workspaces/abc123/charts/lap_times.png",
+  "statistics": {
+    "VER": {"mean": "1:12.345", "median": "1:12.234", "std": "0.234"},
+    "HAM": {"mean": "1:12.456", "median": "1:12.345", "std": "0.321"}
+  }
+}
+```
+
+### `pitlane analyze tyre-strategy`
+
+Visualize tyre strategy and pit stops.
+
+**Usage:**
+```bash
+pitlane analyze tyre-strategy --session-id ID --year YEAR --gp GP_NAME --session R
+```
+
+**Options:**
+- `--session-id` (required) - Workspace session ID
+- `--year` (required) - Season year
+- `--gp` (required) - Grand Prix name
+- `--session` (required) - Must be 'R' (Race only)
+
+**Examples:**
+```bash
+pitlane analyze tyre-strategy --session-id abc123 --year 2024 --gp Monaco --session R
+```
+
+**Output:**
+```json
+{
+  "chart_saved_to": "~/.pitlane/workspaces/abc123/charts/strategy.png",
+  "strategy_summary": {
+    "VER": ["SOFT-20", "MEDIUM-38"],
+    "HAM": ["MEDIUM-25", "HARD-33"]
+  }
+}
+```
+
+## Temporal Context Command
+
+Show current F1 calendar context.
+
+### `pitlane temporal-context`
+
+Display the current state of the F1 season.
+
+**Usage:**
+```bash
+pitlane temporal-context [--format FORMAT] [--refresh] [--verbosity LEVEL]
+```
+
+**Options:**
+- `--format` - Output format: `text` (default), `json`, `prompt`
+- `--refresh` - Force refresh from FastF1 (ignore cache)
+- `--verbosity` - Detail level: `minimal`, `normal` (default), `detailed`
+
+**Examples:**
+```bash
+# Human-readable text (default)
+pitlane temporal-context
+
+# JSON output
+pitlane temporal-context --format json
+
+# System prompt format (for agent integration)
+pitlane temporal-context --format prompt --verbosity detailed
+
+# Force refresh cache
+pitlane temporal-context --refresh
+```
+
+**Output (text format):**
+```
+F1 Temporal Context (2024-05-23 14:30 UTC)
+
+Season Status: 2024 Season - In Progress
+- Races completed: 7/24
+- Races remaining: 17
+
+Current Race Weekend: Monaco Grand Prix (Round 8)
+- Location: Monaco, Monaco
+- Event Date: 2024-05-26
+- Phase: Practice
+- Current Session: FP1 (Live - Started 15 minutes ago)
+- Next Session: FP2 (in 2 hours 15 minutes)
+
+Last Completed Race: Emilia Romagna Grand Prix
+- Completed: 3 days ago
+
+Next Race: Monaco Grand Prix (in 3 days)
+```
+
+## Session Types
+
+| Code | Session Name |
+|------|-------------|
+| `R` | Race |
+| `Q` | Qualifying |
+| `S` | Sprint Race |
+| `SQ` | Sprint Qualifying |
+| `FP1` | Free Practice 1 |
+| `FP2` | Free Practice 2 |
+| `FP3` | Free Practice 3 |
+
+## Common Driver Codes (2024)
+
+| Code | Driver | Team |
+|------|--------|------|
+| VER | Max Verstappen | Red Bull |
+| PER | Sergio Perez | Red Bull |
+| HAM | Lewis Hamilton | Mercedes |
+| RUS | George Russell | Mercedes |
+| LEC | Charles Leclerc | Ferrari |
+| SAI | Carlos Sainz | Ferrari |
+| NOR | Lando Norris | McLaren |
+| PIA | Oscar Piastri | McLaren |
+| ALO | Fernando Alonso | Aston Martin |
+| STR | Lance Stroll | Aston Martin |
+
+See [Ergast API](https://ergast.com/mrd/) for complete driver codes.
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Error (with JSON error message on stderr) |
+
+## Related Documentation
+
+- [Analysis Types](../user-guide/analysis-types.md) - Detailed analysis workflows
+- [Skills Usage](skills-usage.md) - Using skills in agent mode
+- [Architecture: Workspace Management](../architecture/workspace-management.md) - Workspace internals

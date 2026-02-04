@@ -12,6 +12,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: check-yaml
+        exclude: mkdocs.yml
       - id: check-toml
       - id: check-json
       - id: end-of-file-fixer

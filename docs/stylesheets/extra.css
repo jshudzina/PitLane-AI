@@ -1,0 +1,57 @@
+/* F1 Branding and Custom Styles */
+
+:root {
+  --md-primary-fg-color: #E10600;  /* F1 red */
+  --md-accent-fg-color: #FF6800;   /* F1 orange */
+}
+
+/* Code block optimizations */
+.highlight code {
+  font-size: 0.85em;
+}
+
+/* Racing-themed icons */
+.md-nav__icon {
+  color: var(--md-primary-fg-color);
+}
+
+/* Card grid enhancements */
+.grid.cards {
+  margin-top: 1.5em;
+}
+
+.grid.cards > ul > li {
+  border-radius: 0.5em;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.grid.cards > ul > li:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Admonition custom styling */
+.admonition {
+  border-radius: 0.5em;
+}
+
+/* Table improvements */
+table {
+  font-size: 0.9em;
+}
+
+table th {
+  background-color: var(--md-primary-fg-color);
+  color: white;
+  font-weight: 600;
+}
+
+/* Code copy button styling */
+.md-clipboard {
+  color: var(--md-accent-fg-color);
+}
+
+/* Navigation breadcrumbs */
+.md-path {
+  color: var(--md-default-fg-color--light);
+}

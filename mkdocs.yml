@@ -1,0 +1,190 @@
+site_name: PitLane-AI Documentation
+site_url: https://jshudzina.github.io/PitLane-AI
+site_description: AI-powered Formula 1 data analysis using Claude Agent SDK
+site_author: John Hudzina
+repo_name: jshudzina/PitLane-AI
+repo_url: https://github.com/jshudzina/PitLane-AI
+edit_uri: edit/main/docs/
+
+# Theme Configuration
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: red           # F1 red
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: red
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  features:
+    - navigation.instant      # Instant loading
+    - navigation.tracking     # URL updates on scroll
+    - navigation.tabs         # Top-level navigation tabs
+    - navigation.tabs.sticky  # Sticky tabs
+    - navigation.sections     # Section headers in sidebar
+    - navigation.expand       # Expand sections by default
+    - navigation.path         # Breadcrumbs
+    - navigation.top          # Back to top button
+    - navigation.footer       # Footer navigation
+    - toc.follow              # TOC follows scroll
+    - toc.integrate           # TOC integrated into nav
+    - search.suggest          # Search suggestions
+    - search.highlight        # Highlight search terms
+    - search.share            # Share search URL
+    - content.code.copy       # Copy code button
+    - content.code.annotate   # Code annotations
+    - content.tabs.link       # Link content tabs
+
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/flag-checkered  # Racing themed
+
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+# Plugins
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_section_style: spacy
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            inherited_members: false
+            filters:
+              - "!^_"  # Exclude private members
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: timeago
+  - minify:
+      minify_html: true
+      minify_js: true
+      minify_css: true
+
+# Extensions
+markdown_extensions:
+  # Python Markdown
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+  # Python Markdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji # yamllint disable-line
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg # yamllint disable-line
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      auto_append:
+        - includes/abbreviations.md
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format # yamllint disable-line
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+# Navigation
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+      - Configuration: getting-started/configuration.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Agent System: architecture/agent-system.md
+      - Temporal Context: architecture/temporal-context.md
+      - Skills: architecture/skills.md
+      - Tool Permissions: architecture/tool-permissions.md
+      - Workspace Management: architecture/workspace-management.md
+  - User Guide:
+      - Web Interface: user-guide/web-interface.md
+      - Analysis Types: user-guide/analysis-types.md
+  - Agent CLI:
+      - CLI Reference: agent-cli/cli-reference.md
+      - Using Skills: agent-cli/skills-usage.md
+      - Tracing: agent-cli/tracing.md
+  - Developer Guide:
+      - Setup: developer-guide/setup.md
+      - Project Structure: developer-guide/project-structure.md
+      - Contributing: developer-guide/contributing.md
+      - Testing: developer-guide/testing.md
+      - Adding Skills: developer-guide/adding-skills.md
+      - Release Process: developer-guide/release-process.md
+      - Code Quality: developer-guide/code-quality.md
+  - API Reference:
+      - PitLane Agent:
+          - Agent: api-reference/pitlane-agent/agent.md
+          - Temporal Context: api-reference/pitlane-agent/temporal.md
+          - CLI: api-reference/pitlane-agent/cli.md
+          - Scripts: api-reference/pitlane-agent/scripts.md
+      - PitLane Web:
+          - App: api-reference/pitlane-web/app.md
+          - Session: api-reference/pitlane-web/session.md
+          - Config: api-reference/pitlane-web/config.md
+  - Changelog: changelog.md
+  - License: license.md
+
+# Extra
+extra:
+  version:
+    provider: mike
+    default: latest
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/jshudzina/PitLane-AI
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/pitlane-ai/
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/extra.js
+
+# Copyright
+copyright: Copyright &copy; 2026 John Hudzina

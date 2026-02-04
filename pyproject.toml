@@ -3,7 +3,7 @@ name = "pitlane-ai"
 version = "0.1.2.dev3"
 description = "F1 data analysis powered by AI agents"
 readme = "README.md"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.12,<3.14"
 license = { text = "Apache-2.0" }
 authors = [
     { name = "John Hudzina" , email="pitlaneagent@gmail.com" },
@@ -13,7 +13,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
@@ -45,6 +44,13 @@ dev = [
     "ruff>=0.8.4",
     "pre-commit>=4.5.1",
 ]
+docs = [
+    "mkdocs-material>=9.7.1",
+    "mkdocstrings[python]>=0.24.0",
+    "mkdocs-git-revision-date-localized-plugin>=1.2.0",
+    "mkdocs-minify-plugin>=0.8.0",
+    "pymdown-extensions>=10.20.0",
+]
 
 [tool.uv.workspace]
 members = ["packages/*"]
@@ -59,7 +65,7 @@ asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [
