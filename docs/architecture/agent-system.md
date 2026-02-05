@@ -6,27 +6,29 @@ PitLane-AI's agent system is built on the [Claude Agent SDK](https://github.com/
 
 The core agent architecture consists of three main components:
 
-```
-┌─────────────────────────────────────────────┐
-│          F1Agent (Main Interface)           │
-├─────────────────────────────────────────────┤
-│  - Session Management                       │
-│  - Workspace Isolation                      │
-│  - Temporal Context Injection               │
-│  - Tool Permission Enforcement              │
-└───────────────┬─────────────────────────────┘
-                │
-                ├──> ClaudeSDKClient
-                │    (Claude Agent SDK)
-                │
-                ├──> Tool Permission System
-                │    (Bash, Read, Write, WebFetch)
-                │
-                ├──> Skills System
-                │    (f1-analyst, f1-drivers, f1-schedule)
-                │
-                └──> Workspace Management
-                     (Session isolation, data/charts)
+```mermaid
+graph TB
+    subgraph F1Agent["F1Agent"]
+        Session[Session Management]
+        TC[Temporal Context]
+    end
+
+    F1Agent --> SDK[ClaudeSDKClient]
+    F1Agent --> Perms[Tool Permissions]
+    F1Agent --> Skills[Skills System]
+    F1Agent --> WS[Workspace]
+
+    subgraph Perms[Tool Permissions]
+        Bash["Bash (pitlane CLI only)"]
+        RW["Read/Write (workspace only)"]
+        Web["WebFetch (F1 domains only)"]
+    end
+
+    subgraph Skills[Skills]
+        analyst[f1-analyst]
+        drivers[f1-drivers]
+        schedule[f1-schedule]
+    end
 ```
 
 ## F1Agent Class

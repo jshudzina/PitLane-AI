@@ -6,15 +6,14 @@
   <img src="https://img.shields.io/github/license/jshudzina/PitLane-AI" alt="License">
 </div>
 
-AI-powered Formula 1 data analysis - from lap times and tyre strategy to race telemetry and historical insights. Built with [Claude's Agent SDK](https://github.com/anthropics/anthropic-sdk-python) to demonstrate practical applications of AI agents in domain-specific analysis.
+!!! info "Claude Agent SDK Demonstration"
+    PitLane-AI demonstrates practical patterns for building AI agents:
 
-!!! note "Built on Open Source F1 Data APIs"
-    PitLane-AI leverages two powerful F1 data APIs for all analytical capabilities:
+    - **Skills** - Composable, domain-specific agent capabilities
+    - **Progressive Disclosure** - Just-in-time context via temporal awareness
+    - **Tool Permissions** - Layered restrictions for safe agent behavior
 
-    - **[FastF1](https://docs.fastf1.dev/)** - Comprehensive F1 telemetry, timing, and session data
-    - **[jolpica-f1 (Ergast API)](https://github.com/jolpica/jolpica-f1)** - Historical driver and race information
-
-    These APIs handle all the analytical heavy lifting, providing the data foundation for PitLane-AI's intelligent analysis.
+AI-powered Formula 1 data analysis built with [Claude's Agent SDK](https://github.com/anthropics/anthropic-sdk-python). Uses [FastF1](https://docs.fastf1.dev/) for telemetry and [jolpica-f1](https://github.com/jolpica/jolpica-f1) for historical data.
 
 ## What It Analyzes
 
@@ -66,84 +65,20 @@ AI-powered Formula 1 data analysis - from lap times and tyre strategy to race te
 
 ## Next Steps
 
-<div class="grid cards" markdown>
-
--   :material-rocket-launch:{ .lg .middle } **Getting Started**
-
-    ---
-
-    Install PitLane-AI and run your first analysis
-
-    [:octicons-arrow-right-24: Installation](getting-started/installation.md)
-
--   :material-architecture:{ .lg .middle } **Architecture**
-
-    ---
-
-    Understand the agent system, skills, and temporal context
-
-    [:octicons-arrow-right-24: Architecture Overview](architecture/overview.md)
-
--   :material-book-open:{ .lg .middle } **User Guide**
-
-    ---
-
-    Learn how to use the web interface for F1 data analysis
-
-    [:octicons-arrow-right-24: Web Interface](user-guide/web-interface.md)
-
--   :material-code-braces:{ .lg .middle } **Developer Guide**
-
-    ---
-
-    Contribute to PitLane-AI and build custom skills
-
-    [:octicons-arrow-right-24: Setup](developer-guide/setup.md)
-
-</div>
+| | |
+|---|---|
+| **[Getting Started](getting-started/installation.md)** | Install PitLane-AI and run your first analysis |
+| **[Architecture](architecture/overview.md)** | Understand the agent system, skills, and temporal context |
+| **[User Guide](user-guide/web-interface.md)** | Learn how to use the web interface |
+| **[Developer Guide](developer-guide/setup.md)** | Contribute and build custom skills |
 
 ## Key Features
 
-### Skills-Based Architecture
+**Skills** - Three specialized skills handle different F1 domains: `f1-analyst` (lap times, strategy), `f1-drivers` (driver info), and `f1-schedule` (calendars). Each skill has its own tool restrictions. [Learn more →](architecture/skills.md)
 
-The agent uses specialized **skills** to handle different F1 analysis domains:
+**Temporal Context** - The agent knows "where we are" in the F1 season. Queries like "analyze the last race" work without specifying which race. [Learn more →](architecture/temporal-context.md)
 
-- **f1-analyst** - Lap time and tyre strategy analysis with visualizations
-- **f1-drivers** - Driver information queries via the Ergast API
-- **f1-schedule** - Event calendars and session schedules
-
-Each skill invokes Python scripts through the agent's tool system, using FastF1 for data access and matplotlib for visualizations.
-
-### Temporal Context Awareness
-
-PitLane-AI includes a sophisticated temporal context system that provides real-time awareness of the F1 calendar:
-
-- Knows the current season, phase (pre/in/post/off-season), and race weekend
-- Detects live or recent sessions automatically
-- Intelligently caches data based on temporal state
-- Ensures queries like "latest race results" use the correct year and race
-
-Learn more about the [Temporal Context System](architecture/temporal-context.md).
-
-### Tool Permissions
-
-The agent demonstrates **tool permission controls** through domain-restricted web access. The WebFetch tool is limited to F1-related domains (`wikipedia.org`, `ergast.com`, `formula1.com`) - showing how agents can be safely constrained to approved data sources.
-
-See [Tool Permissions](architecture/tool-permissions.md) for details.
-
-### Observable Behavior
-
-Optional OpenTelemetry tracing shows how the agent works under the hood - which tools it calls, permission checks, and decision flows. This makes the agent's reasoning transparent and debuggable.
-
-## Project Structure
-
-PitLane-AI is a monorepo containing three tightly integrated Python packages:
-
-- **pitlane-ai** - Meta-package bundling both agent and web interface
-- **pitlane-agent** - Core AI agent for F1 data analysis with CLI
-- **pitlane-web** - Web interface (FastAPI) for interactive F1 analysis
-
-Learn more about the [Project Structure](developer-guide/project-structure.md).
+**Tool Permissions** - Demonstrates layered security: WebFetch limited to F1 domains, Bash restricted to `pitlane` CLI, file access constrained to workspace. [Learn more →](architecture/tool-permissions.md)
 
 ## License
 
