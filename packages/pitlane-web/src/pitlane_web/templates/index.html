@@ -8,6 +8,101 @@
         gap: 1.5rem;
     }
 
+    .chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .chat-header-info h2 {
+        margin: 0 0 0.25rem 0;
+    }
+
+    .chat-header-info p {
+        margin: 0;
+        color: #888;
+    }
+
+    .conversation-controls {
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .btn-secondary {
+        background: #2d2d2d;
+        color: #e0e0e0;
+        border: 1px solid #444;
+    }
+
+    .btn-secondary:hover {
+        background: #3d3d3d;
+        border-color: #e10600;
+    }
+
+    .btn-primary {
+        background: #e10600;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #ff1a1a;
+    }
+
+    .conversation-panel {
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .conversation-panel.hidden {
+        display: none;
+    }
+
+    .conversation-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #333;
+    }
+
+    .conversation-panel-header h3 {
+        margin: 0;
+        font-size: 1rem;
+    }
+
+    .close-panel {
+        background: none;
+        border: none;
+        color: #888;
+        cursor: pointer;
+        font-size: 1.2rem;
+        padding: 0.25rem;
+    }
+
+    .close-panel:hover {
+        color: #e10600;
+    }
+
+    #conversation-status:empty {
+        display: none;
+    }
+
     .chat-form {
         display: flex;
         gap: 1rem;
@@ -107,9 +202,41 @@
 
 {% block content %}
 <div class="chat-container">
-    <div>
-        <h2>Ask About F1</h2>
-        <p>Get insights about races, drivers, lap times, strategies, and more.</p>
+    <div class="chat-header">
+        <div class="chat-header-info">
+            <h2>Ask About F1</h2>
+            <p>Get insights about races, drivers, lap times, strategies, and more.</p>
+        </div>
+        <div class="conversation-controls">
+            <button class="btn btn-secondary"
+                    hx-get="/api/conversations"
+                    hx-target="#conversation-panel-content"
+                    hx-swap="innerHTML"
+                    onclick="toggleConversationPanel(true)">
+                History
+            </button>
+            <button class="btn btn-primary"
+                    hx-post="/api/conversations/new"
+                    hx-target="#conversation-status"
+                    hx-swap="innerHTML"
+                    onclick="clearResponses()">
+                New Chat
+            </button>
+        </div>
+    </div>
+
+    <div id="conversation-panel" class="conversation-panel hidden">
+        <div class="conversation-panel-header">
+            <h3>Conversation History</h3>
+            <button class="close-panel" onclick="toggleConversationPanel(false)">&times;</button>
+        </div>
+        <div id="conversation-panel-content">
+            <!-- Conversation list loaded via HTMX -->
+        </div>
+    </div>
+
+    <div id="conversation-status">
+        <!-- Status messages shown here -->
     </div>
 
     <form class="chat-form"
@@ -148,10 +275,32 @@
         textarea.form.requestSubmit();
     }
 
+    function toggleConversationPanel(show) {
+        const panel = document.getElementById('conversation-panel');
+        if (show) {
+            panel.classList.remove('hidden');
+        } else {
+            panel.classList.add('hidden');
+        }
+    }
+
+    function clearResponses() {
+        document.getElementById('responses').innerHTML = '';
+        toggleConversationPanel(false);
+    }
+
     // Clear textarea after successful submission
     document.body.addEventListener('htmx:afterRequest', function(event) {
         if (event.detail.successful && event.detail.elt.matches('form')) {
             event.detail.elt.querySelector('textarea').value = '';
+        }
+    });
+
+    // Close panel and clear responses when resuming a conversation
+    document.body.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.successful && event.detail.pathInfo.requestPath.includes('/resume')) {
+            toggleConversationPanel(false);
+            document.getElementById('responses').innerHTML = '';
         }
     });
 </script>

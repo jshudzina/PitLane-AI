@@ -76,6 +76,7 @@ def mock_agent():
     agent.chat_full = AsyncMock(return_value="Mocked agent response")
     agent.session_id = "test-session-123"
     agent.workspace_dir = Path("/tmp/test-workspace")
+    agent.agent_session_id = None  # No SDK session ID in mock
     return agent
 
 

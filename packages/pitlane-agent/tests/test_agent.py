@@ -296,7 +296,7 @@ class TestF1AgentChatFull:
         agent = F1Agent()
 
         # Mock the chat method
-        async def mock_chat(message):
+        async def mock_chat(message, resume_session_id=None):
             yield "Chunk 1"
             yield "Chunk 2"
 

@@ -125,7 +125,7 @@ class TestChatRoute:
         app_client.post("/api/chat", data={"question": question})
 
         # Agent's chat_full should have been called with the question
-        mock_agent.chat_full.assert_called_with(question)
+        mock_agent.chat_full.assert_called_with(question, resume_session_id=None)
 
     def test_returns_message_html_partial(self, app_client, mock_agent):
         """Test that response is message.html partial."""
@@ -139,6 +139,7 @@ class TestChatRoute:
         """Test that empty response from agent is handled gracefully."""
         mock_agent = MagicMock()
         mock_agent.chat_full = AsyncMock(return_value="   ")  # Empty/whitespace response
+        mock_agent.agent_session_id = None  # No SDK session ID
 
         mock_cache = MagicMock()
         mock_cache.get_or_create = AsyncMock(return_value=mock_agent)
@@ -158,6 +159,7 @@ class TestChatRoute:
         """Test that agent exceptions return error message without 500."""
         mock_agent = MagicMock()
         mock_agent.chat_full = AsyncMock(side_effect=Exception("Agent error"))
+        mock_agent.agent_session_id = None  # No SDK session ID
 
         mock_cache = MagicMock()
         mock_cache.get_or_create = AsyncMock(return_value=mock_agent)

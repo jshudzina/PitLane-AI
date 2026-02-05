@@ -11,6 +11,7 @@ from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
 from claude_agent_sdk.types import (
     AssistantMessage,
     HookMatcher,
+    SystemMessage,
     TextBlock,
 )
 
@@ -55,6 +56,7 @@ class F1Agent:
         self.session_id = session_id or generate_session_id()
         self.workspace_dir = workspace_dir or get_workspace_path(self.session_id)
         self.inject_temporal_context = inject_temporal_context
+        self._agent_session_id: str | None = None  # Captured from Claude SDK
 
         # Verify workspace exists or create it
         if not self.workspace_dir.exists():
@@ -81,11 +83,24 @@ class F1Agent:
         """
         return self.workspace_dir / "charts"
 
-    async def chat(self, message: str) -> AsyncIterator[str]:
+    @property
+    def agent_session_id(self) -> str | None:
+        """Get the Claude Agent SDK session ID for resumption.
+
+        This ID is captured from the SDK's init message during chat()
+        and can be used to resume the conversation later.
+
+        Returns:
+            The SDK session ID, or None if not yet captured.
+        """
+        return self._agent_session_id
+
+    async def chat(self, message: str, resume_session_id: str | None = None) -> AsyncIterator[str]:
         """Process a chat message and yield response text chunks.
 
         Args:
             message: The user's question or message.
+            resume_session_id: Optional SDK session ID to resume a previous conversation.
 
         Yields:
             Text chunks from the assistant's response.
@@ -136,6 +151,7 @@ class F1Agent:
             allowed_tools=["Skill", "Bash", "Read", "Write", "WebFetch"],
             can_use_tool=can_use_tool_with_context,
             hooks=hooks,
+            resume=resume_session_id,
             system_prompt={
                 "type": "preset",
                 "preset": "claude_code",
@@ -149,21 +165,26 @@ class F1Agent:
             await client.query(message)
 
             async for msg in client.receive_response():
-                if isinstance(msg, AssistantMessage):
+                # Capture session ID from init message for future resumption
+                if isinstance(msg, SystemMessage):
+                    if hasattr(msg, "session_id") and msg.session_id:
+                        self._agent_session_id = msg.session_id
+                elif isinstance(msg, AssistantMessage):
                     for block in msg.content:
                         if isinstance(block, TextBlock):
                             yield block.text
 
-    async def chat_full(self, message: str) -> str:
+    async def chat_full(self, message: str, resume_session_id: str | None = None) -> str:
         """Process a chat message and return the full response.
 
         Args:
             message: The user's question or message.
+            resume_session_id: Optional SDK session ID to resume a previous conversation.
 
         Returns:
             The complete response text.
         """
         parts = []
-        async for chunk in self.chat(message):
+        async for chunk in self.chat(message, resume_session_id=resume_session_id):
             parts.append(chunk)
         return "\n".join(parts) if parts else ""

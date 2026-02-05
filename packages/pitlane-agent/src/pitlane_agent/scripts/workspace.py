@@ -360,3 +360,198 @@ def clean_workspaces(older_than_days: int | None = None, remove_all: bool = Fals
         "removed_count": len(removed_sessions),
         "removed_sessions": removed_sessions,
     }
+
+
+# =============================================================================
+# Conversation Management
+# =============================================================================
+
+
+def get_conversations_path(session_id: str) -> Path:
+    """Get path to conversations.json for a workspace.
+
+    Args:
+        session_id: The web session identifier.
+
+    Returns:
+        Path to the conversations.json file.
+    """
+    return get_workspace_path(session_id) / "conversations.json"
+
+
+def load_conversations(session_id: str) -> dict:
+    """Load conversation metadata for a workspace.
+
+    Args:
+        session_id: The web session identifier.
+
+    Returns:
+        Dictionary with version, active_conversation_id, and conversations list.
+        Returns empty structure if file doesn't exist.
+    """
+    conversations_path = get_conversations_path(session_id)
+
+    if not conversations_path.exists():
+        return {
+            "version": 1,
+            "active_conversation_id": None,
+            "conversations": [],
+        }
+
+    try:
+        with open(conversations_path) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        # Return empty structure on corruption
+        return {
+            "version": 1,
+            "active_conversation_id": None,
+            "conversations": [],
+        }
+
+
+def save_conversations(session_id: str, data: dict) -> None:
+    """Save conversation metadata atomically.
+
+    Args:
+        session_id: The web session identifier.
+        data: The conversation data dictionary to save.
+
+    Raises:
+        ValueError: If workspace doesn't exist.
+    """
+    if not workspace_exists(session_id):
+        raise ValueError(f"Workspace does not exist for session ID: {session_id}")
+
+    conversations_path = get_conversations_path(session_id)
+    workspace_path = get_workspace_path(session_id)
+
+    # Atomic write using tempfile + rename
+    fd, temp_path = tempfile.mkstemp(
+        dir=workspace_path,
+        prefix=".conversations.tmp.",
+        suffix=".json",
+    )
+
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=2)
+        os.replace(temp_path, conversations_path)
+    except Exception:
+        with suppress(Exception):
+            os.unlink(temp_path)
+        raise
+
+
+def _generate_title(message: str, max_length: int = 50) -> str:
+    """Generate a title from the first message.
+
+    Args:
+        message: The user's first message.
+        max_length: Maximum title length.
+
+    Returns:
+        A truncated title suitable for display.
+    """
+    # Remove extra whitespace
+    clean = " ".join(message.split())
+    if len(clean) <= max_length:
+        return clean
+    # Truncate at word boundary
+    truncated = clean[:max_length].rsplit(" ", 1)[0]
+    return truncated + "..."
+
+
+def create_conversation(
+    session_id: str,
+    agent_session_id: str,
+    first_message: str,
+) -> dict:
+    """Create a new conversation entry.
+
+    Args:
+        session_id: Web session ID (workspace identifier).
+        agent_session_id: Claude SDK session ID for resumption.
+        first_message: First user message (used for title/preview).
+
+    Returns:
+        The created conversation dict.
+
+    Raises:
+        ValueError: If workspace doesn't exist.
+    """
+    conv_id = f"conv_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(UTC).isoformat() + "Z"
+
+    conversation = {
+        "id": conv_id,
+        "agent_session_id": agent_session_id,
+        "title": _generate_title(first_message),
+        "created_at": now,
+        "last_message_at": now,
+        "message_count": 1,
+        "preview": first_message[:100] + ("..." if len(first_message) > 100 else ""),
+    }
+
+    data = load_conversations(session_id)
+    data["conversations"].insert(0, conversation)  # Most recent first
+    data["active_conversation_id"] = conv_id
+    save_conversations(session_id, data)
+
+    return conversation
+
+
+def update_conversation(
+    session_id: str,
+    conversation_id: str,
+    message_count_delta: int = 1,
+) -> None:
+    """Update conversation metadata after a message.
+
+    Args:
+        session_id: Web session ID (workspace identifier).
+        conversation_id: The conversation to update.
+        message_count_delta: Number of messages to add to count.
+    """
+    data = load_conversations(session_id)
+
+    for conv in data["conversations"]:
+        if conv["id"] == conversation_id:
+            conv["last_message_at"] = datetime.now(UTC).isoformat() + "Z"
+            conv["message_count"] += message_count_delta
+            break
+
+    save_conversations(session_id, data)
+
+
+def get_active_conversation(session_id: str) -> dict | None:
+    """Get the currently active conversation for a workspace.
+
+    Args:
+        session_id: Web session ID (workspace identifier).
+
+    Returns:
+        The active conversation dict, or None if no active conversation.
+    """
+    data = load_conversations(session_id)
+    active_id = data.get("active_conversation_id")
+
+    if not active_id:
+        return None
+
+    for conv in data["conversations"]:
+        if conv["id"] == active_id:
+            return conv
+    return None
+
+
+def set_active_conversation(session_id: str, conversation_id: str | None) -> None:
+    """Set the active conversation for a workspace.
+
+    Args:
+        session_id: Web session ID (workspace identifier).
+        conversation_id: The conversation ID to set as active, or None to clear.
+    """
+    data = load_conversations(session_id)
+    data["active_conversation_id"] = conversation_id
+    save_conversations(session_id, data)

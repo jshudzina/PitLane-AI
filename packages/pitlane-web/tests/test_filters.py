@@ -223,10 +223,11 @@ class TestRegisterFilters:
         assert "rewrite_paths" in mock_templates.env.filters
         assert mock_templates.env.filters["rewrite_paths"] == rewrite_workspace_paths
 
-    def test_both_filters_registered(self, mock_templates):
-        """Test that both filters are registered together."""
+    def test_all_filters_registered(self, mock_templates):
+        """Test that all filters are registered together."""
         register_filters(mock_templates)
 
-        assert len(mock_templates.env.filters) == 2
+        assert len(mock_templates.env.filters) == 3
         assert "markdown" in mock_templates.env.filters
         assert "rewrite_paths" in mock_templates.env.filters
+        assert "timeago" in mock_templates.env.filters
