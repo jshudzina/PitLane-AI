@@ -1,15 +1,30 @@
 # Skills
 
-Skills provide specialized capabilities to the F1 agent, enabling domain-specific analysis through structured prompts and Python scripts. Each skill is a self-contained module with its own prompt, tools, and data access patterns.
+Skills are composable, domain-specific modules that extend the agent's capabilities. Each skill has its own prompt and **restricted tool access** - demonstrating layered security.
 
-## Overview
+```mermaid
+graph TB
+    subgraph Agent["Agent Level"]
+        F1Agent[F1Agent]
+        AT["Tools: Skill, Bash, Read, Write, WebFetch"]
+    end
 
-PitLane-AI uses the [Claude Agent SDK skills system](https://github.com/anthropics/anthropic-sdk-python) to organize functionality into focused, composable modules. When the agent receives a question about F1 data, it:
+    subgraph SkillLevel["Skill Level (more restricted)"]
+        Skill[f1-analyst]
+        ST["Tools: Bash(pitlane *), Read, Write"]
+        subgraph Sub["Sub-Skills (references/)"]
+            lap[lap_times.md]
+            strat[strategy.md]
+            telem[telemetry.md]
+        end
+    end
 
-1. Identifies the relevant skill based on the query
-2. Invokes the skill using the `Skill` tool
-3. The skill executes with its own prompt and tool restrictions
-4. Results are returned to the main agent conversation
+    F1Agent -->|Skill tool| Skill
+    AT -.->|restricted| ST
+    Skill --> lap
+    Skill --> strat
+    Skill --> telem
+```
 
 ## Skill Structure
 
@@ -140,31 +155,7 @@ The agent automatically:
 
 ## Workspace Integration
 
-Skills use the session workspace for data isolation:
-
-**Session ID**: Passed via `PITLANE_SESSION_ID` environment variable
-
-**Workspace Structure**:
-```
-~/.pitlane/workspaces/<session-id>/
-├── data/              # Session data (JSON)
-│   ├── session_info.json
-│   ├── drivers.json
-│   └── schedule.json
-└── charts/            # Generated visualizations (PNG)
-    ├── lap_times.png
-    └── strategy.png
-```
-
-Skills read/write data using the workspace path:
-
-```bash
-# Skills fetch data to workspace
-pitlane fetch session-info --session-id $PITLANE_SESSION_ID --year 2024 --gp Monaco --session R
-
-# Skills generate charts to workspace
-pitlane analyze lap-times --session-id $PITLANE_SESSION_ID --drivers VER HAM
-```
+Skills access session data via the `PITLANE_SESSION_ID` environment variable. All data and charts are stored in `~/.pitlane/workspaces/<session-id>/`.
 
 ## Tool Permissions in Skills
 
@@ -217,17 +208,7 @@ This enables:
 
 ## Security Model
 
-Skills are **sandboxed** through tool restrictions:
-
-1. **Bash Access**: Limited to `pitlane` CLI only (no arbitrary commands)
-2. **File Access**: Limited to workspace directory (no system files)
-3. **Network Access**: Limited to F1 domains (Ergast, Wikipedia, F1.com)
-4. **No Escalation**: Skills cannot invoke other skills
-
-This ensures:
-- Data isolation between sessions
-- No access to sensitive system resources
-- Predictable, auditable behavior
+Skills are sandboxed: Bash is limited to `pitlane` CLI commands, file access is restricted to the workspace directory, and skills cannot invoke other skills (no escalation).
 
 ## Adding New Skills
 

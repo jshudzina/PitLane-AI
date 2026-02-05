@@ -1,37 +1,48 @@
 # Architecture Overview
 
-PitLane-AI is built on the [Claude Agent SDK](https://github.com/anthropics/anthropic-sdk-python), demonstrating practical applications of AI agents in domain-specific analysis. The architecture emphasizes **security**, **observability**, and **modularity**.
+!!! info "Claude Agent SDK Demonstration"
+    PitLane-AI demonstrates practical patterns for building AI agents:
+
+    - **Skills** - Composable, domain-specific agent capabilities
+    - **Progressive Disclosure** - Just-in-time context via temporal awareness
+    - **Tool Permissions** - Layered restrictions for safe agent behavior
 
 ## System Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      User Interface Layer                       │
-├─────────────────────────────────────────────────────────────────┤
-│  - CLI (pitlane-agent)                                          │
-│  - Web Interface (pitlane-web) - FastAPI + Server-Sent Events  │
-└─────────────────────────┬───────────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────────┐
-│                       F1Agent (Core)                            │
-├─────────────────────────────────────────────────────────────────┤
-│  - Session Management                                           │
-│  - Workspace Isolation                                          │
-│  - Temporal Context Injection                                   │
-│  - Tool Permission Enforcement                                  │
-│  - OpenTelemetry Tracing                                        │
-└─────────────────────────┬───────────────────────────────────────┘
-                          │
-        ┌─────────────────┼─────────────────┐
-        │                 │                 │
-┌───────▼──────┐  ┌──────▼─────┐  ┌───────▼──────┐
-│   Skills     │  │   Tools    │  │  Data Layer  │
-├──────────────┤  ├────────────┤  ├──────────────┤
-│ f1-analyst   │  │ Bash       │  │ FastF1       │
-│ f1-drivers   │  │ Read       │  │ Ergast API   │
-│ f1-schedule  │  │ Write      │  │ Workspaces   │
-│              │  │ WebFetch   │  │ Cache        │
-└──────────────┘  └────────────┘  └──────────────┘
+```mermaid
+graph TB
+    User[User]
+
+    subgraph Agent["F1Agent"]
+        TC[Temporal Context]
+        SDK[ClaudeSDKClient]
+    end
+
+    subgraph Skills[".claude/skills/"]
+        f1a[f1-analyst]
+        f1d[f1-drivers]
+        f1s[f1-schedule]
+    end
+
+    subgraph Tools["Agent Tools"]
+        CLI[pitlane CLI]
+    end
+
+    subgraph Data["Data APIs"]
+        FF1[FastF1]
+        Ergast[Ergast API]
+    end
+
+    User --> SDK
+    TC -->|injected into prompt| SDK
+    SDK -->|Skill tool| f1a
+    SDK -->|Skill tool| f1d
+    SDK -->|Skill tool| f1s
+    f1a -->|Bash tool| CLI
+    f1d -->|Bash tool| CLI
+    f1s -->|Bash tool| CLI
+    CLI --> FF1
+    CLI --> Ergast
 ```
 
 ## Core Components
@@ -97,87 +108,30 @@ Enables concurrent sessions and multi-user deployments.
 
 [Learn more →](workspace-management.md)
 
-## Data Flow
+## Query Flow
 
-### Query Execution Flow
+```mermaid
+sequenceDiagram
+    participant User
+    participant F1Agent
+    participant Skill
+    participant CLI as pitlane CLI
+    participant FastF1
 
-```
-1. User Query
-   ↓
-2. F1Agent.chat()
-   │
-   ├─> Inject temporal context into system prompt
-   ├─> Initialize ClaudeSDKClient with tools
-   └─> Set can_use_tool permission handler
-   ↓
-3. Agent Reasoning
-   │
-   ├─> Determine relevant skill
-   └─> Invoke Skill tool
-   ↓
-4. Skill Execution
-   │
-   ├─> Parse query intent
-   ├─> Execute pitlane CLI command
-   └─> Read workspace data / Generate chart
-   ↓
-5. Response Streaming
-   │
-   └─> Yield text chunks to user interface
+    User->>F1Agent: "Compare VER and HAM lap times"
+    Note over F1Agent: Temporal context in system prompt
+    F1Agent->>Skill: Skill tool: f1-analyst
+    Skill->>CLI: Bash tool: pitlane analyze lap-times
+    CLI->>FastF1: fetch session data
+    FastF1-->>CLI: lap times
+    CLI-->>Skill: data + chart saved to workspace
+    Skill-->>F1Agent: analysis complete
+    F1Agent-->>User: Response stream
 ```
 
-### Data Persistence Flow
+## Design Principles
 
-```
-1. CLI Command (via Skill)
-   ↓
-2. FastF1 Data Fetch
-   │
-   ├─> Check shared cache (~/.pitlane/cache/fastf1/)
-   ├─> Download if missing
-   └─> Cache for future use
-   ↓
-3. Analysis / Visualization
-   │
-   ├─> Process data (lap times, strategy, etc.)
-   └─> Generate matplotlib chart
-   ↓
-4. Workspace Storage
-   │
-   ├─> Save JSON to workspace/data/
-   └─> Save PNG to workspace/charts/
-   ↓
-5. Agent Response
-   │
-   └─> Reference workspace files in response
-```
-
-## Key Design Principles
-
-### 1. Security First
-
-- **Principle of Least Privilege**: Tools have minimal necessary permissions
-- **Sandboxing**: Skills operate within workspace boundaries
-- **Domain Restrictions**: Web access limited to known F1 domains
-- **Auditable**: All permission checks logged and traced
-
-### 2. Observability
-
-- **OpenTelemetry Integration**: Trace tool calls, permissions, and decisions
-- **Structured Logging**: Contextual logging with session IDs
-- **Inspectable Workspaces**: Persistent data for debugging
-
-### 3. Modularity
-
-- **Skills as Modules**: Easy to add new analysis capabilities
-- **Tool-Based Architecture**: Standard Claude SDK tool patterns
-- **Workspace Isolation**: Clean separation of concerns
-
-### 4. User Experience
-
-- **Streaming Responses**: Real-time feedback via Server-Sent Events
-- **Temporal Awareness**: Agent understands "last race", "this weekend"
-- **Visualizations**: Automatic chart generation for insights
+The architecture emphasizes **modularity** (skills as composable units), **security** (layered tool restrictions), and **context awareness** (temporal state injection). Each skill operates in a sandbox with only the tools it needs.
 
 ## Package Structure
 
@@ -208,7 +162,7 @@ packages/
 | Layer | Technology |
 |-------|-----------|
 | **Agent Framework** | Claude Agent SDK |
-| **LLM** | Claude 3.7 Sonnet |
+| **LLM** | Claude Sonnet 4.5 |
 | **F1 Data Layer** | [FastF1](https://docs.fastf1.dev/) (telemetry, timing, sessions)<br>[jolpica-f1/Ergast API](https://github.com/jolpica/jolpica-f1) (driver info, historical data) |
 | **Visualization** | Matplotlib |
 | **Web Framework** | FastAPI |
@@ -216,43 +170,6 @@ packages/
 | **Tracing** | OpenTelemetry |
 | **Package Manager** | uv (monorepo workspace) |
 | **Testing** | pytest, pytest-asyncio |
-
-### F1 Data Foundation
-
-PitLane-AI's analytical capabilities are built on two foundational F1 data APIs:
-
-- **FastF1** ([docs.fastf1.dev](https://docs.fastf1.dev/)) - Provides comprehensive access to F1 telemetry, timing data, session information, and event schedules. All lap time analysis, strategy visualization, and telemetry comparison features use FastF1 as the data source.
-
-- **jolpica-f1 (Ergast API)** ([github.com/jolpica/jolpica-f1](https://github.com/jolpica/jolpica-f1)) - Provides historical F1 data including driver rosters, race results, and championship standings from 1950 to present. Accessed via FastF1's `ergast` module.
-
-These APIs handle all the analytical heavy lifting - PitLane-AI adds an intelligent agent layer on top for natural language queries, visualization generation, and temporal context awareness.
-
-## Deployment Models
-
-### 1. CLI Usage
-
-Single-user, local analysis:
-
-```bash
-pitlane-agent
-# Interactive CLI session
-```
-
-### 2. Web Interface (Development)
-
-Local web server with hot-reload:
-
-```bash
-uvx pitlane-web --env development
-# Visit http://localhost:8000
-```
-
-### 3. Web Interface (Production)
-
-!!! info "Coming Soon"
-    Production deployment instructions are currently being finalized and will be available in a future release.
-
-Supports concurrent sessions via workspace isolation.
 
 ## Next Steps
 

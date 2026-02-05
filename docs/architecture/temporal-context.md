@@ -1,30 +1,16 @@
 # Temporal Context
 
-The temporal context system provides real-time awareness of the F1 calendar, enabling the agent to understand "where we are" in the racing season at multiple granularities.
-
-## Overview
-
-When analyzing F1 data, context matters. A question about "the last race" means different things in March (pre-season) vs. July (mid-season) vs. December (off-season). The temporal context system makes the agent **season-aware**, automatically injecting relevant calendar information into the system prompt.
+The temporal context system provides real-time F1 calendar awareness. Queries like "analyze the last race" work without specifying which race - the agent knows where we are in the season.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────┐
-│   TemporalContextManager                │
-├─────────────────────────────────────────┤
-│  - Intelligent Caching (TTL-based)      │
-│  - FastF1 Schedule Integration          │
-│  - Session-Level Granularity            │
-└────────────┬────────────────────────────┘
-             │
-             ├──> TemporalCache
-             │    (Disk-based, adaptive TTL)
-             │
-             ├──> TemporalAnalyzer
-             │    (Calendar analysis logic)
-             │
-             └──> TemporalFormatter
-                  (System prompt formatting)
+```mermaid
+graph LR
+    TCM[TemporalContextManager]
+    TCM --> Cache[TemporalCache]
+    TCM --> Analyzer[TemporalAnalyzer]
+    TCM --> Formatter[TemporalFormatter]
+    Formatter --> Prompt[System Prompt]
 ```
 
 ## Context Levels
@@ -56,104 +42,13 @@ Tracks individual sessions with real-time status:
 - **Recent Sessions**: Completed within last 24 hours
 - **Upcoming Sessions**: Future sessions with countdown
 
-## Data Structures
+## Data Structure
 
-### TemporalContext
+The `TemporalContext` captures season phase, current/last/next race weekends, and session-level status (live, recent, upcoming).
 
-The root context object:
+## Caching
 
-```python
-@dataclass
-class TemporalContext:
-    current_time_utc: datetime
-    current_season: int
-    season_phase: F1Season  # pre_season, in_season, post_season, off_season
-
-    # Race weekend context
-    current_weekend: RaceWeekendContext | None
-    last_completed_race: RaceWeekendContext | None
-    next_race: RaceWeekendContext | None
-
-    # Quick stats
-    races_completed: int
-    races_remaining: int
-    days_until_next_race: int | None
-
-    # Cache metadata
-    cache_timestamp: datetime
-    ttl_seconds: int
-```
-
-### RaceWeekendContext
-
-Details about a specific race weekend:
-
-```python
-@dataclass
-class RaceWeekendContext:
-    round_number: int
-    event_name: str           # "Monaco Grand Prix"
-    country: str
-    location: str
-    event_date: datetime
-    phase: RaceWeekendPhase   # practice, qualifying, race, etc.
-
-    # Session tracking
-    current_session: SessionContext | None
-    next_session: SessionContext | None
-    all_sessions: list[SessionContext]
-    is_sprint_weekend: bool
-```
-
-### SessionContext
-
-Details about an individual session:
-
-```python
-@dataclass
-class SessionContext:
-    name: str                 # "Race", "Qualifying", "FP1"
-    session_type: str         # "R", "Q", "FP1", etc.
-    date_utc: datetime
-    date_local: datetime
-
-    # Real-time status
-    is_live: bool             # Currently happening
-    is_recent: bool           # Within last 24h
-    minutes_until: int | None # Countdown to start (None if past)
-    minutes_since: int | None # Time since end (None if future)
-```
-
-## Caching Strategy
-
-The temporal context uses **intelligent adaptive caching** to minimize API calls while maintaining accuracy:
-
-### Cache TTL (Time-To-Live)
-
-The cache TTL adapts based on how far we are from the next event:
-
-| Time Until Next Session | TTL |
-|-------------------------|-----|
-| < 1 hour | 5 minutes |
-| < 24 hours | 30 minutes |
-| < 7 days | 6 hours |
-| ≥ 7 days | 24 hours |
-
-**Rationale**: During race weekends, context changes rapidly (sessions start/end). During off-weeks, context is stable.
-
-### Cache Location
-
-Context is cached at:
-
-```
-~/.pitlane/cache/temporal/
-└── temporal_context.json
-```
-
-Cache includes:
-- Full temporal context JSON
-- Cache timestamp
-- TTL seconds (for validation)
+The cache TTL adapts based on proximity to the next event: 5 minutes during race weekends, up to 24 hours during off-weeks.
 
 ## System Prompt Injection
 
@@ -170,15 +65,26 @@ system_prompt = {
 }
 ```
 
-### Verbosity Levels
+### Progressive Disclosure
 
-The formatter supports three verbosity levels:
+The formatter supports three verbosity levels - demonstrating how to manage context window usage:
 
-| Level | Description | Use Case |
-|-------|-------------|----------|
-| `minimal` | Season phase and next race only | Token-constrained environments |
-| `normal` | Full context with current/last/next races | Standard agent usage (default) |
-| `detailed` | Includes all session details | Debugging and development |
+```mermaid
+graph LR
+    minimal["minimal<br/>~50 tokens"]
+    normal["normal<br/>~150 tokens"]
+    detailed["detailed<br/>~300 tokens"]
+
+    minimal --> normal --> detailed
+
+    style normal fill:#e1f5fe
+```
+
+| Level | Description |
+|-------|-------------|
+| `minimal` | Season phase and next race only |
+| `normal` | Full context with current/last/next races (default) |
+| `detailed` | All session details for debugging |
 
 ### Example Formatted Prompt
 
@@ -245,35 +151,6 @@ prompt = format_for_system_prompt(context, verbosity="minimal")
 # Detailed (debugging)
 prompt = format_for_system_prompt(context, verbosity="detailed")
 ```
-
-## Benefits
-
-### 1. Contextual Understanding
-
-The agent knows temporal references without asking:
-
-- "Analyze the last race" → Automatically knows which race
-- "What's happening this weekend?" → Knows current event and sessions
-- "When's the next race?" → Instant countdown
-
-### 2. Reduced Token Usage
-
-Without temporal context, the agent would need to:
-1. Fetch the schedule
-2. Determine current race
-3. Parse session times
-4. Calculate countdowns
-
-With temporal context, all this is pre-computed and cached.
-
-### 3. Real-Time Awareness
-
-During race weekends, the agent knows:
-- If qualifying is live right now
-- When the next session starts
-- How long ago a session ended
-
-This enables intelligent suggestions and relevant analysis prompts.
 
 ## Related Documentation
 
