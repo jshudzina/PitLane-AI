@@ -1,8 +1,8 @@
 # PitLane-AI
 
 <div align="center">
-  <img src="https://img.shields.io/pypi/v/pitlane-ai" alt="PyPI version">
-  <img src="https://img.shields.io/pypi/pyversions/pitlane-ai" alt="Python versions">
+  <img src="https://img.shields.io/pypi/v/pitlane-web" alt="PyPI version">
+  <img src="https://img.shields.io/pypi/pyversions/pitlane-web" alt="Python versions">
   <img src="https://img.shields.io/github/license/jshudzina/PitLane-AI" alt="License">
 </div>
 

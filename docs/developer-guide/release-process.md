@@ -1,6 +1,6 @@
 # Release Process
 
-Detailed release process documentation can be found at [docs/RELEASE_PROCESS.md](../../RELEASE_PROCESS.md).
+Detailed release process documentation can be found at [docs/RELEASE_PROCESS.md](../RELEASE_PROCESS.md).
 
 ## Quick Reference
 
@@ -27,4 +27,4 @@ Follow [Semantic Versioning](https://semver.org/):
 - **MINOR**: New features (backward compatible)
 - **PATCH**: Bug fixes
 
-See [full documentation](../../RELEASE_PROCESS.md) for details.
+See [full documentation](../RELEASE_PROCESS.md) for details.

@@ -31,7 +31,7 @@ The core agent architecture consists of three main components:
 
 ## F1Agent Class
 
-The [`F1Agent`](../../packages/pitlane-agent/src/pitlane_agent/agent.py) class is the primary interface for interacting with the AI agent.
+The [`F1Agent`](https://github.com/jshudzina/PitLane-AI/blob/main/packages/pitlane-agent/src/pitlane_agent/agent.py) class is the primary interface for interacting with the AI agent.
 
 ### Initialization
 
