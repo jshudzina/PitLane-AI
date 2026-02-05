@@ -243,7 +243,7 @@ Trace output example:
 
 ## Implementation
 
-See [`tool_permissions.py`](../../packages/pitlane-agent/src/pitlane_agent/tool_permissions.py) for the full implementation:
+See [`tool_permissions.py`](https://github.com/jshudzina/PitLane-AI/blob/main/packages/pitlane-agent/src/pitlane_agent/tool_permissions.py) for the full implementation:
 
 ```python
 async def can_use_tool(

@@ -140,7 +140,7 @@ This enables:
 
 ## Workspace API
 
-See [`scripts/workspace.py`](../../packages/pitlane-agent/src/pitlane_agent/scripts/workspace.py) for the full API:
+See [`scripts/workspace.py`](https://github.com/jshudzina/PitLane-AI/blob/main/packages/pitlane-agent/src/pitlane_agent/scripts/workspace.py) for the full API:
 
 ### Create Workspace
 
