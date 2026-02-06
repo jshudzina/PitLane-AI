@@ -417,3 +417,245 @@ class TestServeChartRoute:
         # Should be rejected due to path resolution check
         assert response.status_code == 403
         assert "access denied" in response.json()["detail"].lower()
+
+
+class TestConversationListRoute:
+    """Tests for GET /api/conversations (list conversations)."""
+
+    def test_returns_401_without_valid_session(self, app_client, monkeypatch):
+        """Test that invalid session returns 401."""
+        monkeypatch.setattr("pitlane_web.app.validate_session_safely", lambda s: (False, None))
+
+        response = app_client.get("/api/conversations")
+        assert response.status_code == 401
+
+    def test_returns_conversation_list_html(self, app_client, test_session_id, tmp_workspace, monkeypatch):
+        """Test that valid session returns conversation list HTML."""
+        from pitlane_web.config import SESSION_COOKIE_NAME
+
+        # Mock conversation loading
+        monkeypatch.setattr(
+            "pitlane_web.app.load_conversations",
+            MagicMock(
+                return_value={
+                    "version": 1,
+                    "active_conversation_id": None,
+                    "conversations": [],
+                }
+            ),
+        )
+
+        response = app_client.get("/api/conversations", cookies={SESSION_COOKIE_NAME: test_session_id})
+
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+
+    def test_returns_conversations_in_response(self, app_client, test_session_id, monkeypatch):
+        """Test that conversations are included in response."""
+        from pitlane_web.config import SESSION_COOKIE_NAME
+
+        monkeypatch.setattr(
+            "pitlane_web.app.load_conversations",
+            MagicMock(
+                return_value={
+                    "version": 1,
+                    "active_conversation_id": "conv_123",
+                    "conversations": [
+                        {
+                            "id": "conv_123",
+                            "title": "Test Conversation",
+                            "message_count": 5,
+                            "last_message_at": "2024-01-01T00:00:00Z",
+                            "preview": "Hello world",
+                        }
+                    ],
+                }
+            ),
+        )
+
+        response = app_client.get("/api/conversations", cookies={SESSION_COOKIE_NAME: test_session_id})
+
+        assert response.status_code == 200
+        assert b"Test Conversation" in response.content
+
+
+class TestNewConversationRoute:
+    """Tests for POST /api/conversations/new (start new conversation)."""
+
+    def test_returns_401_without_valid_session(self, app_client, monkeypatch):
+        """Test that invalid session returns 401."""
+        monkeypatch.setattr("pitlane_web.app.validate_session_safely", lambda s: (False, None))
+
+        response = app_client.post("/api/conversations/new")
+        assert response.status_code == 401
+
+    def test_clears_active_conversation(self, app_client, test_session_id, monkeypatch):
+        """Test that new conversation clears active conversation."""
+        from pitlane_web.config import SESSION_COOKIE_NAME
+
+        set_active_mock = MagicMock()
+        monkeypatch.setattr("pitlane_web.app.set_active_conversation", set_active_mock)
+        monkeypatch.setattr(
+            "pitlane_web.app.validate_session_safely",
+            lambda s: (True, test_session_id),
+        )
+
+        response = app_client.post("/api/conversations/new", cookies={SESSION_COOKIE_NAME: test_session_id})
+
+        assert response.status_code == 200
+        set_active_mock.assert_called_once_with(test_session_id, None)
+
+    def test_evicts_agent_cache(self, app_client, test_session_id, monkeypatch):
+        """Test that agent cache is evicted."""
+        from pitlane_web import app as web_app
+        from pitlane_web.config import SESSION_COOKIE_NAME
+
+        evict_mock = AsyncMock()
+        web_app._agent_cache.evict = evict_mock
+        monkeypatch.setattr("pitlane_web.app.set_active_conversation", MagicMock())
+        monkeypatch.setattr(
+            "pitlane_web.app.validate_session_safely",
+            lambda s: (True, test_session_id),
+        )
+
+        response = app_client.post("/api/conversations/new", cookies={SESSION_COOKIE_NAME: test_session_id})
+
+        assert response.status_code == 200
+        evict_mock.assert_called_once_with(test_session_id)
+
+    def test_returns_status_html(self, app_client, test_session_id, monkeypatch):
+        """Test that new conversation returns status HTML."""
+        from pitlane_web.config import SESSION_COOKIE_NAME
+
+        monkeypatch.setattr("pitlane_web.app.set_active_conversation", MagicMock())
+        monkeypatch.setattr(
+            "pitlane_web.app.validate_session_safely",
+            lambda s: (True, test_session_id),
+        )
+
+        response = app_client.post("/api/conversations/new", cookies={SESSION_COOKIE_NAME: test_session_id})
+
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+
+
+class TestResumeConversationRoute:
+    """Tests for POST /api/conversations/{id}/resume (resume conversation)."""
+
+    def test_returns_401_without_valid_session(self, app_client, monkeypatch):
+        """Test that invalid session returns 401."""
+        monkeypatch.setattr("pitlane_web.app.validate_session_safely", lambda s: (False, None))
+
+        response = app_client.post("/api/conversations/conv_123/resume")
+        assert response.status_code == 401
+
+    def test_returns_404_for_unknown_conversation(self, app_client, test_session_id, monkeypatch):
+        """Test that unknown conversation ID returns 404."""
+        from pitlane_web.config import SESSION_COOKIE_NAME
+
+        monkeypatch.setattr(
+            "pitlane_web.app.load_conversations",
+            MagicMock(
+                return_value={
+                    "version": 1,
+                    "active_conversation_id": None,
+                    "conversations": [],
+                }
+            ),
+        )
+
+        response = app_client.post(
+            "/api/conversations/conv_unknown/resume",
+            cookies={SESSION_COOKIE_NAME: test_session_id},
+        )
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_sets_conversation_as_active(self, app_client, test_session_id, monkeypatch):
+        """Test that conversation is set as active."""
+        from pitlane_web.config import SESSION_COOKIE_NAME
+
+        set_active_mock = MagicMock()
+        monkeypatch.setattr("pitlane_web.app.set_active_conversation", set_active_mock)
+        monkeypatch.setattr(
+            "pitlane_web.app.validate_session_safely",
+            lambda s: (True, test_session_id),
+        )
+        monkeypatch.setattr(
+            "pitlane_web.app.load_conversations",
+            MagicMock(
+                return_value={
+                    "version": 1,
+                    "active_conversation_id": None,
+                    "conversations": [{"id": "conv_123", "title": "Test", "agent_session_id": "sdk-123"}],
+                }
+            ),
+        )
+
+        response = app_client.post(
+            "/api/conversations/conv_123/resume",
+            cookies={SESSION_COOKIE_NAME: test_session_id},
+        )
+
+        assert response.status_code == 200
+        set_active_mock.assert_called_once_with(test_session_id, "conv_123")
+
+    def test_evicts_agent_cache_on_resume(self, app_client, test_session_id, monkeypatch):
+        """Test that agent cache is evicted when resuming."""
+        from pitlane_web import app as web_app
+        from pitlane_web.config import SESSION_COOKIE_NAME
+
+        evict_mock = AsyncMock()
+        web_app._agent_cache.evict = evict_mock
+        monkeypatch.setattr("pitlane_web.app.set_active_conversation", MagicMock())
+        monkeypatch.setattr(
+            "pitlane_web.app.validate_session_safely",
+            lambda s: (True, test_session_id),
+        )
+        monkeypatch.setattr(
+            "pitlane_web.app.load_conversations",
+            MagicMock(
+                return_value={
+                    "version": 1,
+                    "active_conversation_id": None,
+                    "conversations": [{"id": "conv_123", "title": "Test"}],
+                }
+            ),
+        )
+
+        response = app_client.post(
+            "/api/conversations/conv_123/resume",
+            cookies={SESSION_COOKIE_NAME: test_session_id},
+        )
+
+        assert response.status_code == 200
+        evict_mock.assert_called_once_with(test_session_id)
+
+    def test_returns_resumed_status_html(self, app_client, test_session_id, monkeypatch):
+        """Test that resume returns status HTML with conversation info."""
+        from pitlane_web.config import SESSION_COOKIE_NAME
+
+        monkeypatch.setattr("pitlane_web.app.set_active_conversation", MagicMock())
+        monkeypatch.setattr(
+            "pitlane_web.app.validate_session_safely",
+            lambda s: (True, test_session_id),
+        )
+        monkeypatch.setattr(
+            "pitlane_web.app.load_conversations",
+            MagicMock(
+                return_value={
+                    "version": 1,
+                    "active_conversation_id": None,
+                    "conversations": [{"id": "conv_123", "title": "My Test Chat"}],
+                }
+            ),
+        )
+
+        response = app_client.post(
+            "/api/conversations/conv_123/resume",
+            cookies={SESSION_COOKIE_NAME: test_session_id},
+        )
+
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]

@@ -5,6 +5,7 @@ workspace directories used by the F1Agent.
 """
 
 import json
+import logging
 import os
 import shutil
 import tempfile
@@ -12,6 +13,8 @@ import uuid
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def get_workspace_base() -> Path:
@@ -515,11 +518,17 @@ def update_conversation(
     """
     data = load_conversations(session_id)
 
+    found = False
     for conv in data["conversations"]:
         if conv["id"] == conversation_id:
             conv["last_message_at"] = datetime.now(UTC).isoformat() + "Z"
             conv["message_count"] += message_count_delta
+            found = True
             break
+
+    if not found:
+        logger.warning(f"Conversation {conversation_id} not found in session {session_id}")
+        return
 
     save_conversations(session_id, data)
 

@@ -289,16 +289,17 @@
         toggleConversationPanel(false);
     }
 
-    // Clear textarea after successful submission
+    // Handle HTMX responses
     document.body.addEventListener('htmx:afterRequest', function(event) {
-        if (event.detail.successful && event.detail.elt.matches('form')) {
+        if (!event.detail.successful) return;
+
+        // Clear textarea after successful form submission
+        if (event.detail.elt.matches('form')) {
             event.detail.elt.querySelector('textarea').value = '';
         }
-    });
 
-    // Close panel and clear responses when resuming a conversation
-    document.body.addEventListener('htmx:afterRequest', function(event) {
-        if (event.detail.successful && event.detail.pathInfo.requestPath.includes('/resume')) {
+        // Close panel and clear responses when resuming a conversation
+        if (event.detail.pathInfo.requestPath.includes('/resume')) {
             toggleConversationPanel(false);
             document.getElementById('responses').innerHTML = '';
         }
