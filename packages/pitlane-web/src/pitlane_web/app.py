@@ -191,10 +191,6 @@ async def chat(
         response_text = f"An error occurred: {e}"
 
     # Create the template response
-    logger.info(f"Rendering response with web session_id: {session_id}")
-    # Log if response contains potential chart paths for debugging
-    if "/charts/" in response_text or ".pitlane/workspaces" in response_text:
-        logger.info(f"Response contains chart references (length: {len(response_text)})")
     template_response = templates.TemplateResponse(
         request,
         "partials/message.html",

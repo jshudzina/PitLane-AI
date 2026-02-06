@@ -53,13 +53,8 @@ def rewrite_workspace_paths(text: str, session_id: str) -> str:
 
     result = re.sub(pattern, replacer, text)
     if rewrite_count > 0:
-        logger.info(f"Rewrote {rewrite_count} workspace path(s) for session {session_id}")
-    else:
-        # Log at INFO level to help debug missing image issues
-        if workspace_base in text:
-            logger.warning(
-                f"Found workspace paths but none matched pattern. Session: {session_id}, Pattern: {pattern[:50]}..."
-            )
+        logger.debug(f"Rewrote {rewrite_count} workspace path(s) for session {session_id}")
+
     return result
 
 
