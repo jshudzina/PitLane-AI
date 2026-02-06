@@ -1,6 +1,7 @@
 """FastAPI application for PitLane AI with session management."""
 
 import logging
+import os
 from pathlib import Path
 
 from fastapi import Cookie, FastAPI, Form, HTTPException, Request
@@ -44,8 +45,10 @@ from .session import (
 # Logging Configuration
 # ============================================================================
 
+# Allow log level override via environment variable
+_log_level = os.getenv("PITLANE_LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, _log_level, logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
