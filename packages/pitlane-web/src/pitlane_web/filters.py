@@ -1,11 +1,14 @@
 """Jinja2 filters and text transformation for PitLane AI web application."""
 
+import logging
 import re
 from datetime import UTC, datetime
 from pathlib import Path
 
 import markdown
 from fastapi.templating import Jinja2Templates
+
+logger = logging.getLogger(__name__)
 
 
 def rewrite_workspace_paths(text: str, session_id: str) -> str:
@@ -28,19 +31,36 @@ def rewrite_workspace_paths(text: str, session_id: str) -> str:
     escaped_base = re.escape(workspace_base)
 
     # Pattern: /path/to/workspaces/{uuid}/{charts|data}/{filename}
-    pattern = rf"{escaped_base}/([a-f0-9\-]+)/(charts|data)/([^\s\)]+)"
+    # Support both upper and lowercase UUIDs, stop at whitespace, quotes, or parens
+    pattern = rf"{escaped_base}/([a-fA-F0-9\-]+)/(charts|data)/([^\s\)\"\'>]+)"
+
+    rewrite_count = 0
 
     def replacer(match):
+        nonlocal rewrite_count
         matched_session = match.group(1)
         subdir = match.group(2)
         filename = match.group(3)
 
-        # Only rewrite current session's paths (security)
-        if matched_session == session_id:
-            return f"/{subdir}/{matched_session}/{filename}"
+        # Only rewrite current session's paths (security) - case-insensitive comparison
+        if matched_session.lower() == session_id.lower():
+            rewrite_count += 1
+            rewritten = f"/{subdir}/{matched_session}/{filename}"
+            logger.debug(f"Rewriting path: {match.group(0)} -> {rewritten}")
+            return rewritten
+        logger.debug(f"Skipping path (session mismatch): {matched_session} != {session_id}")
         return match.group(0)
 
-    return re.sub(pattern, replacer, text)
+    result = re.sub(pattern, replacer, text)
+    if rewrite_count > 0:
+        logger.info(f"Rewrote {rewrite_count} workspace path(s) for session {session_id}")
+    else:
+        # Log at INFO level to help debug missing image issues
+        if workspace_base in text:
+            logger.warning(
+                f"Found workspace paths but none matched pattern. Session: {session_id}, Pattern: {pattern[:50]}..."
+            )
+    return result
 
 
 def md_to_html(text: str) -> str:

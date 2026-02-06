@@ -418,6 +418,104 @@ class TestServeChartRoute:
         assert response.status_code == 403
         assert "access denied" in response.json()["detail"].lower()
 
+    def test_chart_accessible_after_conversation_resume(self, app_client, test_session_id, tmp_workspace, monkeypatch):
+        """Test that charts remain accessible after resuming a conversation.
+
+        This integration test verifies that:
+        1. Charts created before conversation resume are still accessible
+        2. The web session_id (not agent_session_id) is used for chart URLs
+        3. Agent cache eviction doesn't affect chart serving
+        """
+        # Create a chart file
+        chart_file = tmp_workspace / "charts" / "lap_times.png"
+        chart_file.write_bytes(b"fake png content")
+
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.get_workspace_path", MagicMock(return_value=tmp_workspace))
+        monkeypatch.setattr("pitlane_web.app.set_active_conversation", MagicMock())
+        monkeypatch.setattr(
+            "pitlane_web.app.validate_session_safely",
+            lambda s: (True, test_session_id),
+        )
+        monkeypatch.setattr(
+            "pitlane_web.app.load_conversations",
+            MagicMock(
+                return_value={
+                    "version": 1,
+                    "active_conversation_id": None,
+                    "conversations": [
+                        {
+                            "id": "conv_123",
+                            "title": "Previous Chat",
+                            "agent_session_id": "sdk-session-different-from-web",
+                        }
+                    ],
+                }
+            ),
+        )
+
+        # 1. First, verify chart is accessible before resume
+        response1 = app_client.get(
+            f"/charts/{test_session_id}/lap_times.png",
+            cookies={SESSION_COOKIE_NAME: test_session_id},
+        )
+        assert response1.status_code == 200
+
+        # 2. Resume a conversation (this evicts agent cache)
+        resume_response = app_client.post(
+            "/api/conversations/conv_123/resume",
+            cookies={SESSION_COOKIE_NAME: test_session_id},
+        )
+        assert resume_response.status_code == 200
+
+        # 3. Verify chart is STILL accessible after resume
+        # The key point: web session_id is unchanged, chart should still be served
+        response2 = app_client.get(
+            f"/charts/{test_session_id}/lap_times.png",
+            cookies={SESSION_COOKIE_NAME: test_session_id},
+        )
+        assert response2.status_code == 200
+        assert response2.headers["content-type"] == "image/png"
+
+    def test_chart_accessible_after_new_conversation(self, app_client, test_session_id, tmp_workspace, monkeypatch):
+        """Test that charts remain accessible after starting a new conversation.
+
+        This verifies that agent cache eviction doesn't affect chart storage/serving.
+        """
+        # Create a chart file
+        chart_file = tmp_workspace / "charts" / "speed_trace.png"
+        chart_file.write_bytes(b"fake png content")
+
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.get_workspace_path", MagicMock(return_value=tmp_workspace))
+        monkeypatch.setattr("pitlane_web.app.set_active_conversation", MagicMock())
+        monkeypatch.setattr(
+            "pitlane_web.app.validate_session_safely",
+            lambda s: (True, test_session_id),
+        )
+
+        # 1. Verify chart is accessible before new conversation
+        response1 = app_client.get(
+            f"/charts/{test_session_id}/speed_trace.png",
+            cookies={SESSION_COOKIE_NAME: test_session_id},
+        )
+        assert response1.status_code == 200
+
+        # 2. Start a new conversation (this evicts agent cache)
+        new_response = app_client.post(
+            "/api/conversations/new",
+            cookies={SESSION_COOKIE_NAME: test_session_id},
+        )
+        assert new_response.status_code == 200
+
+        # 3. Verify chart is STILL accessible after new conversation
+        response2 = app_client.get(
+            f"/charts/{test_session_id}/speed_trace.png",
+            cookies={SESSION_COOKIE_NAME: test_session_id},
+        )
+        assert response2.status_code == 200
+        assert response2.headers["content-type"] == "image/png"
+
 
 class TestConversationListRoute:
     """Tests for GET /api/conversations (list conversations)."""
