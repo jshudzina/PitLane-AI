@@ -76,6 +76,7 @@ def mock_agent():
     agent.chat_full = AsyncMock(return_value="Mocked agent response")
     agent.session_id = "test-session-123"
     agent.workspace_dir = Path("/tmp/test-workspace")
+    agent.agent_session_id = None  # No SDK session ID in mock
     return agent
 
 
@@ -101,6 +102,7 @@ def app_client(mock_workspace_functions, monkeypatch, mock_agent):
 
     mock_cache = MagicMock()
     mock_cache.get_or_create = AsyncMock(return_value=mock_agent)
+    mock_cache.evict = AsyncMock()  # Evict is also async
     monkeypatch.setattr(agent_manager, "_agent_cache", mock_cache)
     monkeypatch.setattr(web_app, "_agent_cache", mock_cache)
 

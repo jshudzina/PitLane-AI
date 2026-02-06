@@ -1,0 +1,50 @@
+<style>
+    .conversation-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .conversation-status.status-new {
+        background: #1e3a1e;
+        border: 1px solid #2d5a2d;
+        color: #8fdf8f;
+    }
+
+    .conversation-status.status-resumed {
+        background: #1e2a3a;
+        border: 1px solid #2d4a5a;
+        color: #8fafdf;
+    }
+
+    .conversation-status .status-icon {
+        font-size: 1.1rem;
+    }
+
+    .conversation-status .status-title {
+        font-weight: 600;
+    }
+</style>
+
+{% if status == 'new' %}
+<div class="conversation-status status-new">
+    <span class="status-icon">+</span>
+    <span class="status-title">New Conversation</span>
+    <span>- {{ message }}</span>
+</div>
+{% elif status == 'resumed' %}
+<div class="conversation-status status-resumed">
+    <span class="status-icon">&#8634;</span>
+    <span class="status-title">Resumed:</span>
+    <span>{{ conversation.title }}</span>
+</div>
+{% endif %}

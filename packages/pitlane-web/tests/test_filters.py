@@ -122,6 +122,60 @@ class TestRewriteWorkspacePaths:
         assert result.endswith(" After")
         assert f"/charts/{test_session_id}/lap_times.png" in result
 
+    def test_uppercase_uuid_in_path(self, test_session_id):
+        """Test that uppercase UUIDs in paths are matched and rewritten."""
+        upper_session = test_session_id.upper()
+        workspace_base = str(Path.home() / ".pitlane" / "workspaces")
+        text = f"{workspace_base}/{upper_session}/charts/lap_times.png"
+
+        # Should match even when path has uppercase UUID
+        result = rewrite_workspace_paths(text, test_session_id)
+
+        assert f"/charts/{upper_session}/lap_times.png" in result
+
+    def test_mixed_case_uuid_in_path(self, test_session_id):
+        """Test that mixed-case UUIDs in paths are matched and rewritten."""
+        # Create a mixed-case version of the UUID
+        mixed_session = "".join(c.upper() if i % 2 == 0 else c.lower() for i, c in enumerate(test_session_id))
+        workspace_base = str(Path.home() / ".pitlane" / "workspaces")
+        text = f"{workspace_base}/{mixed_session}/charts/lap_times.png"
+
+        # Should match even when path has mixed-case UUID
+        result = rewrite_workspace_paths(text, test_session_id)
+
+        assert f"/charts/{mixed_session}/lap_times.png" in result
+
+    def test_path_in_markdown_with_title(self, test_session_id):
+        """Test that paths in markdown image syntax with titles are handled."""
+        workspace_base = str(Path.home() / ".pitlane" / "workspaces")
+        text = f'![Lap Times]({workspace_base}/{test_session_id}/charts/lap_times.png "Chart Title")'
+
+        result = rewrite_workspace_paths(text, test_session_id)
+
+        # Path should be rewritten, title should be preserved
+        assert f"/charts/{test_session_id}/lap_times.png" in result
+        assert '"Chart Title"' in result
+
+    def test_path_in_html_img_tag(self, test_session_id):
+        """Test that paths in HTML img tags are handled."""
+        workspace_base = str(Path.home() / ".pitlane" / "workspaces")
+        text = f'<img src="{workspace_base}/{test_session_id}/charts/lap_times.png" alt="Chart">'
+
+        result = rewrite_workspace_paths(text, test_session_id)
+
+        # Path should be rewritten
+        assert f'/charts/{test_session_id}/lap_times.png"' in result
+
+    def test_path_with_single_quotes(self, test_session_id):
+        """Test that paths with single quotes as delimiters are handled."""
+        workspace_base = str(Path.home() / ".pitlane" / "workspaces")
+        text = f"<img src='{workspace_base}/{test_session_id}/charts/lap_times.png'>"
+
+        result = rewrite_workspace_paths(text, test_session_id)
+
+        # Path should be rewritten
+        assert f"/charts/{test_session_id}/lap_times.png'" in result
+
 
 class TestMdToHtml:
     """Tests for markdown to HTML conversion."""
@@ -223,10 +277,11 @@ class TestRegisterFilters:
         assert "rewrite_paths" in mock_templates.env.filters
         assert mock_templates.env.filters["rewrite_paths"] == rewrite_workspace_paths
 
-    def test_both_filters_registered(self, mock_templates):
-        """Test that both filters are registered together."""
+    def test_all_filters_registered(self, mock_templates):
+        """Test that all filters are registered together."""
         register_filters(mock_templates)
 
-        assert len(mock_templates.env.filters) == 2
+        assert len(mock_templates.env.filters) == 3
         assert "markdown" in mock_templates.env.filters
         assert "rewrite_paths" in mock_templates.env.filters
+        assert "timeago" in mock_templates.env.filters

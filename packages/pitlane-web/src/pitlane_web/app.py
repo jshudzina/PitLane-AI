@@ -1,13 +1,22 @@
 """FastAPI application for PitLane AI with session management."""
 
 import logging
+import os
 from pathlib import Path
 
 from fastapi import Cookie, FastAPI, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pitlane_agent.scripts.workspace import get_workspace_path, workspace_exists
+from pitlane_agent.scripts.workspace import (
+    create_conversation,
+    get_active_conversation,
+    get_workspace_path,
+    load_conversations,
+    set_active_conversation,
+    update_conversation,
+    workspace_exists,
+)
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -36,8 +45,10 @@ from .session import (
 # Logging Configuration
 # ============================================================================
 
+# Allow log level override via environment variable
+_log_level = os.getenv("PITLANE_LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, _log_level, logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
@@ -147,14 +158,33 @@ async def chat(
         logger.info(f"Creating new session: {session_id}")
 
     try:
+        # Check for active conversation to resume
+        active_conv = get_active_conversation(session_id)
+        resume_session_id = active_conv["agent_session_id"] if active_conv else None
+
+        if resume_session_id:
+            logger.info(f"Resuming conversation: {active_conv['id']}")
+            logger.debug(f"Session IDs - Web: {session_id}, Agent (for resume): {resume_session_id}")
+
         # Get or create agent for this session
         agent = await _agent_cache.get_or_create(session_id)
 
-        # Process question
-        response_text = await agent.chat_full(question)
+        # Process question with optional resumption
+        response_text = await agent.chat_full(question, resume_session_id=resume_session_id)
 
         if not response_text.strip():
             response_text = "I wasn't able to process your question. Please try again."
+
+        # Create or update conversation after successful response
+        if agent.agent_session_id:
+            if active_conv:
+                # Update existing conversation
+                update_conversation(session_id, active_conv["id"])
+                logger.debug(f"Updated conversation: {active_conv['id']}")
+            else:
+                # Create new conversation with captured SDK session ID
+                new_conv = create_conversation(session_id, agent.agent_session_id, question)
+                logger.info(f"Created new conversation: {new_conv['id']}")
 
     except Exception as e:
         logger.error(f"Error processing chat: {e}", exc_info=True)
@@ -201,14 +231,15 @@ async def serve_chart(
     6. Validate file extension
     """
     logger.info(f"Chart request: {filename} for session {session_id}")
+    logger.debug(f"Chart serving - URL session: {session_id}, Cookie session: {current_session}")
 
     # 1. Validate session ID format
     if not is_valid_session_id(session_id):
         logger.warning(f"Invalid session ID format: {session_id}")
         raise HTTPException(status_code=400, detail="Invalid session ID")
 
-    # 2. Verify session ownership
-    if session_id != current_session:
+    # 2. Verify session ownership (case-insensitive comparison for UUID)
+    if session_id.lower() != (current_session or "").lower():
         logger.warning(f"Session ownership mismatch - URL: {session_id}, Cookie: {current_session}")
         raise HTTPException(
             status_code=403,
@@ -273,4 +304,96 @@ async def serve_chart(
             "Cache-Control": "private, max-age=3600",
             "X-Session-ID": session_id,
         },
+    )
+
+
+# ============================================================================
+# Conversation Management Routes
+# ============================================================================
+
+
+@app.get("/api/conversations", response_class=HTMLResponse)
+@limiter.limit(RATE_LIMIT_CHART)
+async def list_conversations(
+    request: Request,
+    session: str | None = Cookie(None, alias=SESSION_COOKIE_NAME),
+):
+    """List all conversations for the current session."""
+    is_valid, validated_session = validate_session_safely(session)
+    if not is_valid or not validated_session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    conversations_data = load_conversations(validated_session)
+
+    return templates.TemplateResponse(
+        request,
+        "partials/conversation_list.html",
+        {
+            "conversations": conversations_data["conversations"],
+            "active_id": conversations_data.get("active_conversation_id"),
+        },
+    )
+
+
+@app.post("/api/conversations/new", response_class=HTMLResponse)
+@limiter.limit(RATE_LIMIT_SESSION_CREATE)
+async def new_conversation(
+    request: Request,
+    session: str | None = Cookie(None, alias=SESSION_COOKIE_NAME),
+):
+    """Start a new conversation (clears active, doesn't delete history)."""
+    is_valid, validated_session = validate_session_safely(session)
+    if not is_valid or not validated_session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    # Clear active conversation
+    set_active_conversation(validated_session, None)
+
+    # Evict cached agent to force fresh SDK context
+    await _agent_cache.evict(validated_session)
+
+    logger.info(f"Started new conversation for session: {validated_session}")
+
+    return templates.TemplateResponse(
+        request,
+        "partials/conversation_status.html",
+        {"status": "new", "message": "Ready for new conversation"},
+    )
+
+
+@app.post("/api/conversations/{conversation_id}/resume", response_class=HTMLResponse)
+@limiter.limit(RATE_LIMIT_CHAT)
+async def resume_conversation(
+    request: Request,
+    conversation_id: str,
+    session: str | None = Cookie(None, alias=SESSION_COOKIE_NAME),
+):
+    """Resume a specific conversation."""
+    is_valid, validated_session = validate_session_safely(session)
+    if not is_valid or not validated_session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    # Validate conversation belongs to this session
+    conversations_data = load_conversations(validated_session)
+    conversation = None
+    for conv in conversations_data["conversations"]:
+        if conv["id"] == conversation_id:
+            conversation = conv
+            break
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Set as active conversation
+    set_active_conversation(validated_session, conversation_id)
+
+    # Evict cached agent to force new context with resume
+    await _agent_cache.evict(validated_session)
+
+    logger.info(f"Resumed conversation {conversation_id} for session: {validated_session}")
+
+    return templates.TemplateResponse(
+        request,
+        "partials/conversation_status.html",
+        {"status": "resumed", "conversation": conversation},
     )
