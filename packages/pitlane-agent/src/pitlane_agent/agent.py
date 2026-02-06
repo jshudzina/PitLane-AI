@@ -4,6 +4,7 @@ This module provides the F1Agent class that handles chat interactions
 using the Claude Agent SDK with session management and skills support.
 """
 
+import logging
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -26,6 +27,8 @@ from pitlane_agent.temporal import format_for_system_prompt, get_temporal_contex
 from pitlane_agent.tool_permissions import can_use_tool
 
 from . import tracing
+
+logger = logging.getLogger(__name__)
 
 # Package directory (contains .claude/skills/)
 PACKAGE_DIR = Path(__file__).parent
@@ -167,8 +170,10 @@ class F1Agent:
             async for msg in client.receive_response():
                 # Capture session ID from init message for future resumption
                 if isinstance(msg, SystemMessage):
-                    if hasattr(msg, "session_id") and msg.session_id:
-                        self._agent_session_id = msg.session_id
+                    session_id = msg.data.get("session_id")
+                    if session_id:
+                        self._agent_session_id = session_id
+                        logger.debug(f"Captured SDK session ID: {session_id}")
                 elif isinstance(msg, AssistantMessage):
                     for block in msg.content:
                         if isinstance(block, TextBlock):
