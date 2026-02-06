@@ -161,6 +161,7 @@ async def chat(
 
         if resume_session_id:
             logger.info(f"Resuming conversation: {active_conv['id']}")
+            logger.debug(f"Session IDs - Web: {session_id}, Agent (for resume): {resume_session_id}")
 
         # Get or create agent for this session
         agent = await _agent_cache.get_or_create(session_id)
@@ -187,6 +188,7 @@ async def chat(
         response_text = f"An error occurred: {e}"
 
     # Create the template response
+    logger.debug(f"Rendering response with web session_id: {session_id}")
     template_response = templates.TemplateResponse(
         request,
         "partials/message.html",
@@ -227,14 +229,15 @@ async def serve_chart(
     6. Validate file extension
     """
     logger.info(f"Chart request: {filename} for session {session_id}")
+    logger.debug(f"Chart serving - URL session: {session_id}, Cookie session: {current_session}")
 
     # 1. Validate session ID format
     if not is_valid_session_id(session_id):
         logger.warning(f"Invalid session ID format: {session_id}")
         raise HTTPException(status_code=400, detail="Invalid session ID")
 
-    # 2. Verify session ownership
-    if session_id != current_session:
+    # 2. Verify session ownership (case-insensitive comparison for UUID)
+    if session_id.lower() != (current_session or "").lower():
         logger.warning(f"Session ownership mismatch - URL: {session_id}, Cookie: {current_session}")
         raise HTTPException(
             status_code=403,
