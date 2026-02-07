@@ -17,6 +17,23 @@ from pitlane_agent.scripts.tyre_strategy import generate_tyre_strategy_chart
 from pitlane_agent.scripts.workspace import get_workspace_path, workspace_exists
 
 
+def validate_mutually_exclusive(ctx, param, value):
+    """Validate that --drivers and --top-n are mutually exclusive."""
+    # Get the other parameter's value from context
+    if param.name == "drivers":
+        other_value = ctx.params.get("top_n")
+    elif param.name == "top_n":
+        other_value = ctx.params.get("drivers")
+    else:
+        return value
+
+    # Check if both are provided
+    if value and other_value:
+        raise click.BadParameter("Cannot specify both --drivers and --top-n options", ctx=ctx, param=param)
+
+    return value
+
+
 @click.group()
 def analyze():
     """Generate analysis and visualizations."""
@@ -235,13 +252,15 @@ def speed_trace(session_id: str, year: int, gp: str, session: str, drivers: tupl
     "--drivers",
     multiple=True,
     required=False,
-    help="Driver abbreviations (optional: --drivers VER --drivers HAM)",
+    callback=validate_mutually_exclusive,
+    help="Driver abbreviations (optional: --drivers VER --drivers HAM). Mutually exclusive with --top-n.",
 )
 @click.option(
     "--top-n",
     type=int,
     required=False,
-    help="Show only top N finishers (optional, e.g., --top-n 10)",
+    callback=validate_mutually_exclusive,
+    help="Show only top N finishers (optional, e.g., --top-n 10). Mutually exclusive with --drivers.",
 )
 def position_changes(session_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...], top_n: int | None):
     """Generate position changes chart showing driver positions throughout the race."""
@@ -249,14 +268,6 @@ def position_changes(session_id: str, year: int, gp: str, session: str, drivers:
     if not workspace_exists(session_id):
         click.echo(
             json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
-            err=True,
-        )
-        sys.exit(1)
-
-    # Validate mutually exclusive options
-    if drivers and top_n:
-        click.echo(
-            json.dumps({"error": "Cannot specify both --drivers and --top-n options"}),
             err=True,
         )
         sys.exit(1)
