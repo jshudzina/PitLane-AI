@@ -88,17 +88,17 @@ class TestExtractWeatherData:
         result = _extract_weather_data(mock_session)
 
         assert result is not None
-        assert result["air_temp_celsius"]["min"] == 22.5
-        assert result["air_temp_celsius"]["max"] == 24.5
-        assert result["air_temp_celsius"]["avg"] == 23.38
-        assert result["track_temp_celsius"]["min"] == 35.0
-        assert result["track_temp_celsius"]["max"] == 38.0
+        assert result["air_temp"]["min"] == 22.5
+        assert result["air_temp"]["max"] == 24.5
+        assert result["air_temp"]["avg"] == 23.38
+        assert result["track_temp"]["min"] == 35.0
+        assert result["track_temp"]["max"] == 38.0
         assert result["humidity"]["min"] == 45.0
         assert result["humidity"]["max"] == 48.0
         assert result["pressure"]["min"] == 1013.25
         assert result["pressure"]["max"] == 1013.50
-        assert result["wind_speed_mps"]["min"] == 2.5
-        assert result["wind_speed_mps"]["max"] == 3.2
+        assert result["wind_speed"]["min"] == 2.5
+        assert result["wind_speed"]["max"] == 3.2
 
     def test_extract_weather_data_with_nan_values(self):
         """Test extracting weather data with NaN values."""
@@ -117,8 +117,8 @@ class TestExtractWeatherData:
         result = _extract_weather_data(mock_session)
 
         assert result is not None
-        assert result["air_temp_celsius"]["min"] == 22.5
-        assert result["air_temp_celsius"]["max"] == 24.5
+        assert result["air_temp"]["min"] == 22.5
+        assert result["air_temp"]["max"] == 24.5
         assert result["pressure"]["min"] is None
         assert result["pressure"]["max"] is None
         assert result["pressure"]["avg"] is None
@@ -138,12 +138,12 @@ class TestExtractWeatherData:
         result = _extract_weather_data(mock_session)
 
         assert result is not None
-        assert result["air_temp_celsius"]["min"] == 22.5
-        assert result["track_temp_celsius"]["min"] is None
-        assert result["track_temp_celsius"]["max"] is None
-        assert result["track_temp_celsius"]["avg"] is None
+        assert result["air_temp"]["min"] == 22.5
+        assert result["track_temp"]["min"] is None
+        assert result["track_temp"]["max"] is None
+        assert result["track_temp"]["avg"] is None
         assert result["pressure"]["min"] is None
-        assert result["wind_speed_mps"]["min"] is None
+        assert result["wind_speed"]["min"] is None
 
     def test_extract_weather_data_empty_dataframe(self):
         """Test extracting weather data from empty DataFrame."""
@@ -207,11 +207,11 @@ class TestSessionInfoBusinessLogic:
             "num_red_flags": 0,
         }
         mock_extract_weather_data.return_value = {
-            "air_temp_celsius": {"min": 22.5, "max": 24.5, "avg": 23.5},
-            "track_temp_celsius": {"min": 35.0, "max": 38.0, "avg": 36.5},
+            "air_temp": {"min": 22.5, "max": 24.5, "avg": 23.5},
+            "track_temp": {"min": 35.0, "max": 38.0, "avg": 36.5},
             "humidity": {"min": 45.0, "max": 48.0, "avg": 46.5},
             "pressure": {"min": 1013.25, "max": 1013.50, "avg": 1013.38},
-            "wind_speed_mps": {"min": 2.5, "max": 3.2, "avg": 2.85},
+            "wind_speed": {"min": 2.5, "max": 3.2, "avg": 2.85},
         }
 
         # Call function
@@ -231,7 +231,7 @@ class TestSessionInfoBusinessLogic:
         assert result["race_conditions"] is not None
         assert result["race_conditions"]["num_safety_cars"] == 2
         assert result["weather"] is not None
-        assert result["weather"]["air_temp_celsius"]["avg"] == 23.5
+        assert result["weather"]["air_temp"]["avg"] == 23.5
 
         # Verify FastF1 was called correctly
         mock_fastf1.get_session.assert_called_once_with(2024, "Monaco", "Q")

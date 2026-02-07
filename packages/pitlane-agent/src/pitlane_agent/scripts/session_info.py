@@ -15,6 +15,22 @@ import fastf1
 import pandas as pd
 from fastf1.core import DataNotLoadedError, Session
 
+from pitlane_agent.utils.constants import (
+    TRACK_STATUS_RED_FLAG,
+    TRACK_STATUS_SAFETY_CAR,
+    TRACK_STATUS_VSC_DEPLOYED,
+)
+
+
+class DriverInfo(TypedDict):
+    """Information about a single driver."""
+
+    abbreviation: str
+    name: str
+    team: str
+    number: int | None
+    position: int | None
+
 
 class RaceConditions(TypedDict):
     """Race condition counts."""
@@ -33,12 +49,39 @@ class WeatherStats(TypedDict):
 
 
 class WeatherData(TypedDict):
-    """Weather statistics for the session."""
+    """Weather statistics for the session.
+
+    Units:
+        - air_temp: degrees Celsius
+        - track_temp: degrees Celsius
+        - humidity: percentage (0-100)
+        - pressure: hectopascals (hPa)
+        - wind_speed: meters per second (m/s)
+    """
 
     air_temp: WeatherStats
+    track_temp: WeatherStats
     humidity: WeatherStats
     pressure: WeatherStats
     wind_speed: WeatherStats
+
+
+class SessionInfo(TypedDict):
+    """Complete session information including metadata, drivers, race conditions, and weather.
+
+    This is the return type for get_session_info().
+    """
+
+    year: int
+    event_name: str
+    country: str
+    session_type: str
+    session_name: str
+    date: str | None
+    total_laps: int | None
+    drivers: list[DriverInfo]
+    race_conditions: RaceConditions | None
+    weather: WeatherData | None
 
 
 def _extract_track_status(session: Session) -> RaceConditions | None:
@@ -55,15 +98,10 @@ def _extract_track_status(session: Session) -> RaceConditions | None:
         track_status = session.track_status
 
         # Count occurrences of each status code
-        # Status '4': Safety Car
-        # Status '5': Red Flag
-        # Status '6': Virtual Safety Car deployed
-        # Status '7': Virtual Safety Car ending
-        num_safety_cars = len(track_status[track_status["Status"] == "4"])
-        num_red_flags = len(track_status[track_status["Status"] == "5"])
-
-        # Count VSC as deployments (status '6'), not endings ('7')
-        num_virtual_safety_cars = len(track_status[track_status["Status"] == "6"])
+        num_safety_cars = len(track_status[track_status["Status"] == TRACK_STATUS_SAFETY_CAR])
+        num_red_flags = len(track_status[track_status["Status"] == TRACK_STATUS_RED_FLAG])
+        # Count VSC as deployments, not endings
+        num_virtual_safety_cars = len(track_status[track_status["Status"] == TRACK_STATUS_VSC_DEPLOYED])
 
         return {
             "num_safety_cars": num_safety_cars,
@@ -111,17 +149,17 @@ def _extract_weather_data(session: Session) -> WeatherData | None:
             }
 
         return {
-            "air_temp_celsius": get_stats("AirTemp"),
-            "track_temp_celsius": get_stats("TrackTemp"),
+            "air_temp": get_stats("AirTemp"),
+            "track_temp": get_stats("TrackTemp"),
             "humidity": get_stats("Humidity"),
             "pressure": get_stats("Pressure"),
-            "wind_speed_mps": get_stats("WindSpeed"),
+            "wind_speed": get_stats("WindSpeed"),
         }
     except DataNotLoadedError:
         return None
 
 
-def get_session_info(year: int, gp: str, session_type: str) -> dict:
+def get_session_info(year: int, gp: str, session_type: str) -> SessionInfo:
     """Load session info from FastF1 and return as dict.
 
     Args:
