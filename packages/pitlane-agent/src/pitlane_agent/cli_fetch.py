@@ -7,15 +7,50 @@ and storing results in the workspace data directory.
 import json
 import sys
 from datetime import datetime
+from pathlib import Path
 
 import click
 
-from pitlane_agent.scripts.constructor_standings import get_constructor_standings
+from pitlane_agent.scripts.constructor_standings import MIN_F1_YEAR, get_constructor_standings
 from pitlane_agent.scripts.driver_info import get_driver_info
 from pitlane_agent.scripts.driver_standings import get_driver_standings
 from pitlane_agent.scripts.event_schedule import get_event_schedule
 from pitlane_agent.scripts.session_info import get_session_info
 from pitlane_agent.scripts.workspace import get_workspace_path, workspace_exists
+
+
+def _validate_standings_request(session_id: str, year: int) -> Path:
+    """Validate workspace and year for standings fetch commands.
+
+    Args:
+        session_id: Workspace session ID
+        year: Championship year
+
+    Returns:
+        Path to workspace data directory
+
+    Raises:
+        SystemExit: If validation fails
+    """
+    # Verify workspace exists
+    if not workspace_exists(session_id):
+        click.echo(
+            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    # Validate year
+    current_year = datetime.now().year
+    if year < MIN_F1_YEAR or year > current_year + 2:
+        click.echo(
+            json.dumps({"error": f"Year must be between {MIN_F1_YEAR} and {current_year + 2}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(session_id)
+    return workspace_path / "data"
 
 
 @click.group()
@@ -245,25 +280,8 @@ def event_schedule(
 )
 def driver_standings(session_id: str, year: int, round_number: int | None):
     """Fetch driver championship standings and store in workspace."""
-    # Verify workspace exists
-    if not workspace_exists(session_id):
-        click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
-            err=True,
-        )
-        sys.exit(1)
-
-    # Validate year
-    current_year = datetime.now().year
-    if year < 1950 or year > current_year + 2:
-        click.echo(
-            json.dumps({"error": f"Year must be between 1950 and {current_year + 2}"}),
-            err=True,
-        )
-        sys.exit(1)
-
-    workspace_path = get_workspace_path(session_id)
-    data_dir = workspace_path / "data"
+    # Validate request
+    data_dir = _validate_standings_request(session_id, year)
 
     try:
         # Fetch standings
@@ -271,6 +289,11 @@ def driver_standings(session_id: str, year: int, round_number: int | None):
 
         # Write to workspace
         output_file = data_dir / "driver_standings.json"
+
+        # Log if overwriting existing file
+        if output_file.exists():
+            click.echo(f"Overwriting existing file: {output_file}", err=True)
+
         with open(output_file, "w") as f:
             json.dump(standings, f, indent=2)
 
@@ -300,25 +323,8 @@ def driver_standings(session_id: str, year: int, round_number: int | None):
 )
 def constructor_standings(session_id: str, year: int, round_number: int | None):
     """Fetch constructor championship standings and store in workspace."""
-    # Verify workspace exists
-    if not workspace_exists(session_id):
-        click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
-            err=True,
-        )
-        sys.exit(1)
-
-    # Validate year
-    current_year = datetime.now().year
-    if year < 1950 or year > current_year + 2:
-        click.echo(
-            json.dumps({"error": f"Year must be between 1950 and {current_year + 2}"}),
-            err=True,
-        )
-        sys.exit(1)
-
-    workspace_path = get_workspace_path(session_id)
-    data_dir = workspace_path / "data"
+    # Validate request
+    data_dir = _validate_standings_request(session_id, year)
 
     try:
         # Fetch standings
@@ -326,6 +332,11 @@ def constructor_standings(session_id: str, year: int, round_number: int | None):
 
         # Write to workspace
         output_file = data_dir / "constructor_standings.json"
+
+        # Log if overwriting existing file
+        if output_file.exists():
+            click.echo(f"Overwriting existing file: {output_file}", err=True)
+
         with open(output_file, "w") as f:
             json.dump(standings, f, indent=2)
 

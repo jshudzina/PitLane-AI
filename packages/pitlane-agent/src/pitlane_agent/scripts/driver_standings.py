@@ -8,6 +8,10 @@ Usage:
 import fastf1.ergast as ergast
 import pandas as pd
 
+# Constants
+MIN_F1_YEAR = 1950
+FINAL_ROUND = "last"
+
 
 def get_driver_standings(
     year: int,
@@ -33,8 +37,8 @@ def get_driver_standings(
     ergast_api = ergast.Ergast()
 
     # Fetch driver standings
-    # Use 'last' for final standings if round_number not specified
-    round_param = round_number if round_number is not None else "last"
+    # Use FINAL_ROUND for final standings if round_number not specified
+    round_param = round_number if round_number is not None else FINAL_ROUND
     response = ergast_api.get_driver_standings(season=year, round=round_param)
 
     # Extract round information from response description
@@ -51,7 +55,7 @@ def get_driver_standings(
             # Handle date of birth - convert Timestamp to string
             date_of_birth = row.get("dateOfBirth")
             if pd.isna(date_of_birth):
-                date_of_birth = "Unknown"
+                date_of_birth = None
             elif isinstance(date_of_birth, pd.Timestamp):
                 date_of_birth = date_of_birth.strftime("%Y-%m-%d")
 

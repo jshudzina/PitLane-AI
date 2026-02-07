@@ -187,8 +187,19 @@ class TestDriverStandingsCLI:
         """Test successful CLI execution."""
         # Mock workspace functions
         mock_exists.return_value = True
+
+        # Create mock file that doesn't exist yet
+        mock_file = Mock()
+        mock_file.exists.return_value = False
+        mock_file.__str__ = lambda self: "/tmp/test/data/driver_standings.json"
+
+        # Create mock data dir
+        mock_data_dir = Mock()
+        mock_data_dir.__truediv__ = lambda self, x: mock_file
+
+        # Create mock workspace path
         mock_path = Mock()
-        mock_path.__truediv__ = lambda self, x: Mock(__truediv__=lambda s, y: "/tmp/test/data/driver_standings.json")
+        mock_path.__truediv__ = lambda self, x: mock_data_dir
         mock_get_path.return_value = mock_path
 
         # Mock standings data
@@ -220,8 +231,19 @@ class TestDriverStandingsCLI:
     def test_cli_with_round_filter(self, mock_get_standings, mock_get_path, mock_exists):
         """Test CLI with round filter."""
         mock_exists.return_value = True
+
+        # Create mock file that doesn't exist yet
+        mock_file = Mock()
+        mock_file.exists.return_value = False
+        mock_file.__str__ = lambda self: "/tmp/test/data/driver_standings.json"
+
+        # Create mock data dir
+        mock_data_dir = Mock()
+        mock_data_dir.__truediv__ = lambda self, x: mock_file
+
+        # Create mock workspace path
         mock_path = Mock()
-        mock_path.__truediv__ = lambda self, x: Mock(__truediv__=lambda s, y: "/tmp/test/data/driver_standings.json")
+        mock_path.__truediv__ = lambda self, x: mock_data_dir
         mock_get_path.return_value = mock_path
 
         mock_get_standings.return_value = {

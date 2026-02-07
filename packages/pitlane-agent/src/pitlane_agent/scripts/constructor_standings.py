@@ -7,6 +7,10 @@ Usage:
 
 import fastf1.ergast as ergast
 
+# Constants
+MIN_F1_YEAR = 1950
+FINAL_ROUND = "last"
+
 
 def get_constructor_standings(
     year: int,
@@ -32,8 +36,8 @@ def get_constructor_standings(
     ergast_api = ergast.Ergast()
 
     # Fetch constructor standings
-    # Use 'last' for final standings if round_number not specified
-    round_param = round_number if round_number is not None else "last"
+    # Use FINAL_ROUND for final standings if round_number not specified
+    round_param = round_number if round_number is not None else FINAL_ROUND
     response = ergast_api.get_constructor_standings(season=year, round=round_param)
 
     # Extract round information from response description
