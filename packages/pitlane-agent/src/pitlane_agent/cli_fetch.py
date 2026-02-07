@@ -10,7 +10,9 @@ from datetime import datetime
 
 import click
 
+from pitlane_agent.scripts.constructor_standings import get_constructor_standings
 from pitlane_agent.scripts.driver_info import get_driver_info
+from pitlane_agent.scripts.driver_standings import get_driver_standings
 from pitlane_agent.scripts.event_schedule import get_event_schedule
 from pitlane_agent.scripts.session_info import get_session_info
 from pitlane_agent.scripts.workspace import get_workspace_path, workspace_exists
@@ -223,6 +225,116 @@ def event_schedule(
             "data_file": str(output_file),
             "year": year,
             "total_events": schedule["total_events"],
+        }
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@fetch.command("driver-standings")
+@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--year", type=int, required=True, help="Championship year (e.g., 2024)")
+@click.option(
+    "--round",
+    "round_number",
+    type=int,
+    default=None,
+    help="Filter by specific round number (default: final standings)",
+)
+def driver_standings(session_id: str, year: int, round_number: int | None):
+    """Fetch driver championship standings and store in workspace."""
+    # Verify workspace exists
+    if not workspace_exists(session_id):
+        click.echo(
+            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    # Validate year
+    current_year = datetime.now().year
+    if year < 1950 or year > current_year + 2:
+        click.echo(
+            json.dumps({"error": f"Year must be between 1950 and {current_year + 2}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(session_id)
+    data_dir = workspace_path / "data"
+
+    try:
+        # Fetch standings
+        standings = get_driver_standings(year, round_number)
+
+        # Write to workspace
+        output_file = data_dir / "driver_standings.json"
+        with open(output_file, "w") as f:
+            json.dump(standings, f, indent=2)
+
+        # Return result
+        result = {
+            "data_file": str(output_file),
+            "year": year,
+            "round": standings["round"],
+            "total_standings": standings["total_standings"],
+        }
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@fetch.command("constructor-standings")
+@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--year", type=int, required=True, help="Championship year (e.g., 2024)")
+@click.option(
+    "--round",
+    "round_number",
+    type=int,
+    default=None,
+    help="Filter by specific round number (default: final standings)",
+)
+def constructor_standings(session_id: str, year: int, round_number: int | None):
+    """Fetch constructor championship standings and store in workspace."""
+    # Verify workspace exists
+    if not workspace_exists(session_id):
+        click.echo(
+            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    # Validate year
+    current_year = datetime.now().year
+    if year < 1950 or year > current_year + 2:
+        click.echo(
+            json.dumps({"error": f"Year must be between 1950 and {current_year + 2}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(session_id)
+    data_dir = workspace_path / "data"
+
+    try:
+        # Fetch standings
+        standings = get_constructor_standings(year, round_number)
+
+        # Write to workspace
+        output_file = data_dir / "constructor_standings.json"
+        with open(output_file, "w") as f:
+            json.dump(standings, f, indent=2)
+
+        # Return result
+        result = {
+            "data_file": str(output_file),
+            "year": year,
+            "round": standings["round"],
+            "total_standings": standings["total_standings"],
         }
         click.echo(json.dumps(result, indent=2))
 
