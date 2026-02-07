@@ -11,6 +11,7 @@ import click
 
 from pitlane_agent.scripts.lap_times import generate_lap_times_chart
 from pitlane_agent.scripts.lap_times_distribution import generate_lap_times_distribution_chart
+from pitlane_agent.scripts.position_changes import generate_position_changes_chart
 from pitlane_agent.scripts.speed_trace import generate_speed_trace_chart
 from pitlane_agent.scripts.tyre_strategy import generate_tyre_strategy_chart
 from pitlane_agent.scripts.workspace import get_workspace_path, workspace_exists
@@ -207,6 +208,72 @@ def speed_trace(session_id: str, year: int, gp: str, session: str, drivers: tupl
             gp=gp,
             session_type=session,
             drivers=list(drivers),
+            workspace_dir=workspace_path,
+        )
+
+        # Add session info to result
+        result["session_id"] = session_id
+
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@analyze.command("position-changes")
+@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
+@click.option(
+    "--session",
+    type=str,
+    required=True,
+    help="Session type: R (Race), S (Sprint), SQ (Sprint Qualifying)",
+)
+@click.option(
+    "--drivers",
+    multiple=True,
+    required=False,
+    help="Driver abbreviations (optional: --drivers VER --drivers HAM)",
+)
+@click.option(
+    "--top-n",
+    type=int,
+    required=False,
+    help="Show only top N finishers (optional, e.g., --top-n 10)",
+)
+def position_changes(session_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...], top_n: int | None):
+    """Generate position changes chart showing driver positions throughout the race."""
+    # Verify workspace exists
+    if not workspace_exists(session_id):
+        click.echo(
+            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    # Validate mutually exclusive options
+    if drivers and top_n:
+        click.echo(
+            json.dumps({"error": "Cannot specify both --drivers and --top-n options"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(session_id)
+
+    try:
+        # Convert empty drivers tuple to None for default behavior
+        drivers_list = list(drivers) if drivers else None
+
+        # Generate chart
+        result = generate_position_changes_chart(
+            year=year,
+            gp=gp,
+            session_type=session,
+            drivers=drivers_list,
+            top_n=top_n,
             workspace_dir=workspace_path,
         )
 

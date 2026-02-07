@@ -43,6 +43,17 @@ Based on the user's question, read the appropriate reference file for detailed i
 
 **Read:** [references/strategy.md](references/strategy.md)
 
+### Position Changes Analysis
+**When to use:** Questions about position evolution, overtakes, race battles, or driver progress throughout a race.
+
+**Examples:**
+- "Show me how positions changed during the race"
+- "How many overtakes did Verstappen make?"
+- "Track position changes for the top 5 drivers"
+- "Who gained the most positions?"
+
+**Read:** [references/strategy.md](references/strategy.md)
+
 ### Standings Analysis
 **When to use:** Questions about championship standings, season summaries, or title fight scenarios.
 

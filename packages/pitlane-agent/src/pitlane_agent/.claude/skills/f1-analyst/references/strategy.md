@@ -100,10 +100,106 @@ Ferrari employed different strategies for their two drivers at Monaco 2024. Lecl
 
 *The visualization shows pit stop timing and compound usage for all drivers throughout the race.*
 
+### 2. Position Changes Visualization
+
+Track how driver positions evolve throughout a race, showing overtakes and pit stop impacts.
+
+**Command:**
+```bash
+pitlane analyze position-changes \
+  --session-id $PITLANE_SESSION_ID \
+  --year 2024 \
+  --gp Monaco \
+  --session R
+```
+
+**What it does:**
+- Creates line plot showing each driver's position lap-by-lap
+- Marks pit stops with visual indicators (▼)
+- Calculates overtake statistics and position volatility
+- Returns JSON with chart path and detailed statistics
+
+**Parameters:**
+- `--year`: Season year (e.g., 2024)
+- `--gp`: Grand Prix name (e.g., "Monaco", "Silverstone")
+- `--session`: Session type (R = Race, S = Sprint, SQ = Sprint Qualifying)
+- `--drivers`: (Optional) Specific drivers (e.g., `--drivers VER --drivers HAM`)
+- `--top-n`: (Optional) Show only top N finishers (e.g., `--top-n 10`)
+
+**Note:** Cannot specify both `--drivers` and `--top-n` simultaneously.
+
+**Example Questions:**
+- "Show me position changes during the Monaco race"
+- "How many overtakes did the top 5 make?"
+- "Track Verstappen and Hamilton's battle"
+- "Who gained the most positions at Monza?"
+
+**Statistics Returned:**
+- **Per driver:** start/finish position, net change, overtakes, times overtaken, biggest gain/loss, volatility, total laps, pit stops
+- **Aggregate:** total overtakes, total position changes, average volatility
+
+## Position Changes Analysis Workflow
+
+### Step 1: Identify Parameters
+- Year and Grand Prix
+- Session type (typically Race, but can be Sprint)
+- Optional: Specific drivers or top N finishers
+
+### Step 2: Generate Visualization
+Run the `pitlane analyze position-changes` command with appropriate filters.
+
+### Step 3: Interpret Results
+The command returns JSON with:
+- Chart file path
+- Per-driver statistics (overtakes, net change, volatility)
+- Aggregate race statistics
+- Excluded drivers (DNS/DNF with no position data)
+
+### Step 4: Format Response
+
+#### Summary
+2-3 sentences answering the question with key findings (e.g., "Verstappen gained 5 positions from P6 to P1, making 7 overtakes. Hamilton lost 3 positions after a late pit stop").
+
+#### Key Insights
+- Identify biggest movers (most positions gained/lost)
+- Note overtaking patterns and wheel-to-wheel battles
+- Explain how pit stops affected positions
+- Highlight position volatility (chaotic vs stable races)
+- Compare strategies' effects on track position
+
+#### Visualization
+**YOU MUST include the chart using markdown image syntax:**
+
+```markdown
+![Position Changes at Monaco 2024 Race](/Users/user/.pitlane/workspaces/{session_id}/charts/position_changes.png)
+```
+
+## Example Position Changes Analysis
+
+**User:** "Show me position changes for the top 5 at Monaco"
+
+**Response:**
+
+### Summary
+The Monaco 2024 race saw relatively stable positions among the top 5 finishers. Verstappen maintained P1 throughout after starting on pole, while Leclerc executed a strong recovery from P4 to P2 with strategic overtakes on laps 18 and 32.
+
+### Key Insights
+- Verstappen (P1 start → P1 finish): 0 net change, but defended against 3 overtake attempts
+- Leclerc (P4 → P2): +2 positions, 4 successful overtakes, benefited from early pit stop
+- Norris (P2 → P3): -1 position, lost out to Leclerc after late pit stop on lap 45
+- Piastri (P3 → P4): -1 position, stable race with minimal position changes (volatility: 0.5)
+- Sainz (P5 → P5): 0 net change, but showed high volatility (2.1) with multiple position swaps
+
+Total overtakes in top 5: 12 position changes across 78 laps
+
+### Visualization
+![Position Changes at Monaco 2024 Race](/Users/user/.pitlane/workspaces/abc123/charts/position_changes_top5.png)
+
+*The visualization shows position evolution with pit stops marked by downward triangles. Notice Leclerc's aggressive climb and the stability of Verstappen's lead.*
+
 ## Future Analysis Types
 
 The following strategy analysis types are planned for future implementation:
 
-- **Position Changes**: Track driver positions throughout the race
 - **Team Pace Comparison**: Compare average pace between teams
 - **Qualifying Results Overview**: Summarize qualifying session results
