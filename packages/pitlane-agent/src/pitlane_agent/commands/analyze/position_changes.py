@@ -9,6 +9,7 @@ from pathlib import Path
 import fastf1.plotting
 import matplotlib.pyplot as plt
 import numpy as np
+from fastf1.core import Session
 
 from pitlane_agent.utils.constants import (
     ALPHA_VALUE,
@@ -27,7 +28,7 @@ from pitlane_agent.utils.plotting import get_driver_color_safe, save_figure, set
 
 def _extract_driver_position_data(
     driver_abbr: str,
-    session: fastf1.core.Session,
+    session: Session,
     ax: plt.Axes,
 ) -> dict | None:
     """Extract and plot position data for a single driver.
@@ -116,7 +117,7 @@ def _extract_driver_position_data(
     }
 
 
-def _configure_position_plot(ax: plt.Axes, session: fastf1.core.Session, year: int) -> None:
+def _configure_position_plot(ax: plt.Axes, session: Session, year: int) -> None:
     """Configure plot axes, labels, and styling.
 
     Args:
