@@ -16,7 +16,7 @@ from claude_agent_sdk.types import (
     TextBlock,
 )
 
-from pitlane_agent.scripts.workspace import (
+from pitlane_agent.commands.workspace import (
     create_workspace,
     generate_session_id,
     get_workspace_path,

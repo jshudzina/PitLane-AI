@@ -2,52 +2,16 @@
 
 Usage:
     pitlane tyre-strategy --year 2024 --gp Monaco --session R
-
-    # Or using module invocation
-    python -m pitlane_agent.scripts.tyre_strategy \
-        --year 2024 --gp Monaco --session R \
-        --output /tmp/pitlane_charts/tyre_strategy.png
 """
 
 from pathlib import Path
 
-import fastf1
-import fastf1.plotting
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from pitlane_agent.utils import sanitize_filename
-
-# Tyre compound colors (F1 2024 style)
-COMPOUND_COLORS = {
-    "SOFT": "#FF3333",
-    "MEDIUM": "#FFF200",
-    "HARD": "#EBEBEB",
-    "INTERMEDIATE": "#43B02A",
-    "WET": "#0067AD",
-    "UNKNOWN": "#888888",
-}
-
-
-def setup_plot_style():
-    """Configure matplotlib for F1-style dark theme."""
-    plt.style.use("dark_background")
-    plt.rcParams.update(
-        {
-            "figure.facecolor": "#1e1e1e",
-            "axes.facecolor": "#2d2d2d",
-            "axes.edgecolor": "#555555",
-            "axes.labelcolor": "#ffffff",
-            "text.color": "#ffffff",
-            "xtick.color": "#ffffff",
-            "ytick.color": "#ffffff",
-            "grid.color": "#444444",
-            "grid.alpha": 0.3,
-            "font.size": 10,
-            "axes.titlesize": 14,
-            "axes.labelsize": 12,
-        }
-    )
+from pitlane_agent.utils.constants import COMPOUND_COLORS
+from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
+from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
 
 def generate_tyre_strategy_chart(
@@ -67,18 +31,11 @@ def generate_tyre_strategy_chart(
     Returns:
         Dictionary with chart metadata and strategy info
     """
-    # Determine paths from workspace
-    gp_sanitized = sanitize_filename(gp)
-    filename = f"tyre_strategy_{year}_{gp_sanitized}_{session_type}.png"
-    output_path = workspace_dir / "charts" / filename
-    cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
-
-    # Enable FastF1 cache with shared directory
-    fastf1.Cache.enable_cache(str(cache_dir))
+    # Build output path
+    output_path = build_chart_path(workspace_dir, "tyre_strategy", year, gp, session_type)
 
     # Load session with laps data
-    session = fastf1.get_session(year, gp, session_type)
-    session.load(telemetry=False, weather=False, messages=False)
+    session = load_session(year, gp, session_type)
 
     # Setup plotting
     setup_plot_style()
@@ -181,13 +138,8 @@ def generate_tyre_strategy_chart(
         framealpha=0.8,
     )
 
-    # Ensure output directory exists
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
     # Save figure
-    fig.tight_layout()
-    fig.savefig(str(output_path), dpi=150, facecolor=fig.get_facecolor(), edgecolor="none")
-    plt.close(fig)
+    save_figure(fig, output_path)
 
     return {
         "chart_path": str(output_path),
@@ -200,7 +152,3 @@ def generate_tyre_strategy_chart(
         else None,
         "strategies": strategies,
     }
-
-
-# CLI interface removed - use pitlane analyze tyre-strategy instead
-# This module now only provides the generate_tyre_strategy_chart function

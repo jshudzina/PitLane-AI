@@ -2,42 +2,15 @@
 
 Usage:
     pitlane lap-times --year 2024 --gp Monaco --session Q --drivers VER --drivers HAM --drivers LEC
-
-    # Or using module invocation
-    python -m pitlane_agent.scripts.lap_times \
-        --year 2024 --gp Monaco --session Q \
-        --drivers VER --drivers HAM --drivers LEC \
-        --output /tmp/charts/lap_times.png
 """
 
 from pathlib import Path
 
-import fastf1
 import fastf1.plotting
 import matplotlib.pyplot as plt
 
-from pitlane_agent.utils import get_fastf1_cache_dir, sanitize_filename
-
-
-def setup_plot_style():
-    """Configure matplotlib for F1-style dark theme."""
-    plt.style.use("dark_background")
-    plt.rcParams.update(
-        {
-            "figure.facecolor": "#1e1e1e",
-            "axes.facecolor": "#2d2d2d",
-            "axes.edgecolor": "#555555",
-            "axes.labelcolor": "#ffffff",
-            "text.color": "#ffffff",
-            "xtick.color": "#ffffff",
-            "ytick.color": "#ffffff",
-            "grid.color": "#444444",
-            "grid.alpha": 0.3,
-            "font.size": 10,
-            "axes.titlesize": 14,
-            "axes.labelsize": 12,
-        }
-    )
+from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
+from pitlane_agent.utils.plotting import get_driver_color_safe, save_figure, setup_plot_style
 
 
 def generate_lap_times_chart(
@@ -59,19 +32,11 @@ def generate_lap_times_chart(
     Returns:
         Dictionary with chart metadata and statistics
     """
-    # Determine paths from workspace
-    gp_sanitized = sanitize_filename(gp)
-    # Handle long driver lists to prevent excessive filename lengths
-    drivers_str = f"{len(drivers)}drivers" if len(drivers) > 5 else "_".join(sorted(drivers))
-    filename = f"lap_times_{year}_{gp_sanitized}_{session_type}_{drivers_str}.png"
-    output_path = workspace_dir / "charts" / filename
-
-    # Enable FastF1 cache with shared directory
-    fastf1.Cache.enable_cache(str(get_fastf1_cache_dir()))
+    # Build output path
+    output_path = build_chart_path(workspace_dir, "lap_times", year, gp, session_type, drivers)
 
     # Load session with laps data
-    session = fastf1.get_session(year, gp, session_type)
-    session.load(telemetry=False, weather=False, messages=False)
+    session = load_session(year, gp, session_type)
 
     # Setup plotting
     setup_plot_style()
@@ -91,11 +56,7 @@ def generate_lap_times_chart(
             continue
 
         # Get driver color from FastF1
-        try:
-            color = fastf1.plotting.get_driver_color(driver_abbr, session)
-        except Exception:
-            # Fallback to a default color if not found
-            color = None
+        color = get_driver_color_safe(driver_abbr, session)
 
         # Convert lap times to seconds for plotting
         lap_times_sec = driver_laps["LapTime"].dt.total_seconds()
@@ -133,13 +94,8 @@ def generate_lap_times_chart(
     y_range = y_max - y_min
     ax.set_ylim(y_min - y_range * 0.05, y_max + y_range * 0.05)
 
-    # Ensure output directory exists
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
     # Save figure
-    fig.tight_layout()
-    fig.savefig(str(output_path), dpi=150, facecolor=fig.get_facecolor(), edgecolor="none")
-    plt.close(fig)
+    save_figure(fig, output_path)
 
     return {
         "chart_path": str(output_path),
@@ -150,7 +106,3 @@ def generate_lap_times_chart(
         "drivers_plotted": [s["driver"] for s in stats],
         "statistics": stats,
     }
-
-
-# CLI interface removed - use pitlane analyze lap-times instead
-# This module now only provides the generate_lap_times_chart function

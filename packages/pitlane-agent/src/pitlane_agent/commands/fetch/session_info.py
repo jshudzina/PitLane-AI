@@ -4,14 +4,12 @@ Usage:
     pitlane session-info --year 2024 --gp Monaco --session R
 
     # Or using module invocation
-    python -m pitlane_agent.scripts.session_info --year 2024 --gp Monaco --session R
+    python -m pitlane_agent.commands.fetch.session_info --year 2024 --gp Monaco --session R
 """
 
 import contextlib
-from pathlib import Path
 from typing import TypedDict
 
-import fastf1
 import pandas as pd
 from fastf1.core import DataNotLoadedError, Session
 
@@ -20,6 +18,7 @@ from pitlane_agent.utils.constants import (
     TRACK_STATUS_SAFETY_CAR,
     TRACK_STATUS_VSC_DEPLOYED,
 )
+from pitlane_agent.utils.fastf1_helpers import load_session
 
 
 class DriverInfo(TypedDict):
@@ -172,14 +171,8 @@ def get_session_info(year: int, gp: str, session_type: str) -> SessionInfo:
         Race conditions include counts of safety cars, virtual safety cars, and red flags.
         Weather includes min/max/avg for air temperature, humidity, pressure, and wind speed.
     """
-
-    # Enable FastF1 cache with shared directory
-    cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
-    fastf1.Cache.enable_cache(str(cache_dir))
-
-    # Load the session
-    session = fastf1.get_session(year, gp, session_type)
-    session.load(telemetry=False, weather=True, messages=True)
+    # Load session with weather and messages data
+    session = load_session(year, gp, session_type, weather=True, messages=True)
 
     # Get driver info
     drivers = []

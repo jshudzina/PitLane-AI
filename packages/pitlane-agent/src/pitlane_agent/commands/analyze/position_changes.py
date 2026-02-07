@@ -6,43 +6,23 @@ Usage:
 
 from pathlib import Path
 
-import fastf1
 import fastf1.plotting
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pitlane_agent.utils import get_fastf1_cache_dir, sanitize_filename
-
-# Visualization constants
-FIGURE_WIDTH = 14
-FIGURE_HEIGHT = 8
-DEFAULT_DPI = 150
-LINE_WIDTH = 2
-MARKER_SIZE = 3
-PIT_MARKER_SIZE = 100
-ALPHA_VALUE = 0.8
-GRID_ALPHA = 0.3
-
-
-def setup_plot_style():
-    """Configure matplotlib for F1-style dark theme."""
-    plt.style.use("dark_background")
-    plt.rcParams.update(
-        {
-            "figure.facecolor": "#1e1e1e",
-            "axes.facecolor": "#2d2d2d",
-            "axes.edgecolor": "#555555",
-            "axes.labelcolor": "#ffffff",
-            "text.color": "#ffffff",
-            "xtick.color": "#ffffff",
-            "ytick.color": "#ffffff",
-            "grid.color": "#444444",
-            "grid.alpha": GRID_ALPHA,
-            "font.size": 10,
-            "axes.titlesize": 14,
-            "axes.labelsize": 12,
-        }
-    )
+from pitlane_agent.utils.constants import (
+    ALPHA_VALUE,
+    DEFAULT_DPI,
+    FIGURE_HEIGHT,
+    FIGURE_WIDTH,
+    GRID_ALPHA,
+    LINE_WIDTH,
+    MARKER_SIZE,
+    PIT_MARKER_SIZE,
+)
+from pitlane_agent.utils.fastf1_helpers import load_session
+from pitlane_agent.utils.filename import sanitize_filename
+from pitlane_agent.utils.plotting import get_driver_color_safe, save_figure, setup_plot_style
 
 
 def _extract_driver_position_data(
@@ -73,10 +53,7 @@ def _extract_driver_position_data(
         return None
 
     # Get driver color from FastF1
-    try:
-        color = fastf1.plotting.get_driver_color(driver_abbr, session)
-    except Exception:
-        color = None
+    color = get_driver_color_safe(driver_abbr, session)
 
     # Plot position evolution
     ax.plot(
@@ -225,12 +202,8 @@ def generate_position_changes_chart(
     filename = f"position_changes_{year}_{gp_sanitized}_{session_type}_{drivers_str}.png"
     output_path = workspace_dir / "charts" / filename
 
-    # Enable FastF1 cache with shared directory
-    fastf1.Cache.enable_cache(str(get_fastf1_cache_dir()))
-
     # Load session with laps data
-    session = fastf1.get_session(year, gp, session_type)
-    session.load(telemetry=False, weather=False, messages=False)
+    session = load_session(year, gp, session_type)
 
     # Determine which drivers to plot
     if drivers is not None:
@@ -265,13 +238,8 @@ def generate_position_changes_chart(
     # Configure plot styling
     _configure_position_plot(ax, session, year)
 
-    # Ensure output directory exists
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Save figure
-    fig.tight_layout()
-    fig.savefig(str(output_path), dpi=DEFAULT_DPI, facecolor=fig.get_facecolor(), edgecolor="none", bbox_inches="tight")
-    plt.close(fig)
+    # Save figure with bbox_inches="tight" for this specific chart
+    save_figure(fig, output_path, dpi=DEFAULT_DPI, bbox_inches="tight")
 
     # Calculate aggregate statistics
     aggregate_stats = _calculate_aggregate_statistics(stats)

@@ -6,33 +6,13 @@ Usage:
 
 from pathlib import Path
 
-import fastf1
 import fastf1.plotting
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from pitlane_agent.utils import get_fastf1_cache_dir, sanitize_filename
-
-
-def setup_plot_style():
-    """Configure matplotlib for F1-style dark theme."""
-    plt.style.use("dark_background")
-    plt.rcParams.update(
-        {
-            "figure.facecolor": "#1e1e1e",
-            "axes.facecolor": "#2d2d2d",
-            "axes.edgecolor": "#555555",
-            "axes.labelcolor": "#ffffff",
-            "text.color": "#ffffff",
-            "xtick.color": "#ffffff",
-            "ytick.color": "#ffffff",
-            "grid.color": "#444444",
-            "grid.alpha": 0.3,
-            "font.size": 10,
-            "axes.titlesize": 14,
-            "axes.labelsize": 12,
-        }
-    )
+from pitlane_agent.utils.constants import MAX_SPEED_TRACE_DRIVERS, MIN_SPEED_TRACE_DRIVERS
+from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
+from pitlane_agent.utils.plotting import get_driver_color_safe, save_figure, setup_plot_style
 
 
 def generate_speed_trace_chart(
@@ -58,23 +38,20 @@ def generate_speed_trace_chart(
         ValueError: If drivers list has <2 or >5 entries
     """
     # Validation
-    if len(drivers) < 2:
-        raise ValueError(f"Speed trace requires at least 2 drivers for comparison, got {len(drivers)}")
-    if len(drivers) > 5:
-        raise ValueError(f"Speed trace supports maximum 5 drivers for readability, got {len(drivers)}")
+    if len(drivers) < MIN_SPEED_TRACE_DRIVERS:
+        raise ValueError(
+            f"Speed trace requires at least {MIN_SPEED_TRACE_DRIVERS} drivers for comparison, got {len(drivers)}"
+        )
+    if len(drivers) > MAX_SPEED_TRACE_DRIVERS:
+        raise ValueError(
+            f"Speed trace supports maximum {MAX_SPEED_TRACE_DRIVERS} drivers for readability, got {len(drivers)}"
+        )
 
-    # Determine paths from workspace
-    gp_sanitized = sanitize_filename(gp)
-    drivers_str = "_".join(sorted(drivers))
-    filename = f"speed_trace_{year}_{gp_sanitized}_{session_type}_{drivers_str}.png"
-    output_path = workspace_dir / "charts" / filename
-
-    # Enable FastF1 cache with shared directory
-    fastf1.Cache.enable_cache(str(get_fastf1_cache_dir()))
+    # Build output path
+    output_path = build_chart_path(workspace_dir, "speed_trace", year, gp, session_type, drivers)
 
     # Load session WITH telemetry data
-    session = fastf1.get_session(year, gp, session_type)
-    session.load(telemetry=True, weather=False, messages=False)
+    session = load_session(year, gp, session_type, telemetry=True)
 
     # Setup plotting
     setup_plot_style()
@@ -104,11 +81,7 @@ def generate_speed_trace_chart(
             continue
 
         # Get driver color from FastF1
-        try:
-            color = fastf1.plotting.get_driver_color(driver_abbr, session)
-        except Exception:
-            # Fallback to a default color if not found
-            color = None
+        color = get_driver_color_safe(driver_abbr, session)
 
         # Plot speed trace
         ax.plot(
@@ -185,13 +158,8 @@ def generate_speed_trace_chart(
     y_range = y_max - y_min
     ax.set_ylim(y_min - y_range * 0.05, y_max + y_range * 0.05)
 
-    # Ensure output directory exists
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
     # Save figure
-    fig.tight_layout()
-    fig.savefig(str(output_path), dpi=150, facecolor=fig.get_facecolor(), edgecolor="none")
-    plt.close(fig)
+    save_figure(fig, output_path)
 
     return {
         "chart_path": str(output_path),
