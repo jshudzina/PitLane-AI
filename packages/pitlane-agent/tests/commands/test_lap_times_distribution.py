@@ -1,9 +1,9 @@
-"""Tests for lap_times_distribution script."""
+"""Tests for lap_times_distribution command."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pitlane_agent.scripts.lap_times_distribution import (
+from pitlane_agent.commands.analyze.lap_times_distribution import (
     generate_lap_times_distribution_chart,
 )
 from pitlane_agent.utils import sanitize_filename
@@ -12,9 +12,9 @@ from pitlane_agent.utils import sanitize_filename
 class TestLapTimesDistributionBusinessLogic:
     """Unit tests for business logic functions."""
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.sns")
-    @patch("pitlane_agent.scripts.lap_times_distribution.plt")
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1")
     def test_generate_distribution_chart_success_with_drivers(
         self, mock_fastf1, mock_plt, mock_sns, tmp_output_dir, mock_fastf1_session
     ):
@@ -88,9 +88,9 @@ class TestLapTimesDistributionBusinessLogic:
         mock_sns.violinplot.assert_called_once()
         mock_sns.swarmplot.assert_called_once()
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.sns")
-    @patch("pitlane_agent.scripts.lap_times_distribution.plt")
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1")
     def test_generate_distribution_chart_default_top10(
         self, mock_fastf1, mock_plt, mock_sns, tmp_output_dir, mock_fastf1_session
     ):
@@ -151,9 +151,9 @@ class TestLapTimesDistributionBusinessLogic:
         assert result["chart_path"] == str(tmp_output_dir / "charts" / "lap_times_distribution_2024_monaco_R_top10.png")
         assert len(result["drivers_plotted"]) == 10
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.sns")
-    @patch("pitlane_agent.scripts.lap_times_distribution.plt")
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1")
     def test_generate_distribution_chart_many_drivers(
         self, mock_fastf1, mock_plt, mock_sns, tmp_output_dir, mock_fastf1_session
     ):
@@ -200,7 +200,7 @@ class TestLapTimesDistributionBusinessLogic:
             tmp_output_dir / "charts" / "lap_times_distribution_2024_monaco_Q_6drivers.png"
         )
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1")
     def test_generate_distribution_chart_error(self, mock_fastf1, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
@@ -212,7 +212,7 @@ class TestLapTimesDistributionBusinessLogic:
                 year=2024, gp="InvalidGP", session_type="Q", drivers=["VER"], workspace_dir=tmp_output_dir
             )
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1")
     def test_generate_distribution_chart_no_quick_laps(self, mock_fastf1, tmp_output_dir, mock_fastf1_session):
         """Test error handling when no quick laps are found."""
         # Setup mocks
@@ -230,9 +230,9 @@ class TestLapTimesDistributionBusinessLogic:
                 year=2024, gp="Monaco", session_type="Q", drivers=["VER"], workspace_dir=tmp_output_dir
             )
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.sns")
-    @patch("pitlane_agent.scripts.lap_times_distribution.plt")
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1")
     def test_generate_distribution_chart_verifies_plot_calls(
         self, mock_fastf1, mock_plt, mock_sns, tmp_output_dir, mock_fastf1_session
     ):
@@ -291,9 +291,9 @@ class TestLapTimesDistributionBusinessLogic:
         # Verify despine was called
         mock_sns.despine.assert_called_once()
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.sns")
-    @patch("pitlane_agent.scripts.lap_times_distribution.plt")
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1")
     def test_generate_distribution_chart_with_excluded_drivers(
         self, mock_fastf1, mock_plt, mock_sns, tmp_output_dir, mock_fastf1_session
     ):

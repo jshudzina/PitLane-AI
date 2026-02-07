@@ -1,4 +1,4 @@
-"""Tests for driver_info script."""
+"""Tests for driver_info command."""
 
 import json
 from datetime import datetime
@@ -7,13 +7,14 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 from click.testing import CliRunner
-from pitlane_agent.scripts.driver_info import cli, get_driver_info
+from pitlane_agent.cli_fetch import driver_info as cli
+from pitlane_agent.commands.fetch.driver_info import get_driver_info
 
 
 class TestDriverInfoBusinessLogic:
     """Unit tests for business logic functions."""
 
-    @patch("pitlane_agent.scripts.driver_info.ergast")
+    @patch("pitlane_agent.commands.fetch.driver_info.ergast")
     def test_get_driver_info_all_drivers(self, mock_ergast):
         """Test getting all drivers without filters."""
         # Mock Ergast API response
@@ -41,7 +42,7 @@ class TestDriverInfoBusinessLogic:
         assert result["drivers"][0]["full_name"] == "Max Verstappen"
         mock_ergast_instance.get_driver_info.assert_called_once_with()
 
-    @patch("pitlane_agent.scripts.driver_info.ergast")
+    @patch("pitlane_agent.commands.fetch.driver_info.ergast")
     def test_get_driver_info_by_code(self, mock_ergast):
         """Test filtering by driver code."""
         mock_df = pd.DataFrame(
@@ -68,7 +69,7 @@ class TestDriverInfoBusinessLogic:
         # Verify lowercase conversion (Ergast expects lowercase driver IDs)
         mock_ergast_instance.get_driver_info.assert_called_once_with(driver="ham")
 
-    @patch("pitlane_agent.scripts.driver_info.ergast")
+    @patch("pitlane_agent.commands.fetch.driver_info.ergast")
     def test_get_driver_info_by_season(self, mock_ergast):
         """Test filtering by season."""
         mock_df = pd.DataFrame(
@@ -93,7 +94,7 @@ class TestDriverInfoBusinessLogic:
         assert result["filters"]["season"] == 2024
         mock_ergast_instance.get_driver_info.assert_called_once_with(season=2024)
 
-    @patch("pitlane_agent.scripts.driver_info.ergast")
+    @patch("pitlane_agent.commands.fetch.driver_info.ergast")
     def test_get_driver_info_with_pagination(self, mock_ergast):
         """Test pagination with limit and offset."""
         mock_df = pd.DataFrame(
@@ -122,7 +123,7 @@ class TestDriverInfoBusinessLogic:
         # Should skip first 10 and return next 5
         assert result["drivers"][0]["driver_code"] == "D10"
 
-    @patch("pitlane_agent.scripts.driver_info.ergast")
+    @patch("pitlane_agent.commands.fetch.driver_info.ergast")
     def test_get_driver_info_error(self, mock_ergast):
         """Test error handling."""
         mock_ergast_instance = mock_ergast.Ergast.return_value
@@ -147,7 +148,7 @@ class TestDriverInfoCLI:
         assert "--limit" in result.output
         assert "--offset" in result.output
 
-    @patch("pitlane_agent.scripts.driver_info.get_driver_info")
+    @patch("pitlane_agent.commands.fetch.driver_info.get_driver_info")
     def test_cli_success(self, mock_get_info):
         """Test successful CLI execution."""
         mock_get_info.return_value = {
@@ -164,7 +165,7 @@ class TestDriverInfoCLI:
         output = json.loads(result.output)
         assert output["total_drivers"] == 1
 
-    @patch("pitlane_agent.scripts.driver_info.get_driver_info")
+    @patch("pitlane_agent.commands.fetch.driver_info.get_driver_info")
     def test_cli_with_driver_code(self, mock_get_info):
         """Test CLI with driver code filter."""
         mock_get_info.return_value = {
@@ -180,7 +181,7 @@ class TestDriverInfoCLI:
         assert result.exit_code == 0
         mock_get_info.assert_called_once_with(driver_code="VER", season=None, limit=100, offset=0)
 
-    @patch("pitlane_agent.scripts.driver_info.get_driver_info")
+    @patch("pitlane_agent.commands.fetch.driver_info.get_driver_info")
     def test_cli_with_season(self, mock_get_info):
         """Test CLI with season filter."""
         mock_get_info.return_value = {
@@ -196,7 +197,7 @@ class TestDriverInfoCLI:
         assert result.exit_code == 0
         mock_get_info.assert_called_once_with(driver_code=None, season=2024, limit=100, offset=0)
 
-    @patch("pitlane_agent.scripts.driver_info.get_driver_info")
+    @patch("pitlane_agent.commands.fetch.driver_info.get_driver_info")
     def test_cli_with_pagination(self, mock_get_info):
         """Test CLI with limit and offset."""
         mock_get_info.return_value = {
@@ -234,7 +235,7 @@ class TestDriverInfoCLI:
         error = json.loads(result.output)
         assert "error" in error
 
-    @patch("pitlane_agent.scripts.driver_info.get_driver_info")
+    @patch("pitlane_agent.commands.fetch.driver_info.get_driver_info")
     def test_cli_error_handling(self, mock_get_info):
         """Test CLI error handling."""
         mock_get_info.side_effect = Exception("Ergast error")

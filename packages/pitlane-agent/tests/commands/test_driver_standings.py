@@ -1,4 +1,4 @@
-"""Tests for driver_standings script."""
+"""Tests for driver_standings command."""
 
 import json
 from datetime import datetime
@@ -8,13 +8,13 @@ import pandas as pd
 import pytest
 from click.testing import CliRunner
 from pitlane_agent.cli_fetch import fetch
-from pitlane_agent.scripts.driver_standings import get_driver_standings
+from pitlane_agent.commands.fetch.driver_standings import get_driver_standings
 
 
 class TestDriverStandingsBusinessLogic:
     """Unit tests for business logic functions."""
 
-    @patch("pitlane_agent.scripts.driver_standings.ergast")
+    @patch("pitlane_agent.commands.fetch.driver_standings.ergast")
     def test_get_driver_standings_success(self, mock_ergast):
         """Test getting driver standings successfully."""
         # Mock ErgastMultiResponse structure
@@ -74,7 +74,7 @@ class TestDriverStandingsBusinessLogic:
 
         mock_ergast_instance.get_driver_standings.assert_called_once_with(season=2024, round="last")
 
-    @patch("pitlane_agent.scripts.driver_standings.ergast")
+    @patch("pitlane_agent.commands.fetch.driver_standings.ergast")
     def test_get_driver_standings_with_round(self, mock_ergast):
         """Test filtering by specific round number."""
         mock_response = Mock()
@@ -114,7 +114,7 @@ class TestDriverStandingsBusinessLogic:
         assert result["filters"]["round"] == 10
         mock_ergast_instance.get_driver_standings.assert_called_once_with(season=2024, round=10)
 
-    @patch("pitlane_agent.scripts.driver_standings.ergast")
+    @patch("pitlane_agent.commands.fetch.driver_standings.ergast")
     def test_get_driver_standings_empty_results(self, mock_ergast):
         """Test handling empty results."""
         mock_response = Mock()
@@ -130,7 +130,7 @@ class TestDriverStandingsBusinessLogic:
         assert result["total_standings"] == 0
         assert result["standings"] == []
 
-    @patch("pitlane_agent.scripts.driver_standings.ergast")
+    @patch("pitlane_agent.commands.fetch.driver_standings.ergast")
     def test_get_driver_standings_handles_nan_driver_number(self, mock_ergast):
         """Test handling NaN driver numbers for historical drivers."""
         mock_response = Mock()
@@ -167,7 +167,7 @@ class TestDriverStandingsBusinessLogic:
 
         assert result["standings"][0]["driver_number"] is None
 
-    @patch("pitlane_agent.scripts.driver_standings.ergast")
+    @patch("pitlane_agent.commands.fetch.driver_standings.ergast")
     def test_get_driver_standings_error(self, mock_ergast):
         """Test error handling."""
         mock_ergast_instance = mock_ergast.Ergast.return_value

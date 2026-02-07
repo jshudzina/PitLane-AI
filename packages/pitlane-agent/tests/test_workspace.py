@@ -4,7 +4,7 @@ import json
 from unittest.mock import patch
 
 import pytest
-from pitlane_agent.scripts.workspace import (
+from pitlane_agent.commands.workspace.operations import (
     _generate_title,
     create_conversation,
     get_active_conversation,
@@ -55,7 +55,7 @@ class TestLoadConversations:
     def test_returns_empty_structure_when_file_missing(self, tmp_path, monkeypatch):
         """Test that missing file returns empty structure."""
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: tmp_path / "conversations.json",
         )
         result = load_conversations("test-session")
@@ -76,7 +76,7 @@ class TestLoadConversations:
         conv_path.write_text(json.dumps(data))
 
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: conv_path,
         )
         result = load_conversations("test-session")
@@ -88,7 +88,7 @@ class TestLoadConversations:
         conv_path.write_text("not valid json {{{")
 
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: conv_path,
         )
         result = load_conversations("test-session")
@@ -108,13 +108,13 @@ class TestSaveConversations:
         workspace_path.mkdir()
         conv_path = workspace_path / "conversations.json"
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", lambda sid: True)
+        monkeypatch.setattr("pitlane_agent.commands.workspace.operations.workspace_exists", lambda sid: True)
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: conv_path,
         )
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_workspace_path",
+            "pitlane_agent.commands.workspace.operations.get_workspace_path",
             lambda sid: workspace_path,
         )
 
@@ -127,7 +127,7 @@ class TestSaveConversations:
 
     def test_raises_on_missing_workspace(self, monkeypatch):
         """Test that missing workspace raises ValueError."""
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", lambda sid: False)
+        monkeypatch.setattr("pitlane_agent.commands.workspace.operations.workspace_exists", lambda sid: False)
 
         with pytest.raises(ValueError, match="Workspace does not exist"):
             save_conversations("nonexistent-session", {})
@@ -142,13 +142,13 @@ class TestCreateConversation:
         workspace_path.mkdir()
         conv_path = workspace_path / "conversations.json"
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", lambda sid: True)
+        monkeypatch.setattr("pitlane_agent.commands.workspace.operations.workspace_exists", lambda sid: True)
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: conv_path,
         )
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_workspace_path",
+            "pitlane_agent.commands.workspace.operations.get_workspace_path",
             lambda sid: workspace_path,
         )
 
@@ -170,13 +170,13 @@ class TestCreateConversation:
         workspace_path.mkdir()
         conv_path = workspace_path / "conversations.json"
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", lambda sid: True)
+        monkeypatch.setattr("pitlane_agent.commands.workspace.operations.workspace_exists", lambda sid: True)
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: conv_path,
         )
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_workspace_path",
+            "pitlane_agent.commands.workspace.operations.get_workspace_path",
             lambda sid: workspace_path,
         )
 
@@ -208,13 +208,13 @@ class TestUpdateConversation:
         }
         conv_path.write_text(json.dumps(initial_data))
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", lambda sid: True)
+        monkeypatch.setattr("pitlane_agent.commands.workspace.operations.workspace_exists", lambda sid: True)
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: conv_path,
         )
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_workspace_path",
+            "pitlane_agent.commands.workspace.operations.get_workspace_path",
             lambda sid: workspace_path,
         )
 
@@ -237,17 +237,17 @@ class TestUpdateConversation:
         }
         conv_path.write_text(json.dumps(initial_data))
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", lambda sid: True)
+        monkeypatch.setattr("pitlane_agent.commands.workspace.operations.workspace_exists", lambda sid: True)
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: conv_path,
         )
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_workspace_path",
+            "pitlane_agent.commands.workspace.operations.get_workspace_path",
             lambda sid: workspace_path,
         )
 
-        with patch("pitlane_agent.scripts.workspace.logger") as mock_logger:
+        with patch("pitlane_agent.commands.workspace.operations.logger") as mock_logger:
             update_conversation("test-session", "nonexistent")
             mock_logger.warning.assert_called_once()
             assert "nonexistent" in mock_logger.warning.call_args[0][0]
@@ -263,7 +263,7 @@ class TestGetActiveConversation:
         conv_path.write_text(json.dumps(data))
 
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: conv_path,
         )
         assert get_active_conversation("test-session") is None
@@ -282,7 +282,7 @@ class TestGetActiveConversation:
         conv_path.write_text(json.dumps(data))
 
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: conv_path,
         )
         result = get_active_conversation("test-session")
@@ -300,7 +300,7 @@ class TestGetActiveConversation:
         conv_path.write_text(json.dumps(data))
 
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: conv_path,
         )
         assert get_active_conversation("test-session") is None
@@ -317,13 +317,13 @@ class TestSetActiveConversation:
         data = {"version": 1, "active_conversation_id": None, "conversations": []}
         conv_path.write_text(json.dumps(data))
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", lambda sid: True)
+        monkeypatch.setattr("pitlane_agent.commands.workspace.operations.workspace_exists", lambda sid: True)
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: conv_path,
         )
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_workspace_path",
+            "pitlane_agent.commands.workspace.operations.get_workspace_path",
             lambda sid: workspace_path,
         )
 
@@ -339,13 +339,13 @@ class TestSetActiveConversation:
         data = {"version": 1, "active_conversation_id": "conv_123", "conversations": []}
         conv_path.write_text(json.dumps(data))
 
-        monkeypatch.setattr("pitlane_agent.scripts.workspace.workspace_exists", lambda sid: True)
+        monkeypatch.setattr("pitlane_agent.commands.workspace.operations.workspace_exists", lambda sid: True)
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_conversations_path",
+            "pitlane_agent.commands.workspace.operations.get_conversations_path",
             lambda sid: conv_path,
         )
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_workspace_path",
+            "pitlane_agent.commands.workspace.operations.get_workspace_path",
             lambda sid: workspace_path,
         )
 
@@ -361,7 +361,7 @@ class TestGetConversationsPath:
         """Test that correct path is returned."""
         workspace_path = tmp_path / "workspaces" / "test-session"
         monkeypatch.setattr(
-            "pitlane_agent.scripts.workspace.get_workspace_path",
+            "pitlane_agent.commands.workspace.operations.get_workspace_path",
             lambda sid: workspace_path,
         )
 

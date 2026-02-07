@@ -1,10 +1,10 @@
-"""Tests for position_changes script."""
+"""Tests for position_changes command."""
 
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-from pitlane_agent.scripts.position_changes import (
+from pitlane_agent.commands.analyze.position_changes import (
     generate_position_changes_chart,
     setup_plot_style,
 )
@@ -18,8 +18,8 @@ class TestPositionChangesBusinessLogic:
         # Test that setup_plot_style doesn't raise errors
         setup_plot_style()
 
-    @patch("pitlane_agent.scripts.position_changes.plt")
-    @patch("pitlane_agent.scripts.position_changes.fastf1")
+    @patch("pitlane_agent.commands.analyze.position_changes.plt")
+    @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     def test_generate_position_changes_chart_success(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
         """Test successful chart generation with position data."""
         # Setup mocks
@@ -86,8 +86,8 @@ class TestPositionChangesBusinessLogic:
         mock_fastf1.get_session.assert_called_once_with(2024, "Monaco", "R")
         mock_fastf1_session.load.assert_called_once()
 
-    @patch("pitlane_agent.scripts.position_changes.plt")
-    @patch("pitlane_agent.scripts.position_changes.fastf1")
+    @patch("pitlane_agent.commands.analyze.position_changes.plt")
+    @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     def test_generate_position_changes_chart_with_drivers_filter(
         self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session
     ):
@@ -122,8 +122,8 @@ class TestPositionChangesBusinessLogic:
         # Verify filename includes driver abbreviation
         assert "VER" in result["chart_path"]
 
-    @patch("pitlane_agent.scripts.position_changes.plt")
-    @patch("pitlane_agent.scripts.position_changes.fastf1")
+    @patch("pitlane_agent.commands.analyze.position_changes.plt")
+    @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     def test_generate_position_changes_chart_with_top_n(
         self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session
     ):
@@ -164,8 +164,8 @@ class TestPositionChangesBusinessLogic:
         # Verify filename includes top3
         assert "top3" in result["chart_path"]
 
-    @patch("pitlane_agent.scripts.position_changes.plt")
-    @patch("pitlane_agent.scripts.position_changes.fastf1")
+    @patch("pitlane_agent.commands.analyze.position_changes.plt")
+    @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     def test_generate_position_changes_chart_with_pit_stops(
         self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session
     ):
@@ -207,8 +207,8 @@ class TestPositionChangesBusinessLogic:
         # Verify ax.scatter was called for pit stop marker
         mock_ax.scatter.assert_called()
 
-    @patch("pitlane_agent.scripts.position_changes.plt")
-    @patch("pitlane_agent.scripts.position_changes.fastf1")
+    @patch("pitlane_agent.commands.analyze.position_changes.plt")
+    @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     def test_generate_position_changes_chart_no_position_data(
         self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session
     ):
@@ -240,7 +240,7 @@ class TestPositionChangesBusinessLogic:
         # Verify driver is excluded
         assert "VER" in result.get("excluded_drivers", [])
 
-    @patch("pitlane_agent.scripts.position_changes.fastf1")
+    @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     def test_generate_position_changes_chart_error(self, mock_fastf1, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
@@ -257,8 +257,8 @@ class TestPositionChangesBusinessLogic:
                 workspace_dir=tmp_output_dir,
             )
 
-    @patch("pitlane_agent.scripts.position_changes.plt")
-    @patch("pitlane_agent.scripts.position_changes.fastf1")
+    @patch("pitlane_agent.commands.analyze.position_changes.plt")
+    @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     def test_statistics_calculation(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
         """Test correct calculation of position change statistics."""
         mock_fastf1.get_session.return_value = mock_fastf1_session
@@ -302,8 +302,8 @@ class TestPositionChangesBusinessLogic:
         assert driver_stats["biggest_gain"] == 2  # Biggest single gain
         assert driver_stats["biggest_loss"] == 1  # Biggest single loss
 
-    @patch("pitlane_agent.scripts.position_changes.plt")
-    @patch("pitlane_agent.scripts.position_changes.fastf1")
+    @patch("pitlane_agent.commands.analyze.position_changes.plt")
+    @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     def test_generate_position_changes_chart_many_drivers(
         self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session
     ):

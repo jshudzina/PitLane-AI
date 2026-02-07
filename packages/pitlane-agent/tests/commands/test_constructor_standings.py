@@ -1,4 +1,4 @@
-"""Tests for constructor_standings script."""
+"""Tests for constructor_standings command."""
 
 import json
 from datetime import datetime
@@ -8,13 +8,13 @@ import pandas as pd
 import pytest
 from click.testing import CliRunner
 from pitlane_agent.cli_fetch import fetch
-from pitlane_agent.scripts.constructor_standings import get_constructor_standings
+from pitlane_agent.commands.fetch.constructor_standings import get_constructor_standings
 
 
 class TestConstructorStandingsBusinessLogic:
     """Unit tests for business logic functions."""
 
-    @patch("pitlane_agent.scripts.constructor_standings.ergast")
+    @patch("pitlane_agent.commands.fetch.constructor_standings.ergast")
     def test_get_constructor_standings_success(self, mock_ergast):
         """Test getting constructor standings successfully."""
         # Mock ErgastMultiResponse structure
@@ -59,7 +59,7 @@ class TestConstructorStandingsBusinessLogic:
 
         mock_ergast_instance.get_constructor_standings.assert_called_once_with(season=2024, round="last")
 
-    @patch("pitlane_agent.scripts.constructor_standings.ergast")
+    @patch("pitlane_agent.commands.fetch.constructor_standings.ergast")
     def test_get_constructor_standings_with_round(self, mock_ergast):
         """Test filtering by specific round number."""
         mock_response = Mock()
@@ -91,7 +91,7 @@ class TestConstructorStandingsBusinessLogic:
         assert result["filters"]["round"] == 10
         mock_ergast_instance.get_constructor_standings.assert_called_once_with(season=2024, round=10)
 
-    @patch("pitlane_agent.scripts.constructor_standings.ergast")
+    @patch("pitlane_agent.commands.fetch.constructor_standings.ergast")
     def test_get_constructor_standings_empty_results(self, mock_ergast):
         """Test handling empty results."""
         mock_response = Mock()
@@ -107,7 +107,7 @@ class TestConstructorStandingsBusinessLogic:
         assert result["total_standings"] == 0
         assert result["standings"] == []
 
-    @patch("pitlane_agent.scripts.constructor_standings.ergast")
+    @patch("pitlane_agent.commands.fetch.constructor_standings.ergast")
     def test_get_constructor_standings_multiple_teams(self, mock_ergast):
         """Test getting standings for multiple constructors."""
         mock_response = Mock()
@@ -148,7 +148,7 @@ class TestConstructorStandingsBusinessLogic:
         assert result["standings"][0]["constructor_id"] == "mclaren"
         assert result["standings"][1]["constructor_id"] == "ferrari"
 
-    @patch("pitlane_agent.scripts.constructor_standings.ergast")
+    @patch("pitlane_agent.commands.fetch.constructor_standings.ergast")
     def test_get_constructor_standings_error(self, mock_ergast):
         """Test error handling."""
         mock_ergast_instance = mock_ergast.Ergast.return_value

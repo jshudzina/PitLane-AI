@@ -1,9 +1,9 @@
-"""Tests for lap_times script."""
+"""Tests for lap_times command."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pitlane_agent.scripts.lap_times import (
+from pitlane_agent.commands.analyze.lap_times import (
     generate_lap_times_chart,
     setup_plot_style,
 )
@@ -18,8 +18,8 @@ class TestLapTimesBusinessLogic:
         # Test that setup_plot_style doesn't raise errors
         setup_plot_style()
 
-    @patch("pitlane_agent.scripts.lap_times.plt")
-    @patch("pitlane_agent.scripts.lap_times.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times.fastf1")
     def test_generate_lap_times_chart_success(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
         """Test successful chart generation."""
         # Setup mocks
@@ -66,7 +66,7 @@ class TestLapTimesBusinessLogic:
         mock_fastf1.get_session.assert_called_once_with(2024, "Monaco", "Q")
         mock_fastf1_session.load.assert_called_once()
 
-    @patch("pitlane_agent.scripts.lap_times.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times.fastf1")
     def test_generate_lap_times_chart_error(self, mock_fastf1, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
@@ -82,8 +82,8 @@ class TestLapTimesBusinessLogic:
                 workspace_dir=tmp_output_dir,
             )
 
-    @patch("pitlane_agent.scripts.lap_times.plt")
-    @patch("pitlane_agent.scripts.lap_times.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times.fastf1")
     def test_generate_lap_times_chart_many_drivers(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
         """Test chart generation with many drivers uses shortened filename."""
         # Setup mocks

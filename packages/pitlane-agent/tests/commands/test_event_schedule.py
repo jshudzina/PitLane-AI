@@ -1,4 +1,4 @@
-"""Tests for event_schedule script."""
+"""Tests for event_schedule command."""
 
 import json
 from datetime import datetime
@@ -7,13 +7,14 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 from click.testing import CliRunner
-from pitlane_agent.scripts.event_schedule import cli, get_event_schedule
+from pitlane_agent.cli_fetch import event_schedule as cli
+from pitlane_agent.commands.fetch.event_schedule import get_event_schedule
 
 
 class TestEventScheduleBusinessLogic:
     """Unit tests for business logic functions."""
 
-    @patch("pitlane_agent.scripts.event_schedule.fastf1")
+    @patch("pitlane_agent.commands.fetch.event_schedule.fastf1")
     def test_get_event_schedule_success(self, mock_fastf1):
         """Test successful event schedule retrieval."""
         # Setup mock schedule data
@@ -63,7 +64,7 @@ class TestEventScheduleBusinessLogic:
         # Verify FastF1 was called correctly
         mock_fastf1.get_event_schedule.assert_called_once_with(2024, include_testing=True)
 
-    @patch("pitlane_agent.scripts.event_schedule.fastf1")
+    @patch("pitlane_agent.commands.fetch.event_schedule.fastf1")
     def test_get_event_schedule_filter_by_round(self, mock_fastf1):
         """Test event schedule filtering by round number."""
         mock_schedule = pd.DataFrame(
@@ -128,7 +129,7 @@ class TestEventScheduleBusinessLogic:
         assert result["events"][0]["country"] == "Saudi Arabia"
         assert result["filters"]["round"] == 2
 
-    @patch("pitlane_agent.scripts.event_schedule.fastf1")
+    @patch("pitlane_agent.commands.fetch.event_schedule.fastf1")
     def test_get_event_schedule_filter_by_country(self, mock_fastf1):
         """Test event schedule filtering by country name (case-insensitive)."""
         mock_schedule = pd.DataFrame(
@@ -194,7 +195,7 @@ class TestEventScheduleBusinessLogic:
         assert result["events"][0]["country"] == "Monaco"
         assert result["filters"]["country"] == "monaco"
 
-    @patch("pitlane_agent.scripts.event_schedule.fastf1")
+    @patch("pitlane_agent.commands.fetch.event_schedule.fastf1")
     def test_get_event_schedule_no_testing(self, mock_fastf1):
         """Test event schedule excluding testing sessions."""
         mock_schedule = pd.DataFrame([])
@@ -205,7 +206,7 @@ class TestEventScheduleBusinessLogic:
         assert result["include_testing"] is False
         mock_fastf1.get_event_schedule.assert_called_once_with(2024, include_testing=False)
 
-    @patch("pitlane_agent.scripts.event_schedule.fastf1")
+    @patch("pitlane_agent.commands.fetch.event_schedule.fastf1")
     def test_get_event_schedule_error(self, mock_fastf1):
         """Test error handling in event schedule retrieval."""
         mock_fastf1.get_event_schedule.side_effect = Exception("API error")
@@ -229,7 +230,7 @@ class TestEventScheduleCLI:
         assert "--country" in result.output
         assert "--include-testing" in result.output
 
-    @patch("pitlane_agent.scripts.event_schedule.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
     def test_cli_success(self, mock_get_schedule):
         """Test successful CLI execution."""
         mock_get_schedule.return_value = {
@@ -256,7 +257,7 @@ class TestEventScheduleCLI:
             include_testing=True,
         )
 
-    @patch("pitlane_agent.scripts.event_schedule.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
     def test_cli_with_round_filter(self, mock_get_schedule):
         """Test CLI with round number filter."""
         mock_get_schedule.return_value = {
@@ -278,7 +279,7 @@ class TestEventScheduleCLI:
             include_testing=True,
         )
 
-    @patch("pitlane_agent.scripts.event_schedule.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
     def test_cli_with_country_filter(self, mock_get_schedule):
         """Test CLI with country filter."""
         mock_get_schedule.return_value = {
@@ -300,7 +301,7 @@ class TestEventScheduleCLI:
             include_testing=True,
         )
 
-    @patch("pitlane_agent.scripts.event_schedule.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
     def test_cli_no_testing(self, mock_get_schedule):
         """Test CLI with --no-testing flag."""
         mock_get_schedule.return_value = {
@@ -344,7 +345,7 @@ class TestEventScheduleCLI:
         error = json.loads(result.output)
         assert "error" in error
 
-    @patch("pitlane_agent.scripts.event_schedule.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
     def test_cli_error_handling(self, mock_get_schedule):
         """Test CLI error handling."""
         mock_get_schedule.side_effect = Exception("FastF1 error")

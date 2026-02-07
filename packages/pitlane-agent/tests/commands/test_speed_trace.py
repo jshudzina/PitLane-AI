@@ -1,10 +1,10 @@
-"""Tests for speed_trace script."""
+"""Tests for speed_trace command."""
 
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-from pitlane_agent.scripts.speed_trace import (
+from pitlane_agent.commands.analyze.speed_trace import (
     generate_speed_trace_chart,
     setup_plot_style,
 )
@@ -19,8 +19,8 @@ class TestSpeedTraceBusinessLogic:
         # Test that setup_plot_style doesn't raise errors
         setup_plot_style()
 
-    @patch("pitlane_agent.scripts.speed_trace.plt")
-    @patch("pitlane_agent.scripts.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     def test_generate_speed_trace_chart_success(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
         """Test successful speed trace chart generation with 2 drivers."""
         # Setup mocks
@@ -88,8 +88,8 @@ class TestSpeedTraceBusinessLogic:
         assert mock_fastest_lap.get_car_data.called
         assert mock_car_data.add_distance.called
 
-    @patch("pitlane_agent.scripts.speed_trace.plt")
-    @patch("pitlane_agent.scripts.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     def test_generate_speed_trace_chart_three_drivers(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
         """Test speed trace chart generation with 3 drivers."""
         # Setup mocks
@@ -142,8 +142,8 @@ class TestSpeedTraceBusinessLogic:
         assert len(result["drivers_compared"]) <= 3
         assert result["chart_path"] == str(tmp_output_dir / "charts" / "speed_trace_2024_monaco_Q_HAM_LEC_VER.png")
 
-    @patch("pitlane_agent.scripts.speed_trace.plt")
-    @patch("pitlane_agent.scripts.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     def test_generate_speed_trace_chart_five_drivers(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
         """Test speed trace chart generation with 5 drivers (maximum allowed)."""
         # Setup mocks
@@ -220,8 +220,8 @@ class TestSpeedTraceBusinessLogic:
                 workspace_dir=tmp_output_dir,
             )
 
-    @patch("pitlane_agent.scripts.speed_trace.plt")
-    @patch("pitlane_agent.scripts.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     def test_statistics_calculation(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
         """Test that speed statistics are calculated correctly."""
         # Setup mocks
@@ -298,7 +298,7 @@ class TestSpeedTraceBusinessLogic:
         # Verify sanitize_filename works as expected
         assert expected_sanitized == "spanish_grand_prix"
 
-    @patch("pitlane_agent.scripts.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     def test_generate_speed_trace_chart_error(self, mock_fastf1, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
@@ -314,8 +314,8 @@ class TestSpeedTraceBusinessLogic:
                 workspace_dir=tmp_output_dir,
             )
 
-    @patch("pitlane_agent.scripts.speed_trace.plt")
-    @patch("pitlane_agent.scripts.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     def test_generate_speed_trace_chart_empty_laps(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
         """Test handling when driver has no laps."""
         # Setup mocks

@@ -6,8 +6,8 @@ These tests make real API calls to FastF1 to load session data, including teleme
 from pathlib import Path
 
 import pytest
-from pitlane_agent.scripts.lap_times import generate_lap_times_chart
-from pitlane_agent.scripts.session_info import get_session_info
+from pitlane_agent.commands.analyze.lap_times import generate_lap_times_chart
+from pitlane_agent.commands.fetch.session_info import get_session_info
 
 
 @pytest.mark.integration
