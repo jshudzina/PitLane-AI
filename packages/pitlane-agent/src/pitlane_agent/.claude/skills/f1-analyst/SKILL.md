@@ -71,7 +71,28 @@ For any analysis, you may need to fetch session information first:
 pitlane fetch session-info --session-id $PITLANE_SESSION_ID --year 2024 --gp Monaco --session R
 ```
 
-Returns JSON with event name, date, session type, and driver list. Data is saved to workspace.
+Returns JSON with event name, date, session type, driver list, race conditions, and weather data. Data is saved to workspace.
+
+### Included Data
+
+**Basic Info:**
+- Event name, country, session type, session name, date
+- Total laps (if available)
+- Driver list with numbers, abbreviations, names, teams, and positions
+
+**Race Conditions:**
+- `num_safety_cars`: Count of safety car periods
+- `num_virtual_safety_cars`: Count of VSC deployments
+- `num_red_flags`: Count of red flag stoppages
+
+**Weather Data** (min/max/avg statistics):
+- `air_temp`: Air temperature (°C)
+- `track_temp`: Track surface temperature (°C)
+- `humidity`: Relative humidity (%)
+- `pressure`: Atmospheric pressure (hPa)
+- `wind_speed`: Wind speed (m/s)
+
+*Note: Race conditions and weather data may be `null` if not available for the session.*
 
 ## Workspace Data Files
 
