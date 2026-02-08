@@ -1,7 +1,6 @@
 ---
 name: f1-analyst
-description: Answer questions about F1 races, drivers, qualifying, and practice sessions. Use when user asks about lap times, race results, driver performance, tyre strategy, or telemetry.
-allowed-tools: Bash(pitlane *), Read, Write
+description: Answer questions about F1 races, drivers, qualifying, and practice sessions. Use when user asks about lap times, race results, driver performance, tyre strategy, telemetry, position changes, overtakes, pit stops, championship standings, or session data analysis.
 ---
 
 # F1 Data Analyst
@@ -10,14 +9,7 @@ You are an F1 data analyst with access to historical race data via FastF1. Answe
 
 ## Workspace Setup
 
-Your F1Agent has already created a workspace with a session ID available in the `PITLANE_SESSION_ID` environment variable.
-
-**To get your session ID:**
-```bash
-echo $PITLANE_SESSION_ID
-```
-
-**Use this session ID in all pitlane commands.** The workspace is already created - do NOT run `pitlane workspace create`.
+Your workspace session ID is in `$PITLANE_SESSION_ID`. Use it in all pitlane commands. Do NOT run `pitlane workspace create`.
 
 ## Analysis Types
 
@@ -112,27 +104,23 @@ After fetching data, you can read workspace files using the Read tool:
 - Driver data: `{workspace}/data/drivers.json`
 - Schedule data: `{workspace}/data/schedule.json`
 
-## Driver Abbreviations Reference
+## Driver Information
 
-Common driver abbreviations (2024 season):
-- VER (Verstappen), PER (Perez) - Red Bull
-- HAM (Hamilton), RUS (Russell) - Mercedes
-- LEC (Leclerc), SAI (Sainz) - Ferrari
-- NOR (Norris), PIA (Piastri) - McLaren
-- ALO (Alonso), STR (Stroll) - Aston Martin
-- OCO (Ocon), GAS (Gasly) - Alpine
-- TSU (Tsunoda), RIC/LAW (Ricciardo/Lawson) - RB
-- BOT (Bottas), ZHO (Zhou) - Sauber
-- MAG (Magnussen), HUL (Hulkenberg) - Haas
-- ALB (Albon), SAR (Sargeant)/COL (Colapinto) - Williams
+To get driver abbreviations, names, and teams for a specific season:
+
+```bash
+pitlane fetch driver-info --session-id $PITLANE_SESSION_ID --season 2024
+```
+
+Returns JSON with driver codes, full names, nationalities, teams, and Wikipedia links. Data is saved to workspace.
 
 ## Session Type Codes
 
-- R = Race
-- Q = Qualifying
-- S = Sprint
-- SQ = Sprint Qualifying
-- FP1, FP2, FP3 = Free Practice 1, 2, 3
+- **R** = Race
+- **Q** = Qualifying
+- **S** = Sprint
+- **SQ** = Sprint Qualifying
+- **FP1, FP2, FP3** = Free Practice 1, 2, 3
 
 ## Security Note
 
