@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-02-08
+
+### Documentation
+
+- Fix broken links and update PyPI badges ([#44](https://github.com/jshudzina/PitLane-AI/pull/44))
+
+- Add mermaid diagrams and streamline architecture docs ([#45](https://github.com/jshudzina/PitLane-AI/pull/45))
+
+
+### Features
+
+- Add temporal context system for F1 season awareness ([#36](https://github.com/jshudzina/PitLane-AI/pull/36))
+
+- Add session resumption for conversations ([#47](https://github.com/jshudzina/PitLane-AI/pull/47))
+
+- Add position changes tracking to f1-analyst skill ([#51](https://github.com/jshudzina/PitLane-AI/pull/51)) ([#60](https://github.com/jshudzina/PitLane-AI/pull/60))
+
+- Implement standings data fetching commands ([#61](https://github.com/jshudzina/PitLane-AI/pull/61)) ([#66](https://github.com/jshudzina/PitLane-AI/pull/66))
+
+- Add championship possibilities analysis to f1-analyst skill ([#50](https://github.com/jshudzina/PitLane-AI/pull/50)) ([#68](https://github.com/jshudzina/PitLane-AI/pull/68))
+
+- Add race-control skill for contextualizing F1 race events ([#59](https://github.com/jshudzina/PitLane-AI/pull/59)) ([#69](https://github.com/jshudzina/PitLane-AI/pull/69))
+
+
+### Miscellaneous Tasks
+
+- Add GitHub Actions workflow for automatic documentation deployment ([#41](https://github.com/jshudzina/PitLane-AI/pull/41))
+
+- Fix dependency group in docs deployment workflow ([#43](https://github.com/jshudzina/PitLane-AI/pull/43))
+
+
+### Refactor
+
+- Code smell fixes base on #60 review ([#65](https://github.com/jshudzina/PitLane-AI/pull/65))
+
+
+### Refactoring
+
+- Rename scripts to commands and reorganize module structure ([#67](https://github.com/jshudzina/PitLane-AI/pull/67))
+
+
+### Testing
+
+- Add FastF1 integration tests with working fixtures ([#37](https://github.com/jshudzina/PitLane-AI/pull/37))
+
 ## [0.1.2.dev2] - 2026-02-02
 
 ### Miscellaneous Tasks
