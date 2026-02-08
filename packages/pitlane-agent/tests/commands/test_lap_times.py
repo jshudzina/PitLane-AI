@@ -1,9 +1,9 @@
-"""Tests for lap_times script."""
+"""Tests for lap_times command."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pitlane_agent.scripts.lap_times import (
+from pitlane_agent.commands.analyze.lap_times import (
     generate_lap_times_chart,
     setup_plot_style,
 )
@@ -18,12 +18,15 @@ class TestLapTimesBusinessLogic:
         # Test that setup_plot_style doesn't raise errors
         setup_plot_style()
 
-    @patch("pitlane_agent.scripts.lap_times.plt")
-    @patch("pitlane_agent.scripts.lap_times.fastf1")
-    def test_generate_lap_times_chart_success(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
+    @patch("fastf1.plotting.get_driver_color")
+    @patch("pitlane_agent.commands.analyze.lap_times.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times.load_session")
+    def test_generate_lap_times_chart_success(
+        self, mock_load_session, mock_plt, mock_get_driver_color, tmp_output_dir, mock_fastf1_session
+    ):
         """Test successful chart generation."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock driver laps
         import pandas as pd
@@ -43,7 +46,7 @@ class TestLapTimesBusinessLogic:
         mock_ax.get_ylim.return_value = (85, 95)
 
         # Mock driver color
-        mock_fastf1.plotting.get_driver_color.return_value = "#0600EF"
+        mock_get_driver_color.return_value = "#0600EF"
 
         # Call function
         result = generate_lap_times_chart(
@@ -62,15 +65,14 @@ class TestLapTimesBusinessLogic:
         assert result["workspace"] == str(tmp_output_dir)
         assert len(result["drivers_plotted"]) <= 2
 
-        # Verify FastF1 was called correctly
-        mock_fastf1.get_session.assert_called_once_with(2024, "Monaco", "Q")
-        mock_fastf1_session.load.assert_called_once()
+        # Verify load_session was called correctly
+        mock_load_session.assert_called_once_with(2024, "Monaco", "Q")
 
-    @patch("pitlane_agent.scripts.lap_times.fastf1")
-    def test_generate_lap_times_chart_error(self, mock_fastf1, tmp_output_dir):
+    @patch("pitlane_agent.commands.analyze.lap_times.load_session")
+    def test_generate_lap_times_chart_error(self, mock_load_session, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
-        mock_fastf1.get_session.side_effect = Exception("Session not found")
+        mock_load_session.side_effect = Exception("Session not found")
 
         # Expect exception to be raised
         with pytest.raises(Exception, match="Session not found"):
@@ -82,12 +84,15 @@ class TestLapTimesBusinessLogic:
                 workspace_dir=tmp_output_dir,
             )
 
-    @patch("pitlane_agent.scripts.lap_times.plt")
-    @patch("pitlane_agent.scripts.lap_times.fastf1")
-    def test_generate_lap_times_chart_many_drivers(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
+    @patch("fastf1.plotting.get_driver_color")
+    @patch("pitlane_agent.commands.analyze.lap_times.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times.load_session")
+    def test_generate_lap_times_chart_many_drivers(
+        self, mock_load_session, mock_plt, mock_get_driver_color, tmp_output_dir, mock_fastf1_session
+    ):
         """Test chart generation with many drivers uses shortened filename."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock driver laps
         import pandas as pd
@@ -107,7 +112,7 @@ class TestLapTimesBusinessLogic:
         mock_ax.get_ylim.return_value = (85, 95)
 
         # Mock driver color
-        mock_fastf1.plotting.get_driver_color.return_value = "#0600EF"
+        mock_get_driver_color.return_value = "#0600EF"
 
         # Call function with 6 drivers (more than 5)
         drivers = ["VER", "HAM", "LEC", "NOR", "PIA", "SAI"]

@@ -4,7 +4,7 @@ These tests make real API calls to the Ergast API via FastF1 to verify driver in
 """
 
 import pytest
-from pitlane_agent.scripts.driver_info import get_driver_info
+from pitlane_agent.commands.fetch.driver_info import get_driver_info
 
 
 @pytest.mark.integration

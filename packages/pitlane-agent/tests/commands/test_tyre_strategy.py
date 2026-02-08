@@ -1,9 +1,9 @@
-"""Tests for tyre_strategy script."""
+"""Tests for tyre_strategy command."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pitlane_agent.scripts.tyre_strategy import (
+from pitlane_agent.commands.analyze.tyre_strategy import (
     generate_tyre_strategy_chart,
     setup_plot_style,
 )
@@ -18,12 +18,14 @@ class TestTyreStrategyBusinessLogic:
         # Test that setup_plot_style doesn't raise errors
         setup_plot_style()
 
-    @patch("pitlane_agent.scripts.tyre_strategy.plt")
-    @patch("pitlane_agent.scripts.tyre_strategy.fastf1")
-    def test_generate_tyre_strategy_chart_success(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
+    @patch("pitlane_agent.commands.analyze.tyre_strategy.plt")
+    @patch("pitlane_agent.commands.analyze.tyre_strategy.load_session")
+    def test_generate_tyre_strategy_chart_success(
+        self, mock_load_session, mock_plt, tmp_output_dir, mock_fastf1_session
+    ):
         """Test successful chart generation."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock drivers and results
         import pandas as pd
@@ -58,14 +60,14 @@ class TestTyreStrategyBusinessLogic:
         assert result["workspace"] == str(tmp_output_dir)
 
         # Verify FastF1 was called correctly
-        mock_fastf1.get_session.assert_called_once_with(2024, "Monaco", "R")
+        mock_load_session.assert_called_once_with(2024, "Monaco", "R")
         mock_fastf1_session.load.assert_called_once()
 
-    @patch("pitlane_agent.scripts.tyre_strategy.fastf1")
-    def test_generate_tyre_strategy_chart_error(self, mock_fastf1, tmp_output_dir):
+    @patch("pitlane_agent.commands.analyze.tyre_strategy.load_session")
+    def test_generate_tyre_strategy_chart_error(self, mock_load_session, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
-        mock_fastf1.get_session.side_effect = Exception("Session not found")
+        mock_load_session.side_effect = Exception("Session not found")
 
         # Expect exception to be raised
         with pytest.raises(Exception, match="Session not found"):

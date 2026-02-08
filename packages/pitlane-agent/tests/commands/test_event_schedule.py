@@ -1,4 +1,4 @@
-"""Tests for event_schedule script."""
+"""Tests for event_schedule command."""
 
 import json
 from datetime import datetime
@@ -7,13 +7,14 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 from click.testing import CliRunner
-from pitlane_agent.scripts.event_schedule import cli, get_event_schedule
+from pitlane_agent.cli_fetch import event_schedule as cli
+from pitlane_agent.commands.fetch.event_schedule import get_event_schedule
 
 
 class TestEventScheduleBusinessLogic:
     """Unit tests for business logic functions."""
 
-    @patch("pitlane_agent.scripts.event_schedule.fastf1")
+    @patch("pitlane_agent.commands.fetch.event_schedule.fastf1")
     def test_get_event_schedule_success(self, mock_fastf1):
         """Test successful event schedule retrieval."""
         # Setup mock schedule data
@@ -63,7 +64,7 @@ class TestEventScheduleBusinessLogic:
         # Verify FastF1 was called correctly
         mock_fastf1.get_event_schedule.assert_called_once_with(2024, include_testing=True)
 
-    @patch("pitlane_agent.scripts.event_schedule.fastf1")
+    @patch("pitlane_agent.commands.fetch.event_schedule.fastf1")
     def test_get_event_schedule_filter_by_round(self, mock_fastf1):
         """Test event schedule filtering by round number."""
         mock_schedule = pd.DataFrame(
@@ -128,7 +129,7 @@ class TestEventScheduleBusinessLogic:
         assert result["events"][0]["country"] == "Saudi Arabia"
         assert result["filters"]["round"] == 2
 
-    @patch("pitlane_agent.scripts.event_schedule.fastf1")
+    @patch("pitlane_agent.commands.fetch.event_schedule.fastf1")
     def test_get_event_schedule_filter_by_country(self, mock_fastf1):
         """Test event schedule filtering by country name (case-insensitive)."""
         mock_schedule = pd.DataFrame(
@@ -194,7 +195,7 @@ class TestEventScheduleBusinessLogic:
         assert result["events"][0]["country"] == "Monaco"
         assert result["filters"]["country"] == "monaco"
 
-    @patch("pitlane_agent.scripts.event_schedule.fastf1")
+    @patch("pitlane_agent.commands.fetch.event_schedule.fastf1")
     def test_get_event_schedule_no_testing(self, mock_fastf1):
         """Test event schedule excluding testing sessions."""
         mock_schedule = pd.DataFrame([])
@@ -205,7 +206,7 @@ class TestEventScheduleBusinessLogic:
         assert result["include_testing"] is False
         mock_fastf1.get_event_schedule.assert_called_once_with(2024, include_testing=False)
 
-    @patch("pitlane_agent.scripts.event_schedule.fastf1")
+    @patch("pitlane_agent.commands.fetch.event_schedule.fastf1")
     def test_get_event_schedule_error(self, mock_fastf1):
         """Test error handling in event schedule retrieval."""
         mock_fastf1.get_event_schedule.side_effect = Exception("API error")
@@ -223,15 +224,36 @@ class TestEventScheduleCLI:
         result = runner.invoke(cli, ["--help"])
 
         assert result.exit_code == 0
-        assert "Get F1 event schedule" in result.output
+        assert "Fetch event schedule and store in workspace" in result.output
         assert "--year" in result.output
         assert "--round" in result.output
         assert "--country" in result.output
         assert "--include-testing" in result.output
 
-    @patch("pitlane_agent.scripts.event_schedule.get_event_schedule")
-    def test_cli_success(self, mock_get_schedule):
+    @patch("pitlane_agent.cli_fetch.workspace_exists")
+    @patch("pitlane_agent.cli_fetch.get_workspace_path")
+    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
+    def test_cli_success(self, mock_get_schedule, mock_get_path, mock_exists):
         """Test successful CLI execution."""
+        # Mock workspace functions
+        mock_exists.return_value = True
+
+        # Create mock file that doesn't exist yet
+        from unittest.mock import Mock
+
+        mock_file = Mock()
+        mock_file.exists.return_value = False
+        mock_file.__str__ = lambda self: "/tmp/test/data/schedule.json"
+
+        # Create mock data dir
+        mock_data_dir = Mock()
+        mock_data_dir.__truediv__ = lambda self, x: mock_file
+
+        # Create mock workspace path
+        mock_path = Mock()
+        mock_path.__truediv__ = lambda self, x: mock_data_dir
+        mock_get_path.return_value = mock_path
+
         mock_get_schedule.return_value = {
             "year": 2024,
             "total_events": 24,
@@ -240,25 +262,50 @@ class TestEventScheduleCLI:
             "events": [],
         }
 
-        runner = CliRunner()
-        result = runner.invoke(cli, ["--year", "2024"])
+        # Mock file operations
+        with patch("builtins.open", create=True) as mock_open:
+            mock_open.return_value.__enter__ = Mock()
+            mock_open.return_value.__exit__ = Mock(return_value=False)
 
-        assert result.exit_code == 0
+            runner = CliRunner()
+            result = runner.invoke(cli, ["--session-id", "test-session", "--year", "2024"])
 
-        output = json.loads(result.output)
-        assert output["year"] == 2024
-        assert output["total_events"] == 24
+            assert result.exit_code == 0
 
-        mock_get_schedule.assert_called_once_with(
-            2024,
-            round_number=None,
-            country=None,
-            include_testing=True,
-        )
+            output = json.loads(result.output)
+            assert output["year"] == 2024
+            assert output["total_events"] == 24
 
-    @patch("pitlane_agent.scripts.event_schedule.get_event_schedule")
-    def test_cli_with_round_filter(self, mock_get_schedule):
+            mock_get_schedule.assert_called_once_with(
+                2024,
+                round_number=None,
+                country=None,
+                include_testing=True,
+            )
+
+    @patch("pitlane_agent.cli_fetch.workspace_exists")
+    @patch("pitlane_agent.cli_fetch.get_workspace_path")
+    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
+    def test_cli_with_round_filter(self, mock_get_schedule, mock_get_path, mock_exists):
         """Test CLI with round number filter."""
+        mock_exists.return_value = True
+
+        # Create mock file that doesn't exist yet
+        from unittest.mock import Mock
+
+        mock_file = Mock()
+        mock_file.exists.return_value = False
+        mock_file.__str__ = lambda self: "/tmp/test/data/schedule.json"
+
+        # Create mock data dir
+        mock_data_dir = Mock()
+        mock_data_dir.__truediv__ = lambda self, x: mock_file
+
+        # Create mock workspace path
+        mock_path = Mock()
+        mock_path.__truediv__ = lambda self, x: mock_data_dir
+        mock_get_path.return_value = mock_path
+
         mock_get_schedule.return_value = {
             "year": 2024,
             "total_events": 1,
@@ -267,20 +314,44 @@ class TestEventScheduleCLI:
             "events": [{"round": 6, "country": "Monaco"}],
         }
 
-        runner = CliRunner()
-        result = runner.invoke(cli, ["--year", "2024", "--round", "6"])
+        with patch("builtins.open", create=True) as mock_open:
+            mock_open.return_value.__enter__ = Mock()
+            mock_open.return_value.__exit__ = Mock(return_value=False)
 
-        assert result.exit_code == 0
-        mock_get_schedule.assert_called_once_with(
-            2024,
-            round_number=6,
-            country=None,
-            include_testing=True,
-        )
+            runner = CliRunner()
+            result = runner.invoke(cli, ["--session-id", "test-session", "--year", "2024", "--round", "6"])
 
-    @patch("pitlane_agent.scripts.event_schedule.get_event_schedule")
-    def test_cli_with_country_filter(self, mock_get_schedule):
+            assert result.exit_code == 0
+            mock_get_schedule.assert_called_once_with(
+                2024,
+                round_number=6,
+                country=None,
+                include_testing=True,
+            )
+
+    @patch("pitlane_agent.cli_fetch.workspace_exists")
+    @patch("pitlane_agent.cli_fetch.get_workspace_path")
+    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
+    def test_cli_with_country_filter(self, mock_get_schedule, mock_get_path, mock_exists):
         """Test CLI with country filter."""
+        mock_exists.return_value = True
+
+        # Create mock file that doesn't exist yet
+        from unittest.mock import Mock
+
+        mock_file = Mock()
+        mock_file.exists.return_value = False
+        mock_file.__str__ = lambda self: "/tmp/test/data/schedule.json"
+
+        # Create mock data dir
+        mock_data_dir = Mock()
+        mock_data_dir.__truediv__ = lambda self, x: mock_file
+
+        # Create mock workspace path
+        mock_path = Mock()
+        mock_path.__truediv__ = lambda self, x: mock_data_dir
+        mock_get_path.return_value = mock_path
+
         mock_get_schedule.return_value = {
             "year": 2024,
             "total_events": 1,
@@ -289,20 +360,44 @@ class TestEventScheduleCLI:
             "events": [],
         }
 
-        runner = CliRunner()
-        result = runner.invoke(cli, ["--year", "2024", "--country", "Italy"])
+        with patch("builtins.open", create=True) as mock_open:
+            mock_open.return_value.__enter__ = Mock()
+            mock_open.return_value.__exit__ = Mock(return_value=False)
 
-        assert result.exit_code == 0
-        mock_get_schedule.assert_called_once_with(
-            2024,
-            round_number=None,
-            country="Italy",
-            include_testing=True,
-        )
+            runner = CliRunner()
+            result = runner.invoke(cli, ["--session-id", "test-session", "--year", "2024", "--country", "Italy"])
 
-    @patch("pitlane_agent.scripts.event_schedule.get_event_schedule")
-    def test_cli_no_testing(self, mock_get_schedule):
+            assert result.exit_code == 0
+            mock_get_schedule.assert_called_once_with(
+                2024,
+                round_number=None,
+                country="Italy",
+                include_testing=True,
+            )
+
+    @patch("pitlane_agent.cli_fetch.workspace_exists")
+    @patch("pitlane_agent.cli_fetch.get_workspace_path")
+    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
+    def test_cli_no_testing(self, mock_get_schedule, mock_get_path, mock_exists):
         """Test CLI with --no-testing flag."""
+        mock_exists.return_value = True
+
+        # Create mock file that doesn't exist yet
+        from unittest.mock import Mock
+
+        mock_file = Mock()
+        mock_file.exists.return_value = False
+        mock_file.__str__ = lambda self: "/tmp/test/data/schedule.json"
+
+        # Create mock data dir
+        mock_data_dir = Mock()
+        mock_data_dir.__truediv__ = lambda self, x: mock_file
+
+        # Create mock workspace path
+        mock_path = Mock()
+        mock_path.__truediv__ = lambda self, x: mock_data_dir
+        mock_get_path.return_value = mock_path
+
         mock_get_schedule.return_value = {
             "year": 2024,
             "total_events": 24,
@@ -311,46 +406,79 @@ class TestEventScheduleCLI:
             "events": [],
         }
 
+        with patch("builtins.open", create=True) as mock_open:
+            mock_open.return_value.__enter__ = Mock()
+            mock_open.return_value.__exit__ = Mock(return_value=False)
+
+            runner = CliRunner()
+            result = runner.invoke(cli, ["--session-id", "test-session", "--year", "2024", "--no-testing"])
+
+            assert result.exit_code == 0
+            mock_get_schedule.assert_called_once_with(
+                2024,
+                round_number=None,
+                country=None,
+                include_testing=False,
+            )
+
+    @patch("pitlane_agent.cli_fetch.workspace_exists")
+    def test_cli_workspace_not_exists(self, mock_exists):
+        """Test CLI with non-existent workspace."""
+        mock_exists.return_value = False
+
         runner = CliRunner()
-        result = runner.invoke(cli, ["--year", "2024", "--no-testing"])
+        result = runner.invoke(cli, ["--session-id", "nonexistent", "--year", "2024"])
 
-        assert result.exit_code == 0
-        mock_get_schedule.assert_called_once_with(
-            2024,
-            round_number=None,
-            country=None,
-            include_testing=False,
-        )
+        assert result.exit_code == 1
+        error = json.loads(result.output)
+        assert "error" in error
+        assert "Workspace does not exist" in error["error"]
 
-    def test_cli_invalid_year_too_old(self):
+    @patch("pitlane_agent.cli_fetch.workspace_exists")
+    def test_cli_invalid_year_too_old(self, mock_exists):
         """Test CLI rejects years before 1950."""
+        mock_exists.return_value = True
+
         runner = CliRunner()
-        result = runner.invoke(cli, ["--year", "1949"])
+        result = runner.invoke(cli, ["--session-id", "test-session", "--year", "1949"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
         assert "error" in error
         assert "1950" in error["error"]
 
-    def test_cli_invalid_year_too_future(self):
+    @patch("pitlane_agent.cli_fetch.workspace_exists")
+    def test_cli_invalid_year_too_future(self, mock_exists):
         """Test CLI rejects years too far in the future."""
+        mock_exists.return_value = True
+
         runner = CliRunner()
         current_year = datetime.now().year
         future_year = current_year + 3
 
-        result = runner.invoke(cli, ["--year", str(future_year)])
+        result = runner.invoke(cli, ["--session-id", "test-session", "--year", str(future_year)])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
         assert "error" in error
 
-    @patch("pitlane_agent.scripts.event_schedule.get_event_schedule")
-    def test_cli_error_handling(self, mock_get_schedule):
+    @patch("pitlane_agent.cli_fetch.workspace_exists")
+    @patch("pitlane_agent.cli_fetch.get_workspace_path")
+    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
+    def test_cli_error_handling(self, mock_get_schedule, mock_get_path, mock_exists):
         """Test CLI error handling."""
+        mock_exists.return_value = True
+
+        from unittest.mock import Mock
+
+        mock_path = Mock()
+        mock_path.__truediv__ = lambda self, x: Mock(__truediv__=lambda s, y: "/tmp/test/data/schedule.json")
+        mock_get_path.return_value = mock_path
+
         mock_get_schedule.side_effect = Exception("FastF1 error")
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["--year", "2024"])
+        result = runner.invoke(cli, ["--session-id", "test-session", "--year", "2024"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -360,7 +488,20 @@ class TestEventScheduleCLI:
     def test_cli_missing_required_args(self):
         """Test CLI with missing required arguments."""
         runner = CliRunner()
-        result = runner.invoke(cli, [])
+        # Test missing --session-id
+        result = runner.invoke(cli, ["--year", "2024"])
+
+        assert result.exit_code != 0
+        assert "Missing option" in result.output or "Error" in result.output
+
+    @patch("pitlane_agent.cli_fetch.workspace_exists")
+    def test_cli_missing_year(self, mock_exists):
+        """Test CLI with missing year argument."""
+        mock_exists.return_value = True
+
+        runner = CliRunner()
+        # Test missing --year
+        result = runner.invoke(cli, ["--session-id", "test-session"])
 
         assert result.exit_code != 0
         assert "Missing option" in result.output or "Error" in result.output

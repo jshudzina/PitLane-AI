@@ -4,7 +4,7 @@ These tests make real API calls to FastF1 to verify event schedule integration.
 """
 
 import pytest
-from pitlane_agent.scripts.event_schedule import get_event_schedule
+from pitlane_agent.commands.fetch.event_schedule import get_event_schedule
 
 
 @pytest.mark.integration
