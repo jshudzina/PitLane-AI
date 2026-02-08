@@ -232,7 +232,7 @@ class TestEventScheduleCLI:
 
     @patch("pitlane_agent.cli_fetch.workspace_exists")
     @patch("pitlane_agent.cli_fetch.get_workspace_path")
-    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
+    @patch("pitlane_agent.cli_fetch.get_event_schedule")
     def test_cli_success(self, mock_get_schedule, mock_get_path, mock_exists):
         """Test successful CLI execution."""
         # Mock workspace functions
@@ -285,7 +285,7 @@ class TestEventScheduleCLI:
 
     @patch("pitlane_agent.cli_fetch.workspace_exists")
     @patch("pitlane_agent.cli_fetch.get_workspace_path")
-    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
+    @patch("pitlane_agent.cli_fetch.get_event_schedule")
     def test_cli_with_round_filter(self, mock_get_schedule, mock_get_path, mock_exists):
         """Test CLI with round number filter."""
         mock_exists.return_value = True
@@ -331,7 +331,7 @@ class TestEventScheduleCLI:
 
     @patch("pitlane_agent.cli_fetch.workspace_exists")
     @patch("pitlane_agent.cli_fetch.get_workspace_path")
-    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
+    @patch("pitlane_agent.cli_fetch.get_event_schedule")
     def test_cli_with_country_filter(self, mock_get_schedule, mock_get_path, mock_exists):
         """Test CLI with country filter."""
         mock_exists.return_value = True
@@ -377,7 +377,7 @@ class TestEventScheduleCLI:
 
     @patch("pitlane_agent.cli_fetch.workspace_exists")
     @patch("pitlane_agent.cli_fetch.get_workspace_path")
-    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
+    @patch("pitlane_agent.cli_fetch.get_event_schedule")
     def test_cli_no_testing(self, mock_get_schedule, mock_get_path, mock_exists):
         """Test CLI with --no-testing flag."""
         mock_exists.return_value = True
@@ -464,7 +464,7 @@ class TestEventScheduleCLI:
 
     @patch("pitlane_agent.cli_fetch.workspace_exists")
     @patch("pitlane_agent.cli_fetch.get_workspace_path")
-    @patch("pitlane_agent.commands.fetch.event_schedule.get_event_schedule")
+    @patch("pitlane_agent.cli_fetch.get_event_schedule")
     def test_cli_error_handling(self, mock_get_schedule, mock_get_path, mock_exists):
         """Test CLI error handling."""
         mock_exists.return_value = True

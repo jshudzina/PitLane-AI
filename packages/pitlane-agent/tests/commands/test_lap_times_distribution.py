@@ -91,7 +91,6 @@ class TestLapTimesDistributionBusinessLogic:
 
         # Verify FastF1 was called correctly
         mock_load_session.assert_called_once_with(2024, "Monaco", "Q")
-        mock_fastf1_session.load.assert_called_once()
 
         # Verify seaborn plots were called
         mock_sns.violinplot.assert_called_once()

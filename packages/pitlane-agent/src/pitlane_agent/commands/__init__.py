@@ -23,12 +23,17 @@ from pitlane_agent.commands.fetch import (
 )
 from pitlane_agent.commands.workspace import (
     clean_workspaces,
+    create_conversation,
     create_workspace,
     generate_session_id,
+    get_active_conversation,
     get_workspace_info,
     get_workspace_path,
     list_workspaces,
+    load_conversations,
     remove_workspace,
+    set_active_conversation,
+    update_conversation,
     update_workspace_metadata,
     workspace_exists,
 )
@@ -56,4 +61,9 @@ __all__ = [
     "clean_workspaces",
     "generate_session_id",
     "update_workspace_metadata",
+    "create_conversation",
+    "update_conversation",
+    "get_active_conversation",
+    "set_active_conversation",
+    "load_conversations",
 ]

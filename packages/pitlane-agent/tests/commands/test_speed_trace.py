@@ -84,8 +84,7 @@ class TestSpeedTraceBusinessLogic:
         assert len(result["drivers_compared"]) <= 2
 
         # Verify FastF1 was called correctly with telemetry=True
-        mock_load_session.assert_called_once_with(2024, "Monaco", "Q")
-        mock_fastf1_session.load.assert_called_once_with(telemetry=True, weather=False, messages=False)
+        mock_load_session.assert_called_once_with(2024, "Monaco", "Q", telemetry=True)
 
         # Verify telemetry methods were called
         assert mock_fastest_lap.get_car_data.called

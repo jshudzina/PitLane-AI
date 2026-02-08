@@ -234,8 +234,7 @@ class TestSessionInfoBusinessLogic:
         assert result["weather"]["air_temp"]["avg"] == 23.5
 
         # Verify FastF1 was called correctly
-        mock_load_session.assert_called_once_with(2024, "Monaco", "Q")
-        mock_fastf1_session.load.assert_called_once()
+        mock_load_session.assert_called_once_with(2024, "Monaco", "Q", weather=True, messages=True)
 
     @patch("pitlane_agent.commands.fetch.session_info._extract_weather_data")
     @patch("pitlane_agent.commands.fetch.session_info._extract_track_status")

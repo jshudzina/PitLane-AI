@@ -87,7 +87,6 @@ class TestPositionChangesBusinessLogic:
 
         # Verify FastF1 was called correctly
         mock_load_session.assert_called_once_with(2024, "Monaco", "R")
-        mock_fastf1_session.load.assert_called_once()
 
     @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     @patch("pitlane_agent.commands.analyze.position_changes.plt")

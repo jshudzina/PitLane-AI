@@ -150,7 +150,7 @@ class TestDriverInfoCLI:
 
     @patch("pitlane_agent.cli_fetch.workspace_exists")
     @patch("pitlane_agent.cli_fetch.get_workspace_path")
-    @patch("pitlane_agent.commands.fetch.driver_info.get_driver_info")
+    @patch("pitlane_agent.cli_fetch.get_driver_info")
     def test_cli_success(self, mock_get_info, mock_get_path, mock_exists):
         """Test successful CLI execution."""
         # Mock workspace functions
@@ -193,7 +193,7 @@ class TestDriverInfoCLI:
 
     @patch("pitlane_agent.cli_fetch.workspace_exists")
     @patch("pitlane_agent.cli_fetch.get_workspace_path")
-    @patch("pitlane_agent.commands.fetch.driver_info.get_driver_info")
+    @patch("pitlane_agent.cli_fetch.get_driver_info")
     def test_cli_with_driver_code(self, mock_get_info, mock_get_path, mock_exists):
         """Test CLI with driver code filter."""
         mock_exists.return_value = True
@@ -233,7 +233,7 @@ class TestDriverInfoCLI:
 
     @patch("pitlane_agent.cli_fetch.workspace_exists")
     @patch("pitlane_agent.cli_fetch.get_workspace_path")
-    @patch("pitlane_agent.commands.fetch.driver_info.get_driver_info")
+    @patch("pitlane_agent.cli_fetch.get_driver_info")
     def test_cli_with_season(self, mock_get_info, mock_get_path, mock_exists):
         """Test CLI with season filter."""
         mock_exists.return_value = True
@@ -273,7 +273,7 @@ class TestDriverInfoCLI:
 
     @patch("pitlane_agent.cli_fetch.workspace_exists")
     @patch("pitlane_agent.cli_fetch.get_workspace_path")
-    @patch("pitlane_agent.commands.fetch.driver_info.get_driver_info")
+    @patch("pitlane_agent.cli_fetch.get_driver_info")
     def test_cli_with_pagination(self, mock_get_info, mock_get_path, mock_exists):
         """Test CLI with limit and offset."""
         mock_exists.return_value = True
@@ -354,7 +354,7 @@ class TestDriverInfoCLI:
 
     @patch("pitlane_agent.cli_fetch.workspace_exists")
     @patch("pitlane_agent.cli_fetch.get_workspace_path")
-    @patch("pitlane_agent.commands.fetch.driver_info.get_driver_info")
+    @patch("pitlane_agent.cli_fetch.get_driver_info")
     def test_cli_error_handling(self, mock_get_info, mock_get_path, mock_exists):
         """Test CLI error handling."""
         mock_exists.return_value = True

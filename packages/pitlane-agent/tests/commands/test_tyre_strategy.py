@@ -61,7 +61,6 @@ class TestTyreStrategyBusinessLogic:
 
         # Verify FastF1 was called correctly
         mock_load_session.assert_called_once_with(2024, "Monaco", "R")
-        mock_fastf1_session.load.assert_called_once()
 
     @patch("pitlane_agent.commands.analyze.tyre_strategy.load_session")
     def test_generate_tyre_strategy_chart_error(self, mock_load_session, tmp_output_dir):
