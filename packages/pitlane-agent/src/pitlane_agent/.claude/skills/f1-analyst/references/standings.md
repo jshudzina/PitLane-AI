@@ -10,25 +10,34 @@ Calculate which drivers or constructors can still mathematically win their respe
 
 **Command:**
 ```bash
+# Current standings
 pitlane analyze championship-possibilities \
   --session-id $PITLANE_SESSION_ID \
   --year 2024 \
   --championship drivers
+
+# Historical "what if" analysis after a specific round
+pitlane analyze championship-possibilities \
+  --session-id $PITLANE_SESSION_ID \
+  --year 2024 \
+  --championship drivers \
+  --after-round 10
 ```
 
 **Parameters:**
 - `--session-id`: Workspace session ID (required)
 - `--year`: Championship year (required)
 - `--championship`: Type - "drivers" or "constructors" (default: drivers)
+- `--after-round`: Optional round number for historical "what if" analysis
 
 **Returns:**
-- `chart_path`: Path to visualization
+- `chart_path`: Path to visualization (includes round number in filename for historical analysis)
 - `workspace`: Workspace directory
 - `year`: Championship year
 - `championship_type`: "drivers" or "constructors"
-- `current_round`: Current round number in the season
-- `remaining_races`: Number of races remaining
-- `remaining_sprints`: Number of sprint races remaining
+- `analysis_round`: Round number being analyzed (current or specified with --after-round)
+- `remaining_races`: Number of races remaining after the analysis round
+- `remaining_sprints`: Number of sprint races remaining after the analysis round
 - `max_points_available`: Maximum points available in remaining races
 - `leader`: Current championship leader details (name, points, position)
 - `statistics`:
@@ -50,9 +59,14 @@ pitlane analyze championship-possibilities \
 - "Is the constructors' championship still possible for Ferrari?"
 - "Is the title race still open?"
 - "Show me who's mathematically eliminated from the championship"
+- "What were the championship possibilities after round 10?" (historical analysis)
+- "Could Ferrari have won the constructors' title after the summer break?" (historical analysis)
+- "Show me the title fight situation after Singapore" (historical analysis)
 
 **Example Analysis Response:**
-"Based on the current standings with [X] races remaining, [Y] drivers can still mathematically win the championship. [Leader name] leads with [Z] points. [Driver 2] needs to outscore [Leader] by at least [points_behind + 1] points across the remaining races to take the title. [Driver 3] is mathematically eliminated as their maximum possible points ([max]) is less than the leader's current total."
+"Based on the standings after round [analysis_round] with [X] races remaining, [Y] drivers can still mathematically win the championship. [Leader name] leads with [Z] points. [Driver 2] needs to outscore [Leader] by at least [points_behind + 1] points across the remaining races to take the title. [Driver 3] is mathematically eliminated as their maximum possible points ([max]) is less than the leader's current total."
+
+**Note:** You can use the `--after-round` parameter to perform "what if" analysis on any past round in the season, allowing you to see how championship possibilities looked at different points in time.
 
 **Interpretation:**
 - Filled bars show current championship points
@@ -60,6 +74,8 @@ pitlane analyze championship-possibilities \
 - Green bars indicate the driver/constructor can still mathematically win
 - Gray bars indicate mathematical elimination
 - The visualization accounts for both standard race points and sprint race points
+- Chart title shows "(After Round X)" when analyzing historical data
+- Filename includes round number (e.g., `championship_possibilities_2024_drivers_round_10.png`) for historical analysis
 
 ## Planned Analysis Types
 
