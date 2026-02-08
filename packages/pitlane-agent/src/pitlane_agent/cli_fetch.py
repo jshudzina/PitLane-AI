@@ -16,6 +16,7 @@ from pitlane_agent.commands.fetch import (
     get_driver_info,
     get_driver_standings,
     get_event_schedule,
+    get_race_control_messages,
     get_session_info,
 )
 from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
@@ -349,6 +350,120 @@ def constructor_standings(session_id: str, year: int, round_number: int | None):
             "year": year,
             "round": standings["round"],
             "total_standings": standings["total_standings"],
+        }
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@fetch.command("race-control")
+@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
+@click.option(
+    "--session",
+    type=str,
+    required=True,
+    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
+)
+@click.option(
+    "--detail",
+    type=click.Choice(["high", "medium", "full"], case_sensitive=False),
+    default="high",
+    help="Detail level: high (major events), medium (+flags/DRS), full (all messages)",
+)
+@click.option(
+    "--category",
+    type=str,
+    default=None,
+    help="Filter by category: Flag, Other, Drs, SafetyCar",
+)
+@click.option(
+    "--flag-type",
+    type=str,
+    default=None,
+    help="Filter by flag type: RED, YELLOW, DOUBLE YELLOW, GREEN, BLUE, CLEAR, CHEQUERED",
+)
+@click.option(
+    "--driver",
+    type=str,
+    default=None,
+    help="Filter by driver racing number (e.g., 1 for Verstappen)",
+)
+@click.option(
+    "--lap-start",
+    type=int,
+    default=None,
+    help="Filter from lap number (inclusive)",
+)
+@click.option(
+    "--lap-end",
+    type=int,
+    default=None,
+    help="Filter to lap number (inclusive)",
+)
+@click.option(
+    "--sector",
+    type=int,
+    default=None,
+    help="Filter by track sector number",
+)
+def race_control(
+    session_id: str,
+    year: int,
+    gp: str,
+    session: str,
+    detail: str,
+    category: str | None,
+    flag_type: str | None,
+    driver: str | None,
+    lap_start: int | None,
+    lap_end: int | None,
+    sector: int | None,
+):
+    """Fetch race control messages and store in workspace."""
+    # Verify workspace exists
+    if not workspace_exists(session_id):
+        click.echo(
+            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(session_id)
+    data_dir = workspace_path / "data"
+
+    try:
+        # Fetch race control messages
+        messages = get_race_control_messages(
+            year=year,
+            gp=gp,
+            session_type=session,
+            detail=detail,
+            category=category,
+            flag_type=flag_type,
+            driver=driver,
+            lap_start=lap_start,
+            lap_end=lap_end,
+            sector=sector,
+        )
+
+        # Write to workspace
+        output_file = data_dir / "race_control.json"
+        with open(output_file, "w") as f:
+            json.dump(messages, f, indent=2)
+
+        # Return result
+        result = {
+            "data_file": str(output_file),
+            "event_name": messages["event_name"],
+            "session": messages["session_name"],
+            "year": year,
+            "total_messages": messages["total_messages"],
+            "filtered_messages": messages["filtered_messages"],
+            "filters_applied": messages["filters_applied"],
         }
         click.echo(json.dumps(result, indent=2))
 

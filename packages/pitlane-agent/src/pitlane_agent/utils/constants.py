@@ -73,3 +73,19 @@ CHAMPIONSHIP_ELIMINATED_COLOR = "#888888"  # Gray for eliminated competitors
 MAX_DRIVER_CODE_LENGTH = 3
 MIN_SPEED_TRACE_DRIVERS = 2
 MAX_SPEED_TRACE_DRIVERS = 5
+
+# Race Control Message Categories
+# Reference: https://docs.fastf1.dev/api_reference/legacy/f1_api.html#fastf1.api.race_control_messages
+MESSAGE_CATEGORY_FLAG = "Flag"
+MESSAGE_CATEGORY_OTHER = "Other"
+MESSAGE_CATEGORY_DRS = "Drs"
+MESSAGE_CATEGORY_SAFETY_CAR = "SafetyCar"
+
+# Race Control Flag Types
+FLAG_RED = "RED"
+FLAG_YELLOW = "YELLOW"
+FLAG_DOUBLE_YELLOW = "DOUBLE YELLOW"
+FLAG_GREEN = "GREEN"
+FLAG_BLUE = "BLUE"
+FLAG_CLEAR = "CLEAR"
+FLAG_CHEQUERED = "CHEQUERED"
