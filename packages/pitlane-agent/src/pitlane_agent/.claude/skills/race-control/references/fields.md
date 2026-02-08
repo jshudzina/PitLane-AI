@@ -142,13 +142,15 @@ See detail-level reference files for interpretation guidance and strategy impact
 
 ## Driver Racing Numbers
 
-To find driver racing numbers for a specific season, use:
+Driver racing numbers for a session are included in the `session-info` data:
 
 ```bash
-pitlane fetch driver-info --session-id $PITLANE_SESSION_ID --season YEAR
+pitlane fetch session-info --session-id $PITLANE_SESSION_ID --year YEAR --gp "Grand Prix Name" --session SESSION_TYPE
 ```
 
-**Note**: Racing numbers change between seasons (e.g., previous year's champion gets #1). Always fetch for the specific season you're analyzing.
+The session info includes a `drivers` array with each driver's `number` field containing their racing number for that session.
+
+**Note**: Racing numbers change between seasons (e.g., previous year's champion gets #1). The session-info data reflects the numbers used in that specific session.
 
 ## Data Availability
 
