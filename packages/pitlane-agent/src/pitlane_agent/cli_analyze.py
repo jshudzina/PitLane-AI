@@ -10,6 +10,7 @@ import sys
 import click
 
 from pitlane_agent.commands.analyze import (
+    generate_championship_possibilities_chart,
     generate_lap_times_chart,
     generate_lap_times_distribution_chart,
     generate_position_changes_chart,
@@ -287,6 +288,45 @@ def position_changes(session_id: str, year: int, gp: str, session: str, drivers:
             session_type=session,
             drivers=drivers_list,
             top_n=top_n,
+            workspace_dir=workspace_path,
+        )
+
+        # Add session info to result
+        result["session_id"] = session_id
+
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@analyze.command("championship-possibilities")
+@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option(
+    "--championship",
+    type=click.Choice(["drivers", "constructors"], case_sensitive=False),
+    default="drivers",
+    help="Championship type: drivers or constructors (default: drivers)",
+)
+def championship_possibilities(session_id: str, year: int, championship: str):
+    """Calculate who can still mathematically win the championship."""
+    # Verify workspace exists
+    if not workspace_exists(session_id):
+        click.echo(
+            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(session_id)
+
+    try:
+        # Generate chart
+        result = generate_championship_possibilities_chart(
+            year=year,
+            championship=championship,
             workspace_dir=workspace_path,
         )
 

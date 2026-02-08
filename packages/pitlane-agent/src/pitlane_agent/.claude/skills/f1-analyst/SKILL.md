@@ -62,7 +62,7 @@ Based on the user's question, read the appropriate reference file for detailed i
 - "Show me the standings progression"
 - "Give me a season summary"
 
-**Status:** Not yet implemented. **Read:** [references/standings.md](references/standings.md) for details.
+**Read:** [references/standings.md](references/standings.md)
 
 ### Telemetry Analysis
 **When to use:** Questions about speed traces, gear shifts, braking points, or detailed car data.
