@@ -16,10 +16,16 @@ from pitlane_agent.commands.fetch.driver_standings import get_driver_standings
 from pitlane_agent.commands.fetch.event_schedule import get_event_schedule
 from pitlane_agent.utils.constants import (
     ALPHA_VALUE,
+    CHAMPIONSHIP_ELIMINATED_COLOR,
+    CHAMPIONSHIP_VIABLE_COLOR,
     DEFAULT_DPI,
+    FASTEST_LAP_POINT_REMOVED_YEAR,
     FIGURE_HEIGHT,
     FIGURE_WIDTH,
     GRID_ALPHA,
+    MAX_RACE_POINTS_PER_WEEKEND_NO_FASTEST_LAP,
+    MAX_RACE_POINTS_PER_WEEKEND_WITH_FASTEST_LAP,
+    MAX_SPRINT_POINTS,
 )
 from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
@@ -57,20 +63,24 @@ def _count_remaining_races(year: int, current_round: int) -> tuple[int, int]:
     return remaining_races, remaining_sprints
 
 
-def _calculate_max_points_available(remaining_races: int, remaining_sprints: int) -> int:
+def _calculate_max_points_available(remaining_races: int, remaining_sprints: int, year: int) -> int:
     """Calculate maximum points available for remaining races.
 
     Args:
         remaining_races: Number of remaining races
         remaining_sprints: Number of remaining sprint races
+        year: Championship year (affects whether fastest lap point is included)
 
     Returns:
         Maximum points available
     """
-    # Points per race: 25 (win) + 1 (fastest lap) = 26
-    # Points per sprint: 8 (win)
-    max_race_points = 26 * remaining_races
-    max_sprint_points = 8 * remaining_sprints
+    # Fastest lap point was removed starting in 2025
+    if year >= FASTEST_LAP_POINT_REMOVED_YEAR:
+        max_race_points = MAX_RACE_POINTS_PER_WEEKEND_NO_FASTEST_LAP * remaining_races
+    else:
+        max_race_points = MAX_RACE_POINTS_PER_WEEKEND_WITH_FASTEST_LAP * remaining_races
+
+    max_sprint_points = MAX_SPRINT_POINTS * remaining_sprints
 
     return max_race_points + max_sprint_points
 
@@ -93,7 +103,8 @@ def _calculate_championship_scenarios(
     if not standings:
         return [], {}
 
-    # Sort by current points (should already be sorted, but ensure it)
+    # Ensure standings are sorted by points descending (API should provide sorted data,
+    # but we verify to ensure correct leader identification and points calculations)
     standings = sorted(standings, key=lambda x: x["points"], reverse=True)
 
     leader = standings[0]
@@ -115,8 +126,10 @@ def _calculate_championship_scenarios(
         max_possible_points = current_points + max_points_available
         points_behind = leader_points - current_points
 
-        # Can win if max possible points > leader's current points
-        # (assuming leader scores 0 more points)
+        # Mathematical possibility calculation: competitor can win if their maximum
+        # possible points exceed the leader's current points. This is a "best case
+        # scenario" assuming the competitor wins all remaining races and the leader
+        # scores zero more points.
         can_win = max_possible_points > leader_points
 
         # Generate required scenario description
@@ -174,7 +187,7 @@ def _generate_championship_chart(
         zip(y_positions, current_points, max_points, can_win, strict=True)
     ):
         # Color based on whether they can still win
-        color = "#43B02A" if viable else "#888888"  # Green for viable, gray for eliminated
+        color = CHAMPIONSHIP_VIABLE_COLOR if viable else CHAMPIONSHIP_ELIMINATED_COLOR
 
         # Current points (solid bar)
         ax.barh(y_pos, current, height=0.6, color=color, alpha=ALPHA_VALUE, label="Current points" if i == 0 else "")
@@ -246,6 +259,10 @@ def generate_championship_possibilities_chart(
     if championship not in ["drivers", "constructors"]:
         raise ValueError(f"Invalid championship type: {championship}. Must be 'drivers' or 'constructors'.")
 
+    # Validate after_round parameter
+    if after_round is not None and after_round <= 0:
+        raise ValueError(f"after_round must be a positive integer, got: {after_round}")
+
     # Get standings (current or historical)
     if championship == "drivers":
         standings_data = get_driver_standings(year, round_number=after_round)
@@ -264,7 +281,7 @@ def generate_championship_possibilities_chart(
     remaining_races, remaining_sprints = _count_remaining_races(year, analysis_round)
 
     # Calculate maximum points available
-    max_points_available = _calculate_max_points_available(remaining_races, remaining_sprints)
+    max_points_available = _calculate_max_points_available(remaining_races, remaining_sprints, year)
 
     # Calculate championship scenarios
     competitor_stats, leader_info = _calculate_championship_scenarios(standings, max_points_available, championship)

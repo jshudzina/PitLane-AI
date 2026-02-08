@@ -55,6 +55,20 @@ GRID_ALPHA = 0.3
 MIN_F1_YEAR = 1950
 FINAL_ROUND = "last"
 
+# Championship Points
+# Maximum points per race weekend (2024 and earlier): 25 (win) + 1 (fastest lap)
+MAX_RACE_POINTS_PER_WEEKEND_WITH_FASTEST_LAP = 26
+# Maximum points per race weekend (2025 onwards): 25 (win) - fastest lap point removed
+MAX_RACE_POINTS_PER_WEEKEND_NO_FASTEST_LAP = 25
+# Maximum points per sprint race: 8 (win)
+MAX_SPRINT_POINTS = 8
+# Year when fastest lap point was removed
+FASTEST_LAP_POINT_REMOVED_YEAR = 2025
+
+# Championship Possibility Colors
+CHAMPIONSHIP_VIABLE_COLOR = "#43B02A"  # Green for competitors who can still win
+CHAMPIONSHIP_ELIMINATED_COLOR = "#888888"  # Gray for eliminated competitors
+
 # Validation Constants
 MAX_DRIVER_CODE_LENGTH = 3
 MIN_SPEED_TRACE_DRIVERS = 2

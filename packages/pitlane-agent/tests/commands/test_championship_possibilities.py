@@ -16,11 +16,15 @@ class TestChampionshipPossibilitiesHelpers:
 
     def test_calculate_max_points_available(self):
         """Test maximum points calculation."""
-        # Standard race: 26 points (win + fastest lap)
-        # Sprint: 8 points (win)
-        assert _calculate_max_points_available(5, 0) == 130  # 5 races * 26
-        assert _calculate_max_points_available(3, 2) == 94  # (3 * 26) + (2 * 8)
-        assert _calculate_max_points_available(0, 0) == 0
+        # 2024 and earlier: 26 points per race (win + fastest lap), 8 per sprint
+        assert _calculate_max_points_available(5, 0, 2024) == 130  # 5 races * 26
+        assert _calculate_max_points_available(3, 2, 2024) == 94  # (3 * 26) + (2 * 8)
+        assert _calculate_max_points_available(0, 0, 2024) == 0
+
+        # 2025 onwards: 25 points per race (no fastest lap), 8 per sprint
+        assert _calculate_max_points_available(5, 0, 2025) == 125  # 5 races * 25
+        assert _calculate_max_points_available(5, 0, 2026) == 125  # 5 races * 25
+        assert _calculate_max_points_available(3, 2, 2025) == 91  # (3 * 25) + (2 * 8)
 
     @patch("pitlane_agent.commands.analyze.championship_possibilities.get_event_schedule")
     def test_count_remaining_races(self, mock_get_schedule):
@@ -280,6 +284,53 @@ class TestChampionshipPossibilitiesBusinessLogic:
         # Verify correct fetch function was called
         mock_get_standings.assert_called_once_with(2024, round_number=None)
 
+    @patch("pitlane_agent.commands.analyze.championship_possibilities.plt")
+    @patch("pitlane_agent.commands.analyze.championship_possibilities.get_event_schedule")
+    @patch("pitlane_agent.commands.analyze.championship_possibilities.get_driver_standings")
+    def test_generate_chart_2026_no_fastest_lap_point(
+        self, mock_get_standings, mock_get_schedule, mock_plt, tmp_output_dir
+    ):
+        """Test chart generation for 2026 (no fastest lap point)."""
+        # Mock driver standings for 2026
+        mock_get_standings.return_value = {
+            "year": 2026,
+            "round": 10,
+            "standings": [
+                {"position": 1, "points": 200.0, "full_name": "Driver A"},
+                {"position": 2, "points": 180.0, "full_name": "Driver B"},
+            ],
+        }
+
+        # Mock event schedule - 5 races remaining, 1 sprint
+        mock_get_schedule.return_value = {
+            "events": [
+                {"round": 11, "sessions": [{"name": "Race"}]},
+                {"round": 12, "sessions": [{"name": "Sprint"}, {"name": "Race"}]},
+                {"round": 13, "sessions": [{"name": "Race"}]},
+                {"round": 14, "sessions": [{"name": "Race"}]},
+                {"round": 15, "sessions": [{"name": "Race"}]},
+            ]
+        }
+
+        # Mock pyplot
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+
+        # Generate chart
+        result = generate_championship_possibilities_chart(
+            year=2026,
+            championship="drivers",
+            workspace_dir=tmp_output_dir,
+        )
+
+        # Verify 2026 uses 25 points per race (no fastest lap)
+        # 5 races * 25 + 1 sprint * 8 = 125 + 8 = 133
+        assert result["year"] == 2026
+        assert result["remaining_races"] == 5
+        assert result["remaining_sprints"] == 1
+        assert result["max_points_available"] == 133  # (5 * 25) + (1 * 8)
+
     @patch("pitlane_agent.commands.analyze.championship_possibilities.get_driver_standings")
     def test_generate_chart_no_standings_data(self, mock_get_standings, tmp_output_dir):
         """Test error handling when no standings data available."""
@@ -299,6 +350,26 @@ class TestChampionshipPossibilitiesBusinessLogic:
                 year=2024,
                 championship="invalid",
                 workspace_dir=tmp_output_dir,
+            )
+
+    def test_generate_chart_invalid_after_round_negative(self, tmp_output_dir):
+        """Test error handling for negative after_round parameter."""
+        with pytest.raises(ValueError, match="after_round must be a positive integer"):
+            generate_championship_possibilities_chart(
+                year=2024,
+                championship="drivers",
+                workspace_dir=tmp_output_dir,
+                after_round=-1,
+            )
+
+    def test_generate_chart_invalid_after_round_zero(self, tmp_output_dir):
+        """Test error handling for zero after_round parameter."""
+        with pytest.raises(ValueError, match="after_round must be a positive integer"):
+            generate_championship_possibilities_chart(
+                year=2024,
+                championship="drivers",
+                workspace_dir=tmp_output_dir,
+                after_round=0,
             )
 
     @patch("pitlane_agent.commands.analyze.championship_possibilities.plt")
