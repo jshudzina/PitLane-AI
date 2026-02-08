@@ -7,6 +7,7 @@ and chart path construction used across all F1 data fetching and visualization c
 from pathlib import Path
 
 import fastf1
+from fastf1.core import Session
 
 from pitlane_agent.utils.fastf1_cache import get_fastf1_cache_dir
 from pitlane_agent.utils.filename import sanitize_filename
@@ -30,7 +31,7 @@ def load_session(
     telemetry: bool = False,
     weather: bool = False,
     messages: bool = False,
-) -> fastf1.core.Session:
+) -> Session:
     """Load FastF1 session with standard configuration.
 
     Automatically sets up cache before loading session data.
