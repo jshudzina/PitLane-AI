@@ -5,7 +5,7 @@ from threading import Lock
 from time import time
 
 from fastapi import Response
-from pitlane_agent.scripts.workspace import (
+from pitlane_agent.commands.workspace import (
     generate_session_id,
     update_workspace_metadata,
     workspace_exists,
