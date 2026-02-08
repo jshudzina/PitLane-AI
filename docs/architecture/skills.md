@@ -36,12 +36,20 @@ packages/pitlane-agent/src/pitlane_agent/.claude/skills/
 │   ├── SKILL.md           # Skill definition and prompt
 │   └── references/        # Sub-skill documentation
 │       ├── lap_times.md   # Lap time analysis guide
-│       ├── strategy.md    # Strategy analysis guide
-│       └── telemetry.md   # Telemetry analysis guide
+│       ├── strategy.md    # Strategy and position changes guide
+│       ├── telemetry.md   # Telemetry analysis guide
+│       └── standings.md   # Championship standings guide
 ├── f1-drivers/
 │   └── SKILL.md           # Driver information skill
-└── f1-schedule/
-    └── SKILL.md           # Schedule queries skill
+├── f1-schedule/
+│   └── SKILL.md           # Schedule queries skill
+└── race-control/
+    ├── SKILL.md           # Race control message contextualization
+    └── references/        # Event type references
+        ├── fields.md      # Message structure and schema
+        ├── high-detail-events.md      # Red flags, safety cars
+        ├── medium-detail-events.md    # Yellow flags, DRS changes
+        └── full-detail-events.md      # Blue flags, track limits
 ```
 
 ## Skill Definition Format
@@ -70,15 +78,19 @@ You are an F1 data analyst with access to historical race data via FastF1...
 
 ## Available Skills
 
+PitLane Agent currently provides four specialized skills for F1 data analysis:
+
 ### f1-analyst
 
 **Purpose**: Data analysis and visualization using FastF1
 
-**When to Use**: Questions about lap times, race results, strategy, telemetry
+**When to Use**: Questions about lap times, race results, strategy, telemetry, position changes, championship standings
 
 **Capabilities**:
 - Lap time analysis and distributions
 - Tyre strategy visualization
+- Position changes and overtakes tracking
+- Championship standings and title fight scenarios
 - Telemetry comparison (speed, throttle, brake)
 - Session data queries
 
@@ -138,6 +150,32 @@ Agent: [Invokes f1-schedule skill]
 Skill: [Queries schedule, returns next event details]
 ```
 
+### race-control
+
+**Purpose**: Race control message contextualization for session events
+
+**When to Use**: Questions about race incidents, safety cars, flags, penalties, unexpected pit stops, data anomalies, race interruptions
+
+**Capabilities**:
+- Race incident timeline and context
+- Flag analysis (red, yellow, blue flags)
+- Safety car and VSC deployment reasoning
+- Penalty tracking and investigation outcomes
+- Connection between race control events and data anomalies
+- Progressive detail filtering (high/medium/full)
+
+**Tool Access**:
+- `Bash`: Restricted to `pitlane` CLI commands
+- `Read`: Restricted to workspace directory
+- `Write`: Restricted to workspace directory
+
+**Example Invocation**:
+```
+User: "Why did the race restart on lap 5 in Monaco?"
+Agent: [Invokes race-control skill]
+Skill: [Fetches race control messages, analyzes red flag sequence]
+```
+
 ## Skill Invocation
 
 Skills are invoked using the `Skill` tool:
@@ -173,16 +211,24 @@ This ensures skills operate within safe boundaries and can't escalate permission
 
 ## Sub-Skills Pattern
 
-Complex skills like `f1-analyst` use **sub-skills** for organization:
+Complex skills like `f1-analyst` and `race-control` use **sub-skills** for organization:
 
 ```
 f1-analyst/
 ├── SKILL.md                  # Main skill prompt
 └── references/
     ├── lap_times.md          # Lap time analysis sub-skill
-    ├── strategy.md           # Strategy analysis sub-skill
+    ├── strategy.md           # Strategy and position changes sub-skill
     ├── telemetry.md          # Telemetry analysis sub-skill
-    └── standings.md          # Standings analysis sub-skill
+    └── standings.md          # Championship standings sub-skill
+
+race-control/
+├── SKILL.md                  # Main skill prompt
+└── references/
+    ├── fields.md             # Message structure and schema
+    ├── high-detail-events.md # Red flags, safety cars, major incidents
+    ├── medium-detail-events.md # Yellow flags, DRS changes, penalties
+    └── full-detail-events.md # Blue flags, track limits, admin messages
 ```
 
 The main skill prompt routes to sub-skills based on query type:
@@ -199,12 +245,17 @@ Based on the user's question, read the appropriate reference file:
 ### Strategy Analysis
 **When to use:** Questions about tyre strategy, pit stops...
 **Read:** [references/strategy.md](references/strategy.md)
+
+### Standings Analysis
+**When to use:** Questions about championship standings, title scenarios...
+**Read:** [references/standings.md](references/standings.md)
 ```
 
 This enables:
 - Modular skill development
 - Focused prompts per analysis type
 - Easier testing and maintenance
+- Progressive disclosure (e.g., race-control's detail levels)
 
 ## Security Model
 
