@@ -178,7 +178,7 @@ pitlane fetch race-control --session-id $PITLANE_SESSION_ID --year 2024 --gp Mon
 
 ## Notes
 
-- Not all sessions have race control messages (older races may have limited data)
+- Races before 2018 don't have race control messages
 - Pre-race messages (pit exit status, rain risk) included in full detail level
 - BLUE flags filtered in high/medium detail (very common, low information value - just lapping notifications)
 - Track limits violations filtered in high/medium detail (administrative, frequent)
