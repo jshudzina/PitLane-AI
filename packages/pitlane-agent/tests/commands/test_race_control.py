@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import pytest
 from pitlane_agent.commands.fetch.race_control import (
     _filter_by_category,
     _filter_by_detail_level,
@@ -186,6 +187,23 @@ class TestFilterByDetailLevel:
         # Should exclude BLUE (low)
         assert len(result) == 3
         assert "BLUE" not in result["Flag"].values
+
+    def test_invalid_detail_level_raises_error(self):
+        """Test that invalid detail level raises ValueError."""
+        df = pd.DataFrame(
+            {
+                "Category": ["Flag"],
+                "Flag": ["RED"],
+                "Message": ["RED FLAG"],
+                "Lap": [1],
+            }
+        )
+
+        with pytest.raises(ValueError, match="Invalid detail level: 'invalid'"):
+            _filter_by_detail_level(df, "invalid")
+
+        with pytest.raises(ValueError, match="Invalid detail level: 'HIGH'"):
+            _filter_by_detail_level(df, "HIGH")  # Case-sensitive check
 
 
 class TestFilterByCategory:

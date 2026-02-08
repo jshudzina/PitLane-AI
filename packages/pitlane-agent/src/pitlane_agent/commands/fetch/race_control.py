@@ -171,7 +171,15 @@ def _filter_by_detail_level(
 
     Returns:
         Filtered DataFrame based on detail level
+
+    Raises:
+        ValueError: If detail level is not one of "high", "medium", or "full"
     """
+    # Validate detail level
+    valid_levels = ("high", "medium", "full")
+    if detail not in valid_levels:
+        raise ValueError(f"Invalid detail level: '{detail}'. Must be one of {valid_levels}")
+
     if detail == "full":
         return messages_df
 
@@ -180,16 +188,12 @@ def _filter_by_detail_level(
         mask = messages_df.apply(_is_high_impact_message, axis=1)
         return messages_df[mask]
 
-    if detail == "medium":
-        # High-impact OR medium-impact messages
-        mask = messages_df.apply(
-            lambda row: _is_high_impact_message(row) or _is_medium_impact_message(row),
-            axis=1,
-        )
-        return messages_df[mask]
-
-    # Default to high if invalid detail level
-    mask = messages_df.apply(_is_high_impact_message, axis=1)
+    # detail == "medium"
+    # High-impact OR medium-impact messages
+    mask = messages_df.apply(
+        lambda row: _is_high_impact_message(row) or _is_medium_impact_message(row),
+        axis=1,
+    )
     return messages_df[mask]
 
 
