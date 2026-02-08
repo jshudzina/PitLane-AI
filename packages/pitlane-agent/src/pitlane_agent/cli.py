@@ -16,7 +16,7 @@ import click
 
 from pitlane_agent.cli_analyze import analyze
 from pitlane_agent.cli_fetch import fetch
-from pitlane_agent.scripts.workspace import (
+from pitlane_agent.commands.workspace import (
     clean_workspaces,
     create_workspace,
     get_workspace_info,

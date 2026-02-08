@@ -9,12 +9,14 @@ import sys
 
 import click
 
-from pitlane_agent.scripts.lap_times import generate_lap_times_chart
-from pitlane_agent.scripts.lap_times_distribution import generate_lap_times_distribution_chart
-from pitlane_agent.scripts.position_changes import generate_position_changes_chart
-from pitlane_agent.scripts.speed_trace import generate_speed_trace_chart
-from pitlane_agent.scripts.tyre_strategy import generate_tyre_strategy_chart
-from pitlane_agent.scripts.workspace import get_workspace_path, workspace_exists
+from pitlane_agent.commands.analyze import (
+    generate_lap_times_chart,
+    generate_lap_times_distribution_chart,
+    generate_position_changes_chart,
+    generate_speed_trace_chart,
+    generate_tyre_strategy_chart,
+)
+from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
 
 
 def validate_mutually_exclusive(ctx, param, value):

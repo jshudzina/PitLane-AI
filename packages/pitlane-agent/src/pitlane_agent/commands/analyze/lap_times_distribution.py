@@ -2,22 +2,16 @@
 
 Usage:
     pitlane analyze lap-times-distribution --year 2024 --gp Monaco --session R
-
-    # Or using module invocation
-    python -m pitlane_agent.scripts.lap_times_distribution \
-        --year 2024 --gp Monaco --session R \
-        --output /tmp/charts/lap_times_distribution.png
 """
 
 from pathlib import Path
 
-import fastf1
 import fastf1.plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from pitlane_agent.scripts.lap_times import setup_plot_style
-from pitlane_agent.utils import get_fastf1_cache_dir, sanitize_filename
+from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
+from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
 
 def generate_lap_times_distribution_chart(
@@ -39,26 +33,16 @@ def generate_lap_times_distribution_chart(
     Returns:
         Dictionary with chart metadata and statistics
     """
-    # Determine paths from workspace
-    gp_sanitized = sanitize_filename(gp)
-
-    # Handle filename based on driver selection
+    # Build output path (handle None drivers case specially)
     if drivers is None:
-        drivers_str = "top10"
-    elif len(drivers) > 5:
-        drivers_str = f"{len(drivers)}drivers"
+        output_path = build_chart_path(workspace_dir, "lap_times_distribution", year, gp, session_type, None)
+        # Adjust filename for top10 indicator
+        output_path = output_path.parent / output_path.name.replace(".png", "_top10.png")
     else:
-        drivers_str = "_".join(sorted(drivers))
-
-    filename = f"lap_times_distribution_{year}_{gp_sanitized}_{session_type}_{drivers_str}.png"
-    output_path = workspace_dir / "charts" / filename
-
-    # Enable FastF1 cache with shared directory
-    fastf1.Cache.enable_cache(str(get_fastf1_cache_dir()))
+        output_path = build_chart_path(workspace_dir, "lap_times_distribution", year, gp, session_type, drivers)
 
     # Load session with laps data
-    session = fastf1.get_session(year, gp, session_type)
-    session.load(telemetry=False, weather=False, messages=False)
+    session = load_session(year, gp, session_type)
 
     # Determine which drivers to plot
     if drivers is None:
@@ -158,13 +142,8 @@ def generate_lap_times_distribution_chart(
             }
         )
 
-    # Ensure output directory exists
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
     # Save figure
-    fig.tight_layout()
-    fig.savefig(str(output_path), dpi=150, facecolor=fig.get_facecolor(), edgecolor="none")
-    plt.close(fig)
+    save_figure(fig, output_path)
 
     result = {
         "chart_path": str(output_path),

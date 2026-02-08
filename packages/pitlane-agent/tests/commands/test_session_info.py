@@ -1,11 +1,11 @@
-"""Tests for session_info script."""
+"""Tests for session_info command."""
 
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 from fastf1.core import DataNotLoadedError
-from pitlane_agent.scripts.session_info import (
+from pitlane_agent.commands.fetch.session_info import (
     _extract_track_status,
     _extract_weather_data,
     get_session_info,
@@ -170,19 +170,19 @@ class TestExtractWeatherData:
 class TestSessionInfoBusinessLogic:
     """Unit tests for business logic functions."""
 
-    @patch("pitlane_agent.scripts.session_info._extract_weather_data")
-    @patch("pitlane_agent.scripts.session_info._extract_track_status")
-    @patch("pitlane_agent.scripts.session_info.fastf1")
+    @patch("pitlane_agent.commands.fetch.session_info._extract_weather_data")
+    @patch("pitlane_agent.commands.fetch.session_info._extract_track_status")
+    @patch("pitlane_agent.commands.fetch.session_info.load_session")
     def test_get_session_info_success(
         self,
-        mock_fastf1,
+        mock_load_session,
         mock_extract_track_status,
         mock_extract_weather_data,
         mock_fastf1_session,
     ):
         """Test successful session info retrieval."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
         mock_fastf1_session.results = MagicMock()
 
         # Create mock driver data
@@ -234,22 +234,21 @@ class TestSessionInfoBusinessLogic:
         assert result["weather"]["air_temp"]["avg"] == 23.5
 
         # Verify FastF1 was called correctly
-        mock_fastf1.get_session.assert_called_once_with(2024, "Monaco", "Q")
-        mock_fastf1_session.load.assert_called_once()
+        mock_load_session.assert_called_once_with(2024, "Monaco", "Q", weather=True, messages=True)
 
-    @patch("pitlane_agent.scripts.session_info._extract_weather_data")
-    @patch("pitlane_agent.scripts.session_info._extract_track_status")
-    @patch("pitlane_agent.scripts.session_info.fastf1")
+    @patch("pitlane_agent.commands.fetch.session_info._extract_weather_data")
+    @patch("pitlane_agent.commands.fetch.session_info._extract_track_status")
+    @patch("pitlane_agent.commands.fetch.session_info.load_session")
     def test_get_session_info_with_nan_values(
         self,
-        mock_fastf1,
+        mock_load_session,
         mock_extract_track_status,
         mock_extract_weather_data,
         mock_fastf1_session,
     ):
         """Test session info retrieval with NaN values in driver data."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
         mock_fastf1_session.results = MagicMock()
         mock_fastf1_session.total_laps = float("nan")
 
@@ -293,19 +292,19 @@ class TestSessionInfoBusinessLogic:
         assert result["race_conditions"] is None
         assert result["weather"] is None
 
-    @patch("pitlane_agent.scripts.session_info._extract_weather_data")
-    @patch("pitlane_agent.scripts.session_info._extract_track_status")
-    @patch("pitlane_agent.scripts.session_info.fastf1")
+    @patch("pitlane_agent.commands.fetch.session_info._extract_weather_data")
+    @patch("pitlane_agent.commands.fetch.session_info._extract_track_status")
+    @patch("pitlane_agent.commands.fetch.session_info.load_session")
     def test_get_session_info_with_total_laps_error(
         self,
-        mock_fastf1,
+        mock_load_session,
         mock_extract_track_status,
         mock_extract_weather_data,
         mock_fastf1_session,
     ):
         """Test session info retrieval when total_laps raises DataNotLoadedError."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
         mock_fastf1_session.results = MagicMock()
 
         # Create mock driver data
@@ -337,11 +336,11 @@ class TestSessionInfoBusinessLogic:
         # Assertions
         assert result["total_laps"] is None
 
-    @patch("pitlane_agent.scripts.session_info.fastf1")
-    def test_get_session_info_error(self, mock_fastf1):
+    @patch("pitlane_agent.commands.fetch.session_info.load_session")
+    def test_get_session_info_error(self, mock_load_session):
         """Test error handling in session info retrieval."""
         # Setup mock to raise error
-        mock_fastf1.get_session.side_effect = Exception("Session not found")
+        mock_load_session.side_effect = Exception("Session not found")
 
         # Expect exception to be raised
         with pytest.raises(Exception, match="Session not found"):

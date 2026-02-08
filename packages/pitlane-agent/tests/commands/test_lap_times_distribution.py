@@ -1,9 +1,9 @@
-"""Tests for lap_times_distribution script."""
+"""Tests for lap_times_distribution command."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pitlane_agent.scripts.lap_times_distribution import (
+from pitlane_agent.commands.analyze.lap_times_distribution import (
     generate_lap_times_distribution_chart,
 )
 from pitlane_agent.utils import sanitize_filename
@@ -12,15 +12,24 @@ from pitlane_agent.utils import sanitize_filename
 class TestLapTimesDistributionBusinessLogic:
     """Unit tests for business logic functions."""
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.sns")
-    @patch("pitlane_agent.scripts.lap_times_distribution.plt")
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_compound_mapping")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_driver_color_mapping")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
     def test_generate_distribution_chart_success_with_drivers(
-        self, mock_fastf1, mock_plt, mock_sns, tmp_output_dir, mock_fastf1_session
+        self,
+        mock_load_session,
+        mock_plt,
+        mock_sns,
+        mock_driver_colors,
+        mock_compound_colors,
+        tmp_output_dir,
+        mock_fastf1_session,
     ):
         """Test successful chart generation with specific drivers."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock driver laps
         import pandas as pd
@@ -41,8 +50,8 @@ class TestLapTimesDistributionBusinessLogic:
         mock_plt.subplots.return_value = (mock_fig, mock_ax)
 
         # Mock driver color mapping
-        mock_fastf1.plotting.get_driver_color_mapping.return_value = {"VER": "#0600EF", "HAM": "#00D2BE"}
-        mock_fastf1.plotting.get_compound_mapping.return_value = {
+        mock_driver_colors.return_value = {"VER": "#0600EF", "HAM": "#00D2BE"}
+        mock_compound_colors.return_value = {
             "SOFT": "#FF0000",
             "MEDIUM": "#FFFF00",
             "HARD": "#FFFFFF",
@@ -81,22 +90,30 @@ class TestLapTimesDistributionBusinessLogic:
             assert "compounds_used" in stat
 
         # Verify FastF1 was called correctly
-        mock_fastf1.get_session.assert_called_once_with(2024, "Monaco", "Q")
-        mock_fastf1_session.load.assert_called_once()
+        mock_load_session.assert_called_once_with(2024, "Monaco", "Q")
 
         # Verify seaborn plots were called
         mock_sns.violinplot.assert_called_once()
         mock_sns.swarmplot.assert_called_once()
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.sns")
-    @patch("pitlane_agent.scripts.lap_times_distribution.plt")
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_compound_mapping")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_driver_color_mapping")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
     def test_generate_distribution_chart_default_top10(
-        self, mock_fastf1, mock_plt, mock_sns, tmp_output_dir, mock_fastf1_session
+        self,
+        mock_load_session,
+        mock_plt,
+        mock_sns,
+        mock_driver_colors,
+        mock_compound_colors,
+        tmp_output_dir,
+        mock_fastf1_session,
     ):
         """Test chart generation defaults to top 10 finishers when drivers is None."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock session.drivers to return top 10
         mock_fastf1_session.drivers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
@@ -135,8 +152,8 @@ class TestLapTimesDistributionBusinessLogic:
         mock_plt.subplots.return_value = (mock_fig, mock_ax)
 
         # Mock color mappings
-        mock_fastf1.plotting.get_driver_color_mapping.return_value = {f"DR{i}": "#000000" for i in range(1, 11)}
-        mock_fastf1.plotting.get_compound_mapping.return_value = {
+        mock_driver_colors.return_value = {f"DR{i}": "#000000" for i in range(1, 11)}
+        mock_compound_colors.return_value = {
             "SOFT": "#FF0000",
             "MEDIUM": "#FFFF00",
             "HARD": "#FFFFFF",
@@ -151,15 +168,24 @@ class TestLapTimesDistributionBusinessLogic:
         assert result["chart_path"] == str(tmp_output_dir / "charts" / "lap_times_distribution_2024_monaco_R_top10.png")
         assert len(result["drivers_plotted"]) == 10
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.sns")
-    @patch("pitlane_agent.scripts.lap_times_distribution.plt")
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_compound_mapping")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_driver_color_mapping")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
     def test_generate_distribution_chart_many_drivers(
-        self, mock_fastf1, mock_plt, mock_sns, tmp_output_dir, mock_fastf1_session
+        self,
+        mock_load_session,
+        mock_plt,
+        mock_sns,
+        mock_driver_colors,
+        mock_compound_colors,
+        tmp_output_dir,
+        mock_fastf1_session,
     ):
         """Test chart generation with many drivers uses shortened filename."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock driver laps for 6 drivers
         import pandas as pd
@@ -183,8 +209,8 @@ class TestLapTimesDistributionBusinessLogic:
         mock_plt.subplots.return_value = (mock_fig, mock_ax)
 
         # Mock color mappings
-        mock_fastf1.plotting.get_driver_color_mapping.return_value = dict.fromkeys(drivers, "#000000")
-        mock_fastf1.plotting.get_compound_mapping.return_value = {
+        mock_driver_colors.return_value = dict.fromkeys(drivers, "#000000")
+        mock_compound_colors.return_value = {
             "SOFT": "#FF0000",
             "MEDIUM": "#FFFF00",
             "HARD": "#FFFFFF",
@@ -200,11 +226,11 @@ class TestLapTimesDistributionBusinessLogic:
             tmp_output_dir / "charts" / "lap_times_distribution_2024_monaco_Q_6drivers.png"
         )
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
-    def test_generate_distribution_chart_error(self, mock_fastf1, tmp_output_dir):
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
+    def test_generate_distribution_chart_error(self, mock_load_session, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
-        mock_fastf1.get_session.side_effect = Exception("Session not found")
+        mock_load_session.side_effect = Exception("Session not found")
 
         # Expect exception to be raised
         with pytest.raises(Exception, match="Session not found"):
@@ -212,11 +238,11 @@ class TestLapTimesDistributionBusinessLogic:
                 year=2024, gp="InvalidGP", session_type="Q", drivers=["VER"], workspace_dir=tmp_output_dir
             )
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
-    def test_generate_distribution_chart_no_quick_laps(self, mock_fastf1, tmp_output_dir, mock_fastf1_session):
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
+    def test_generate_distribution_chart_no_quick_laps(self, mock_load_session, tmp_output_dir, mock_fastf1_session):
         """Test error handling when no quick laps are found."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock empty laps dataframe
         import pandas as pd
@@ -230,15 +256,24 @@ class TestLapTimesDistributionBusinessLogic:
                 year=2024, gp="Monaco", session_type="Q", drivers=["VER"], workspace_dir=tmp_output_dir
             )
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.sns")
-    @patch("pitlane_agent.scripts.lap_times_distribution.plt")
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_compound_mapping")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_driver_color_mapping")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
     def test_generate_distribution_chart_verifies_plot_calls(
-        self, mock_fastf1, mock_plt, mock_sns, tmp_output_dir, mock_fastf1_session
+        self,
+        mock_load_session,
+        mock_plt,
+        mock_sns,
+        mock_driver_colors,
+        mock_compound_colors,
+        tmp_output_dir,
+        mock_fastf1_session,
     ):
         """Test that seaborn plotting functions are called with correct parameters."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock driver laps
         import pandas as pd
@@ -259,8 +294,8 @@ class TestLapTimesDistributionBusinessLogic:
         # Mock color mappings
         driver_colors = {"VER": "#0600EF"}
         compound_colors = {"SOFT": "#FF0000", "MEDIUM": "#FFFF00", "HARD": "#FFFFFF"}
-        mock_fastf1.plotting.get_driver_color_mapping.return_value = driver_colors
-        mock_fastf1.plotting.get_compound_mapping.return_value = compound_colors
+        mock_driver_colors.return_value = driver_colors
+        mock_compound_colors.return_value = compound_colors
 
         # Call function
         generate_lap_times_distribution_chart(
@@ -291,15 +326,24 @@ class TestLapTimesDistributionBusinessLogic:
         # Verify despine was called
         mock_sns.despine.assert_called_once()
 
-    @patch("pitlane_agent.scripts.lap_times_distribution.sns")
-    @patch("pitlane_agent.scripts.lap_times_distribution.plt")
-    @patch("pitlane_agent.scripts.lap_times_distribution.fastf1")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_compound_mapping")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_driver_color_mapping")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
     def test_generate_distribution_chart_with_excluded_drivers(
-        self, mock_fastf1, mock_plt, mock_sns, tmp_output_dir, mock_fastf1_session
+        self,
+        mock_load_session,
+        mock_plt,
+        mock_sns,
+        mock_driver_colors,
+        mock_compound_colors,
+        tmp_output_dir,
+        mock_fastf1_session,
     ):
         """Test that drivers with no quick laps are excluded with warning."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock driver laps - only VER has laps, HAM has none
         import pandas as pd
@@ -318,8 +362,8 @@ class TestLapTimesDistributionBusinessLogic:
         mock_plt.subplots.return_value = (mock_fig, mock_ax)
 
         # Mock color mappings
-        mock_fastf1.plotting.get_driver_color_mapping.return_value = {"VER": "#0600EF"}
-        mock_fastf1.plotting.get_compound_mapping.return_value = {
+        mock_driver_colors.return_value = {"VER": "#0600EF"}
+        mock_compound_colors.return_value = {
             "SOFT": "#FF0000",
             "MEDIUM": "#FFFF00",
             "HARD": "#FFFFFF",

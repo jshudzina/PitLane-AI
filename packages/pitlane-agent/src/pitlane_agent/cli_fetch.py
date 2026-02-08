@@ -11,12 +11,15 @@ from pathlib import Path
 
 import click
 
-from pitlane_agent.scripts.constructor_standings import MIN_F1_YEAR, get_constructor_standings
-from pitlane_agent.scripts.driver_info import get_driver_info
-from pitlane_agent.scripts.driver_standings import get_driver_standings
-from pitlane_agent.scripts.event_schedule import get_event_schedule
-from pitlane_agent.scripts.session_info import get_session_info
-from pitlane_agent.scripts.workspace import get_workspace_path, workspace_exists
+from pitlane_agent.commands.fetch import (
+    get_constructor_standings,
+    get_driver_info,
+    get_driver_standings,
+    get_event_schedule,
+    get_session_info,
+)
+from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
+from pitlane_agent.utils.constants import MIN_F1_YEAR
 
 
 def _validate_standings_request(session_id: str, year: int) -> Path:

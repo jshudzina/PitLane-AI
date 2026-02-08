@@ -6,13 +6,10 @@ Usage:
     pitlane event-schedule --year 2024 --country Italy
 """
 
-import json
-import sys
-from datetime import datetime
-
-import click
 import fastf1
 import pandas as pd
+
+from pitlane_agent.utils.fastf1_helpers import setup_fastf1_cache
 
 
 def get_event_schedule(
@@ -32,11 +29,8 @@ def get_event_schedule(
     Returns:
         Dictionary with schedule data and event information
     """
-    from pathlib import Path
-
-    # Enable FastF1 cache with shared directory
-    cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
-    fastf1.Cache.enable_cache(str(cache_dir))
+    # Enable FastF1 cache
+    setup_fastf1_cache()
 
     # Get the event schedule
     schedule = fastf1.get_event_schedule(year, include_testing=include_testing)
@@ -103,61 +97,3 @@ def get_event_schedule(
         },
         "events": events,
     }
-
-
-@click.command()
-@click.option(
-    "--year",
-    type=int,
-    required=True,
-    help="Championship year (e.g., 2024)",
-)
-@click.option(
-    "--round",
-    "round_number",
-    type=int,
-    default=None,
-    help="Filter by specific round number",
-)
-@click.option(
-    "--country",
-    type=str,
-    default=None,
-    help="Filter by country name",
-)
-@click.option(
-    "--include-testing/--no-testing",
-    default=True,
-    help="Include testing sessions (default: True)",
-)
-def cli(
-    year: int,
-    round_number: int | None,
-    country: str | None,
-    include_testing: bool,
-):
-    """Get F1 event schedule from FastF1."""
-    # Validate year input
-    current_year = datetime.now().year
-    if year < 1950 or year > current_year + 2:
-        click.echo(
-            json.dumps({"error": f"Year must be between 1950 and {current_year + 2}"}),
-            err=True,
-        )
-        sys.exit(1)
-
-    try:
-        schedule = get_event_schedule(
-            year,
-            round_number=round_number,
-            country=country,
-            include_testing=include_testing,
-        )
-        click.echo(json.dumps(schedule, indent=2))
-    except Exception as e:
-        click.echo(json.dumps({"error": str(e)}), err=True)
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    cli()

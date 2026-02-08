@@ -1,10 +1,10 @@
-"""Tests for speed_trace script."""
+"""Tests for speed_trace command."""
 
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-from pitlane_agent.scripts.speed_trace import (
+from pitlane_agent.commands.analyze.speed_trace import (
     generate_speed_trace_chart,
     setup_plot_style,
 )
@@ -19,12 +19,15 @@ class TestSpeedTraceBusinessLogic:
         # Test that setup_plot_style doesn't raise errors
         setup_plot_style()
 
-    @patch("pitlane_agent.scripts.speed_trace.plt")
-    @patch("pitlane_agent.scripts.speed_trace.fastf1")
-    def test_generate_speed_trace_chart_success(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    def test_generate_speed_trace_chart_success(
+        self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
+    ):
         """Test successful speed trace chart generation with 2 drivers."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock telemetry data with Distance and Speed
         mock_telemetry = pd.DataFrame(
@@ -81,19 +84,21 @@ class TestSpeedTraceBusinessLogic:
         assert len(result["drivers_compared"]) <= 2
 
         # Verify FastF1 was called correctly with telemetry=True
-        mock_fastf1.get_session.assert_called_once_with(2024, "Monaco", "Q")
-        mock_fastf1_session.load.assert_called_once_with(telemetry=True, weather=False, messages=False)
+        mock_load_session.assert_called_once_with(2024, "Monaco", "Q", telemetry=True)
 
         # Verify telemetry methods were called
         assert mock_fastest_lap.get_car_data.called
         assert mock_car_data.add_distance.called
 
-    @patch("pitlane_agent.scripts.speed_trace.plt")
-    @patch("pitlane_agent.scripts.speed_trace.fastf1")
-    def test_generate_speed_trace_chart_three_drivers(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    def test_generate_speed_trace_chart_three_drivers(
+        self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
+    ):
         """Test speed trace chart generation with 3 drivers."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock telemetry data
         mock_telemetry = pd.DataFrame(
@@ -142,12 +147,15 @@ class TestSpeedTraceBusinessLogic:
         assert len(result["drivers_compared"]) <= 3
         assert result["chart_path"] == str(tmp_output_dir / "charts" / "speed_trace_2024_monaco_Q_HAM_LEC_VER.png")
 
-    @patch("pitlane_agent.scripts.speed_trace.plt")
-    @patch("pitlane_agent.scripts.speed_trace.fastf1")
-    def test_generate_speed_trace_chart_five_drivers(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    def test_generate_speed_trace_chart_five_drivers(
+        self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
+    ):
         """Test speed trace chart generation with 5 drivers (maximum allowed)."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock telemetry data
         mock_telemetry = pd.DataFrame(
@@ -220,12 +228,15 @@ class TestSpeedTraceBusinessLogic:
                 workspace_dir=tmp_output_dir,
             )
 
-    @patch("pitlane_agent.scripts.speed_trace.plt")
-    @patch("pitlane_agent.scripts.speed_trace.fastf1")
-    def test_statistics_calculation(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    def test_statistics_calculation(
+        self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
+    ):
         """Test that speed statistics are calculated correctly."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock telemetry with known values
         mock_telemetry = pd.DataFrame(
@@ -298,11 +309,11 @@ class TestSpeedTraceBusinessLogic:
         # Verify sanitize_filename works as expected
         assert expected_sanitized == "spanish_grand_prix"
 
-    @patch("pitlane_agent.scripts.speed_trace.fastf1")
-    def test_generate_speed_trace_chart_error(self, mock_fastf1, tmp_output_dir):
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    def test_generate_speed_trace_chart_error(self, mock_load_session, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
-        mock_fastf1.get_session.side_effect = Exception("Session not found")
+        mock_load_session.side_effect = Exception("Session not found")
 
         # Expect exception to be raised
         with pytest.raises(Exception, match="Session not found"):
@@ -314,12 +325,15 @@ class TestSpeedTraceBusinessLogic:
                 workspace_dir=tmp_output_dir,
             )
 
-    @patch("pitlane_agent.scripts.speed_trace.plt")
-    @patch("pitlane_agent.scripts.speed_trace.fastf1")
-    def test_generate_speed_trace_chart_empty_laps(self, mock_fastf1, mock_plt, tmp_output_dir, mock_fastf1_session):
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    def test_generate_speed_trace_chart_empty_laps(
+        self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
+    ):
         """Test handling when driver has no laps."""
         # Setup mocks
-        mock_fastf1.get_session.return_value = mock_fastf1_session
+        mock_load_session.return_value = mock_fastf1_session
 
         # Mock empty driver laps for first driver
         mock_empty_laps = MagicMock()

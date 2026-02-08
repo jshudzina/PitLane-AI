@@ -6,13 +6,11 @@ Usage:
     pitlane driver-info --limit 50
 """
 
-import json
-import sys
 from datetime import datetime
 
-import click
-import fastf1.ergast as ergast
 import pandas as pd
+
+from pitlane_agent.utils.ergast import get_ergast_client
 
 
 def get_driver_info(
@@ -33,7 +31,7 @@ def get_driver_info(
         Dictionary with driver information and metadata
     """
     # Initialize Ergast API
-    ergast_api = ergast.Ergast()
+    ergast_api = get_ergast_client()
 
     # Call get_driver_info with appropriate filters
     if driver_code:
@@ -101,62 +99,3 @@ def get_driver_info(
         },
         "drivers": drivers,
     }
-
-
-@click.command()
-@click.option(
-    "--driver-code",
-    type=str,
-    default=None,
-    help="Filter by 3-letter driver code (e.g., VER, HAM, LEC)",
-)
-@click.option(
-    "--season",
-    type=int,
-    default=None,
-    help="Filter by season year (e.g., 2024)",
-)
-@click.option(
-    "--limit",
-    type=int,
-    default=100,
-    help="Maximum number of drivers to return (default: 100)",
-)
-@click.option(
-    "--offset",
-    type=int,
-    default=0,
-    help="Number of drivers to skip for pagination (default: 0)",
-)
-def cli(
-    driver_code: str | None,
-    season: int | None,
-    limit: int,
-    offset: int,
-):
-    """Get F1 driver information from FastF1 Ergast API."""
-    # Validate season if provided
-    if season is not None:
-        current_year = datetime.now().year
-        if season < 1950 or season > current_year + 2:
-            click.echo(
-                json.dumps({"error": f"Season must be between 1950 and {current_year + 2}"}),
-                err=True,
-            )
-            sys.exit(1)
-
-    try:
-        result = get_driver_info(
-            driver_code=driver_code,
-            season=season,
-            limit=limit,
-            offset=offset,
-        )
-        click.echo(json.dumps(result, indent=2))
-    except Exception as e:
-        click.echo(json.dumps({"error": str(e)}), err=True)
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    cli()

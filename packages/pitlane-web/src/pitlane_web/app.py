@@ -8,7 +8,7 @@ from fastapi import Cookie, FastAPI, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pitlane_agent.scripts.workspace import (
+from pitlane_agent.commands.workspace import (
     create_conversation,
     get_active_conversation,
     get_workspace_path,
