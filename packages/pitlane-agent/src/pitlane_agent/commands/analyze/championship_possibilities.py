@@ -3,6 +3,7 @@
 Usage:
     pitlane analyze championship-possibilities --session-id <id> --year 2024
     pitlane analyze championship-possibilities --session-id <id> --year 2024 --championship constructors
+    pitlane analyze championship-possibilities --session-id <id> --year 2024 --after-round 10
 """
 
 from pathlib import Path
@@ -147,6 +148,7 @@ def _generate_championship_chart(
     year: int,
     championship_type: str,
     ax: plt.Axes,
+    after_round: int | None = None,
 ) -> None:
     """Generate horizontal bar chart for championship possibilities.
 
@@ -155,6 +157,7 @@ def _generate_championship_chart(
         year: Championship year
         championship_type: "drivers" or "constructors"
         ax: Matplotlib axes to plot on
+        after_round: Optional round number for historical analysis
     """
     # Sort by current points for display
     competitor_stats = sorted(competitor_stats, key=lambda x: x["current_points"], reverse=False)
@@ -196,7 +199,10 @@ def _generate_championship_chart(
     ax.set_yticklabels(names)
     ax.set_xlabel("Championship Points")
     championship_label = "Drivers" if championship_type == "drivers" else "Constructors"
-    ax.set_title(f"{year} {championship_label}' Championship - Who Can Still Win?")
+
+    # Add "After Round X" to title if analyzing historical data
+    round_suffix = f" (After Round {after_round})" if after_round is not None else ""
+    ax.set_title(f"{year} {championship_label}' Championship - Who Can Still Win?{round_suffix}")
 
     # Add grid
     ax.grid(True, alpha=GRID_ALPHA, axis="x")
@@ -223,6 +229,7 @@ def generate_championship_possibilities_chart(
     year: int,
     championship: str = "drivers",
     workspace_dir: Path | None = None,
+    after_round: int | None = None,
 ) -> dict:
     """Generate championship possibilities visualization.
 
@@ -230,6 +237,7 @@ def generate_championship_possibilities_chart(
         year: Season year
         championship: Championship type - "drivers" or "constructors"
         workspace_dir: Workspace directory for outputs
+        after_round: Optional round number to analyze historical "what if" scenarios
 
     Returns:
         Dictionary with chart metadata and championship statistics
@@ -238,21 +246,22 @@ def generate_championship_possibilities_chart(
     if championship not in ["drivers", "constructors"]:
         raise ValueError(f"Invalid championship type: {championship}. Must be 'drivers' or 'constructors'.")
 
-    # Get current standings
+    # Get standings (current or historical)
     if championship == "drivers":
-        standings_data = get_driver_standings(year)
+        standings_data = get_driver_standings(year, round_number=after_round)
         standings = standings_data["standings"]
     else:
-        standings_data = get_constructor_standings(year)
+        standings_data = get_constructor_standings(year, round_number=after_round)
         standings = standings_data["standings"]
 
     if not standings:
         raise ValueError(f"No standings data available for {year} {championship} championship")
 
-    current_round = standings_data["round"]
+    # Use the round from standings data (either specified after_round or current)
+    analysis_round = standings_data["round"]
 
     # Count remaining races
-    remaining_races, remaining_sprints = _count_remaining_races(year, current_round)
+    remaining_races, remaining_sprints = _count_remaining_races(year, analysis_round)
 
     # Calculate maximum points available
     max_points_available = _calculate_max_points_available(remaining_races, remaining_sprints)
@@ -267,10 +276,11 @@ def generate_championship_possibilities_chart(
     fig, ax = plt.subplots(figsize=(FIGURE_WIDTH, FIGURE_HEIGHT))
 
     # Generate chart
-    _generate_championship_chart(competitor_stats, year, championship, ax)
+    _generate_championship_chart(competitor_stats, year, championship, ax, after_round=analysis_round)
 
-    # Save figure
-    filename = f"championship_possibilities_{year}_{championship}.png"
+    # Save figure (include round in filename if analyzing historical data)
+    round_suffix = f"_round_{analysis_round}" if after_round is not None else ""
+    filename = f"championship_possibilities_{year}_{championship}{round_suffix}.png"
     output_path = workspace_dir / "charts" / filename
     save_figure(fig, output_path, dpi=DEFAULT_DPI)
 
@@ -285,7 +295,7 @@ def generate_championship_possibilities_chart(
         "workspace": str(workspace_dir),
         "year": year,
         "championship_type": championship,
-        "current_round": current_round,
+        "analysis_round": analysis_round,
         "remaining_races": remaining_races,
         "remaining_sprints": remaining_sprints,
         "max_points_available": max_points_available,

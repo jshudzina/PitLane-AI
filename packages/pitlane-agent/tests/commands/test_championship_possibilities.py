@@ -207,7 +207,7 @@ class TestChampionshipPossibilitiesBusinessLogic:
         # Verify result structure
         assert result["year"] == 2024
         assert result["championship_type"] == "drivers"
-        assert result["current_round"] == 18
+        assert result["analysis_round"] == 18
         assert result["remaining_races"] == 6
         assert result["remaining_sprints"] == 1
         assert result["max_points_available"] == 164  # (6 * 26) + (1 * 8)
@@ -226,7 +226,7 @@ class TestChampionshipPossibilitiesBusinessLogic:
         assert "championship_possibilities_2024_drivers.png" in result["chart_path"]
 
         # Verify mocks were called
-        mock_get_standings.assert_called_once_with(2024)
+        mock_get_standings.assert_called_once_with(2024, round_number=None)
         mock_get_schedule.assert_called_once_with(2024, include_testing=False)
 
     @patch("pitlane_agent.commands.analyze.championship_possibilities.plt")
@@ -278,7 +278,7 @@ class TestChampionshipPossibilitiesBusinessLogic:
         assert "championship_possibilities_2024_constructors.png" in result["chart_path"]
 
         # Verify correct fetch function was called
-        mock_get_standings.assert_called_once_with(2024)
+        mock_get_standings.assert_called_once_with(2024, round_number=None)
 
     @patch("pitlane_agent.commands.analyze.championship_possibilities.get_driver_standings")
     def test_generate_chart_no_standings_data(self, mock_get_standings, tmp_output_dir):
@@ -340,3 +340,66 @@ class TestChampionshipPossibilitiesBusinessLogic:
         stats = result["statistics"]
         assert stats["still_possible"] == 0
         assert stats["eliminated"] == 2
+
+    @patch("pitlane_agent.commands.analyze.championship_possibilities.plt")
+    @patch("pitlane_agent.commands.analyze.championship_possibilities.get_event_schedule")
+    @patch("pitlane_agent.commands.analyze.championship_possibilities.get_driver_standings")
+    def test_generate_chart_with_after_round(self, mock_get_standings, mock_get_schedule, mock_plt, tmp_output_dir):
+        """Test chart generation with after_round parameter for historical analysis."""
+        # Mock driver standings after round 10
+        mock_get_standings.return_value = {
+            "year": 2024,
+            "round": 10,
+            "standings": [
+                {"position": 1, "points": 200.0, "full_name": "Max Verstappen"},
+                {"position": 2, "points": 180.0, "full_name": "Lando Norris"},
+                {"position": 3, "points": 170.0, "full_name": "Charles Leclerc"},
+            ],
+        }
+
+        # Mock event schedule with 14 races remaining after round 10
+        mock_get_schedule.return_value = {
+            "events": [
+                {"round": 11, "sessions": [{"name": "Race"}]},
+                {"round": 12, "sessions": [{"name": "Sprint"}, {"name": "Race"}]},
+                {"round": 13, "sessions": [{"name": "Race"}]},
+                {"round": 14, "sessions": [{"name": "Race"}]},
+                {"round": 15, "sessions": [{"name": "Race"}]},
+                {"round": 16, "sessions": [{"name": "Race"}]},
+                {"round": 17, "sessions": [{"name": "Race"}]},
+                {"round": 18, "sessions": [{"name": "Race"}]},
+                {"round": 19, "sessions": [{"name": "Race"}]},
+                {"round": 20, "sessions": [{"name": "Race"}]},
+                {"round": 21, "sessions": [{"name": "Race"}]},
+                {"round": 22, "sessions": [{"name": "Race"}]},
+                {"round": 23, "sessions": [{"name": "Race"}]},
+                {"round": 24, "sessions": [{"name": "Race"}]},
+            ]
+        }
+
+        # Mock pyplot
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+
+        # Generate chart with after_round parameter
+        result = generate_championship_possibilities_chart(
+            year=2024,
+            championship="drivers",
+            workspace_dir=tmp_output_dir,
+            after_round=10,
+        )
+
+        # Verify result structure
+        assert result["year"] == 2024
+        assert result["championship_type"] == "drivers"
+        assert result["analysis_round"] == 10
+        assert result["remaining_races"] == 14
+        assert result["remaining_sprints"] == 1
+
+        # Verify chart filename includes round number
+        assert "championship_possibilities_2024_drivers_round_10.png" in result["chart_path"]
+
+        # Verify mocks were called with correct parameters
+        mock_get_standings.assert_called_once_with(2024, round_number=10)
+        mock_get_schedule.assert_called_once_with(2024, include_testing=False)

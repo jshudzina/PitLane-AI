@@ -310,7 +310,13 @@ def position_changes(session_id: str, year: int, gp: str, session: str, drivers:
     default="drivers",
     help="Championship type: drivers or constructors (default: drivers)",
 )
-def championship_possibilities(session_id: str, year: int, championship: str):
+@click.option(
+    "--after-round",
+    type=int,
+    required=False,
+    help="Analyze standings after a specific round for 'what if' scenarios (e.g., --after-round 10)",
+)
+def championship_possibilities(session_id: str, year: int, championship: str, after_round: int | None):
     """Calculate who can still mathematically win the championship."""
     # Verify workspace exists
     if not workspace_exists(session_id):
@@ -328,6 +334,7 @@ def championship_possibilities(session_id: str, year: int, championship: str):
             year=year,
             championship=championship,
             workspace_dir=workspace_path,
+            after_round=after_round,
         )
 
         # Add session info to result
