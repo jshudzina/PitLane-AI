@@ -1,7 +1,6 @@
 """Temporal analysis logic for determining F1 season/race/session state."""
 
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import fastf1
 import pandas as pd
@@ -13,6 +12,7 @@ from pitlane_agent.temporal.context import (
     SessionContext,
     TemporalContext,
 )
+from pitlane_agent.utils.fastf1_helpers import setup_fastf1_cache
 
 
 class TemporalAnalyzer:
@@ -20,8 +20,7 @@ class TemporalAnalyzer:
 
     def __init__(self):
         """Initialize analyzer with FastF1 cache."""
-        cache_dir = Path.home() / ".pitlane" / "cache" / "fastf1"
-        fastf1.Cache.enable_cache(str(cache_dir))
+        setup_fastf1_cache()
 
     def analyze(self, current_time: datetime) -> TemporalContext:
         """Analyze schedule and determine current temporal state.

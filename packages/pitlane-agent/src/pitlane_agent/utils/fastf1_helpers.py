@@ -18,7 +18,9 @@ def setup_fastf1_cache() -> None:
     Uses get_fastf1_cache_dir() from utils to ensure all commands
     share the same cache directory (~/.pitlane/cache/fastf1/).
     """
-    fastf1.Cache.enable_cache(str(get_fastf1_cache_dir()))
+    cache_dir = get_fastf1_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    fastf1.Cache.enable_cache(str(cache_dir))
 
 
 def load_session(
