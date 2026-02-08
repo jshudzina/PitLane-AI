@@ -95,35 +95,27 @@ Filters are applied in sequence. For example, `--category Flag --detail high` sh
 
 Read the saved file at `data/race_control.json` and analyze the messages chronologically.
 
-#### Identify Critical Events
+#### Quick Reference: Critical Events
 
-**RED flag** → Race stopped immediately
-- Explains large gaps in lap times
-- Drivers may pit during red flag (free tire change)
-- Session resumes when "TRACK CLEAR" + "GREEN LIGHT - PIT EXIT OPEN" appear
+| Event | Impact | Detail Level |
+|-------|--------|--------------|
+| **RED flag** | Race stopped, large lap time gaps, free tire changes | High |
+| **SAFETY CAR / VSC** | Field bunched, common pit stop trigger | High |
+| **DOUBLE YELLOW** | Serious incident, significant slowdown required, explains lap time spikes | Medium |
+| **YELLOW** | Incident in area, moderate slowdown, no overtaking | Medium |
+| **DRS DISABLED** | No overtaking assistance, harder to pass | Medium |
+| **Collisions** | Check for penalties, retirements, position changes | High |
+| **BLUE flags** | Lapped car warnings (common, low analytical value) | Full |
+| **Track limits** | Lap time deletions, warnings, penalties | Full |
 
-**SAFETY CAR / VSC** → Race neutralized
-- Explains bunched field in positions
-- Common strategy trigger (cheap pit stop under SC)
-- VSC (Virtual Safety Car) less restrictive than full SC
+#### Reference Documentation
 
-**DOUBLE YELLOW** → Serious incident in sector
-- Drivers must slow significantly and be prepared to stop
-- No overtaking allowed
-- Explains slow sector times or lap time spikes
+Based on the detail level you fetched, consult the appropriate reference:
 
-**YELLOW** → Incident in area
-- Drivers must slow and no overtaking
-- Single waved flag vs double (severity indicator)
-
-**DRS DISABLED** → No DRS overtaking assistance
-- Explains why overtaking became difficult
-- Often disabled due to weather or incidents
-
-**Collisions/Incidents** → Race-changing events
-- Check for penalties issued (time penalties, DSQ)
-- Explains position changes or retirements
-- May trigger subsequent safety measures
+- **[fields.md](references/fields.md)** - Message structure, field descriptions, categories (read first for schema)
+- **[high-detail-events.md](references/high-detail-events.md)** - RED flags, safety cars, major incidents
+- **[medium-detail-events.md](references/medium-detail-events.md)** - YELLOW flags, DRS changes, penalties
+- **[full-detail-events.md](references/full-detail-events.md)** - BLUE flags, track limits, administrative messages
 
 #### Connect to Other Data
 
@@ -183,44 +175,6 @@ pitlane fetch race-control --session-id $PITLANE_SESSION_ID --year 2024 --gp Mon
 ```
 **Analysis**: Chronologically list all significant events from race start
 
-## Interpreting Common Patterns
-
-### Safety Car Sequence
-1. **"SAFETY CAR DEPLOYED"** → Incident occurred, SC entering track
-2. **"SAFETY CAR IN THIS LAP"** → SC will return to pits at end of this lap
-3. Next lap: Racing resumes with traditional restart
-
-**Strategy Impact**: Teams often pit under SC (cheap stop, field bunched anyway)
-
-### Red Flag Sequence
-1. **"RED"** flag → Session stopped immediately, cars return to pit lane or grid
-2. **"TRACK CLEAR"** → Incident resolved, debris removed
-3. **"GREEN LIGHT - PIT EXIT OPEN"** → Session resumes, drivers can return to track
-
-**Strategy Impact**: Free tire change during red flag, teams may adjust strategy
-
-### Yellow Flag Progression
-- **YELLOW** → Single waved, incident in area, slow down
-- **DOUBLE YELLOW** → More serious, be prepared to stop, no overtaking
-- **CLEAR** → Incident resolved, racing conditions restored
-
-**Impact**: DOUBLE YELLOW in a sector explains significant lap time increases
-
-### DRS Status
-- **"DRS ENABLED"** → Overtaking assistance active on DRS zones
-- **"DRS DISABLED"** → No DRS (weather, incidents, or track conditions)
-
-**Impact**: DRS disabled explains why overtaking became difficult despite pace advantage
-
-### Penalty Patterns
-- **"INCIDENT ... NOTED"** → FIA aware, may investigate
-- **"UNDER INVESTIGATION"** → Formal investigation opened
-- **"REVIEWED NO FURTHER INVESTIGATION"** → No penalty
-- **"X SECOND TIME PENALTY"** or **"DISQUALIFIED"** → Penalty issued
-
-## Message Field Reference
-
-For detailed field descriptions, message structure, and examples, see [references/message-categories.md](references/message-categories.md).
 
 ## Notes
 
