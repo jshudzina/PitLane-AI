@@ -140,12 +140,12 @@ This enables:
 
 ## Workspace API
 
-See [`scripts/workspace.py`](https://github.com/jshudzina/PitLane-AI/blob/main/packages/pitlane-agent/src/pitlane_agent/scripts/workspace.py) for the full API:
+See [`commands/workspace/`](https://github.com/jshudzina/PitLane-AI/blob/main/packages/pitlane-agent/src/pitlane_agent/commands/workspace/) for the full API:
 
 ### Create Workspace
 
 ```python
-from pitlane_agent.scripts.workspace import create_workspace
+from pitlane_agent.commands.workspace import create_workspace
 
 # Auto-generated session ID
 workspace_info = create_workspace()
@@ -168,7 +168,7 @@ workspace_info = create_workspace(max_retries=5)
 ### Get Workspace Info
 
 ```python
-from pitlane_agent.scripts.workspace import get_workspace_info
+from pitlane_agent.commands.workspace import get_workspace_info
 
 info = get_workspace_info(session_id="abc123")
 # Returns: {
@@ -185,7 +185,7 @@ info = get_workspace_info(session_id="abc123")
 ### List Workspaces
 
 ```python
-from pitlane_agent.scripts.workspace import list_workspaces
+from pitlane_agent.commands.workspace import list_workspaces
 
 # Recent workspaces (10 most recent)
 workspaces = list_workspaces()
@@ -199,7 +199,7 @@ workspaces = list_workspaces(show_all=True)
 ### Remove Workspace
 
 ```python
-from pitlane_agent.scripts.workspace import remove_workspace
+from pitlane_agent.commands.workspace import remove_workspace
 
 remove_workspace(session_id="abc123")
 # Raises ValueError if workspace doesn't exist
@@ -208,7 +208,7 @@ remove_workspace(session_id="abc123")
 ### Clean Workspaces
 
 ```python
-from pitlane_agent.scripts.workspace import clean_workspaces
+from pitlane_agent.commands.workspace import clean_workspaces
 
 # Remove workspaces older than 7 days
 result = clean_workspaces(older_than_days=7)

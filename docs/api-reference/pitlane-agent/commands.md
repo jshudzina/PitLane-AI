@@ -1,8 +1,8 @@
-# Workspace Scripts API
+# Workspace Commands API
 
-Auto-generated API documentation for workspace management scripts.
+Auto-generated API documentation for workspace management commands.
 
-::: pitlane_agent.scripts.workspace
+::: pitlane_agent.commands.workspace
     options:
       show_source: true
       members:
