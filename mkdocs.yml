@@ -161,7 +161,7 @@ nav:
           - Agent: api-reference/pitlane-agent/agent.md
           - Temporal Context: api-reference/pitlane-agent/temporal.md
           - CLI: api-reference/pitlane-agent/cli.md
-          - Scripts: api-reference/pitlane-agent/scripts.md
+          - Commands: api-reference/pitlane-agent/commands.md
       - PitLane Web:
           - App: api-reference/pitlane-web/app.md
           - Session: api-reference/pitlane-web/session.md
