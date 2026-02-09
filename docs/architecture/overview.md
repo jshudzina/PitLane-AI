@@ -145,7 +145,7 @@ packages/
 │   │   ├── temporal/       # Temporal context system
 │   │   ├── tool_permissions.py
 │   │   ├── tracing.py      # OpenTelemetry hooks
-│   │   ├── scripts/        # CLI commands
+│   │   ├── commands/       # CLI commands
 │   │   └── .claude/skills/ # F1 analysis skills
 │   └── tests/
 │

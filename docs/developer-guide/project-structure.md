@@ -29,10 +29,10 @@ PitLane-AI/
 │   │   │       │   ├── analyzer.py     # Calendar analysis
 │   │   │       │   ├── cache.py        # Cache management
 │   │   │       │   └── formatter.py    # Prompt formatting
-│   │   │       ├── scripts/            # CLI script implementations
-│   │   │       │   ├── workspace.py    # Workspace management
-│   │   │       │   ├── fetch.py        # Data fetching
-│   │   │       │   └── analyze.py      # Analysis functions
+│   │   │       ├── commands/           # CLI command implementations
+│   │   │       │   ├── fetch/          # Data fetching commands
+│   │   │       │   ├── analyze/        # Analysis commands
+│   │   │       │   └── workspace/      # Workspace management
 │   │   │       └── .claude/
 │   │   │           └── skills/         # Agent skills
 │   │   │               ├── f1-analyst/
@@ -82,7 +82,7 @@ PitLane-AI/
 - `agent.py` - Main F1Agent class
 - `temporal/` - F1 calendar awareness system
 - `tool_permissions.py` - Tool restriction logic
-- `scripts/` - CLI command implementations
+- `commands/` - CLI command implementations
 - `.claude/skills/` - Analysis skills
 
 **Entry Points:**
