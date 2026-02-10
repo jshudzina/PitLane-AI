@@ -1,4 +1,8 @@
-"""Session management functions for PitLane AI web application."""
+"""Session management functions for PitLane AI web application.
+
+Note: In this module, 'session_id' refers to the workspace identifier (UUID stored in browser cookie),
+which is distinct from the 'agent_session_id' (Claude SDK session ID for conversation resumption).
+"""
 
 import logging
 from threading import Lock

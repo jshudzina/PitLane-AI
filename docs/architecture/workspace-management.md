@@ -86,7 +86,7 @@ create_workspace(session_id=None, max_retries=3)
 # Retries UUID generation if workspace already exists
 ```
 
-Explicit session IDs fail immediately if workspace exists:
+Explicit workspace IDs fail immediately if workspace exists:
 ```python
 create_workspace(session_id="explicit-id")
 # Raises ValueError if workspace exists
@@ -118,19 +118,19 @@ pitlane workspace clean --all
 4. Remove if age exceeds threshold
 5. Return cleanup stats (count, session IDs)
 
-## Session ID Propagation
+## Workspace ID Propagation
 
 The session ID flows through the system via **environment variable**:
 
 ```python
 # F1Agent sets session ID for skills
-os.environ["PITLANE_SESSION_ID"] = self.session_id
+os.environ["PITLANE_WORKSPACE_ID"] = self.session_id
 
 # Skills access session ID
-session_id = os.environ["PITLANE_SESSION_ID"]
+session_id = os.environ["PITLANE_WORKSPACE_ID"]
 
 # CLI commands use session ID
-pitlane fetch session-info --session-id $PITLANE_SESSION_ID --year 2024
+pitlane fetch session-info --workspace-id $PITLANE_WORKSPACE_ID --year 2024
 ```
 
 This enables:
@@ -147,7 +147,7 @@ See [`commands/workspace/`](https://github.com/jshudzina/PitLane-AI/blob/main/pa
 ```python
 from pitlane_agent.commands.workspace import create_workspace
 
-# Auto-generated session ID
+# Auto-generated workspace ID
 workspace_info = create_workspace()
 # Returns: {
 #   "session_id": "abc123-...",
@@ -155,7 +155,7 @@ workspace_info = create_workspace()
 #   "created_at": "2024-05-23T14:30:00Z"
 # }
 
-# Explicit session ID
+# Explicit workspace ID
 workspace_info = create_workspace(
     session_id="my-session",
     description="Monaco 2024 analysis"
@@ -283,10 +283,10 @@ pitlane workspace list
 pitlane workspace list --all
 
 # Get workspace info
-pitlane workspace info --session-id abc123
+pitlane workspace info --workspace-id abc123
 
 # Remove workspace
-pitlane workspace remove --session-id abc123
+pitlane workspace remove --workspace-id abc123
 
 # Clean old workspaces
 pitlane workspace clean --older-than-days 7

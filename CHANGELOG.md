@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-02-10
+
+### Breaking Changes
+
+- **CLI**: Renamed `--session-id` to `--workspace-id` across all commands to avoid confusion with F1 session terminology (Race, Qualifying, Practice, Sprint)
+- **Environment Variable**: Renamed `PITLANE_SESSION_ID` to `PITLANE_WORKSPACE_ID` for consistency
+- **Skills**: Updated all skill files to reference `$PITLANE_WORKSPACE_ID`
+
+### Migration Guide
+
+**CLI Commands:**
+```bash
+# Old:
+pitlane workspace create --session-id my-analysis
+pitlane fetch session-info --session-id my-analysis --year 2024 --gp Monaco --session R
+
+# New:
+pitlane workspace create --workspace-id my-analysis
+pitlane fetch session-info --workspace-id my-analysis --year 2024 --gp Monaco --session R
+```
+
+**Environment Variable:**
+- Skills now use `$PITLANE_WORKSPACE_ID` instead of `$PITLANE_SESSION_ID`
+- Tool permissions updated to allow new variable name
+
+**No Data Migration Required:**
+- Existing workspaces continue to work without modification
+- Workspace directories remain at `~/.pitlane/workspaces/{id}/`
+- Internal Python function parameters unchanged (planned for v0.3.0)
+
 ## [0.1.3] - 2026-02-08
 
 ### Documentation

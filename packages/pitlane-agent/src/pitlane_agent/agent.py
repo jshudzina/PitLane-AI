@@ -110,8 +110,8 @@ class F1Agent:
         """
         import os
 
-        # Set session ID as environment variable so skills can access it
-        os.environ["PITLANE_SESSION_ID"] = self.session_id
+        # Set workspace ID as environment variable so skills can access it
+        os.environ["PITLANE_WORKSPACE_ID"] = self.session_id
 
         # Configure hooks for tracing
         hooks = None

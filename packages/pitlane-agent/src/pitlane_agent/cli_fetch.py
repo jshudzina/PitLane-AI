@@ -23,11 +23,11 @@ from pitlane_agent.commands.workspace import get_workspace_path, workspace_exist
 from pitlane_agent.utils.constants import MIN_F1_YEAR
 
 
-def _validate_standings_request(session_id: str, year: int) -> Path:
+def _validate_standings_request(workspace_id: str, year: int) -> Path:
     """Validate workspace and year for standings fetch commands.
 
     Args:
-        session_id: Workspace session ID
+        workspace_id: Workspace ID
         year: Championship year
 
     Returns:
@@ -37,9 +37,9 @@ def _validate_standings_request(session_id: str, year: int) -> Path:
         SystemExit: If validation fails
     """
     # Verify workspace exists
-    if not workspace_exists(session_id):
+    if not workspace_exists(workspace_id):
         click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
             err=True,
         )
         sys.exit(1)
@@ -53,7 +53,7 @@ def _validate_standings_request(session_id: str, year: int) -> Path:
         )
         sys.exit(1)
 
-    workspace_path = get_workspace_path(session_id)
+    workspace_path = get_workspace_path(workspace_id)
     return workspace_path / "data"
 
 
@@ -64,7 +64,7 @@ def fetch():
 
 
 @fetch.command()
-@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -73,17 +73,17 @@ def fetch():
     required=True,
     help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
 )
-def session_info(session_id: str, year: int, gp: str, session: str):
+def session_info(workspace_id: str, year: int, gp: str, session: str):
     """Fetch session information and store in workspace."""
     # Verify workspace exists
-    if not workspace_exists(session_id):
+    if not workspace_exists(workspace_id):
         click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
             err=True,
         )
         sys.exit(1)
 
-    workspace_path = get_workspace_path(session_id)
+    workspace_path = get_workspace_path(workspace_id)
     data_dir = workspace_path / "data"
 
     try:
@@ -110,7 +110,7 @@ def session_info(session_id: str, year: int, gp: str, session: str):
 
 
 @fetch.command()
-@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option(
     "--driver-code",
     type=str,
@@ -136,7 +136,7 @@ def session_info(session_id: str, year: int, gp: str, session: str):
     help="Number of drivers to skip for pagination (default: 0)",
 )
 def driver_info(
-    session_id: str,
+    workspace_id: str,
     driver_code: str | None,
     season: int | None,
     limit: int,
@@ -144,9 +144,9 @@ def driver_info(
 ):
     """Fetch driver information and store in workspace."""
     # Verify workspace exists
-    if not workspace_exists(session_id):
+    if not workspace_exists(workspace_id):
         click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
             err=True,
         )
         sys.exit(1)
@@ -161,7 +161,7 @@ def driver_info(
             )
             sys.exit(1)
 
-    workspace_path = get_workspace_path(session_id)
+    workspace_path = get_workspace_path(workspace_id)
     data_dir = workspace_path / "data"
 
     try:
@@ -192,7 +192,7 @@ def driver_info(
 
 
 @fetch.command()
-@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option(
     "--year",
     type=int,
@@ -218,7 +218,7 @@ def driver_info(
     help="Include testing sessions (default: True)",
 )
 def event_schedule(
-    session_id: str,
+    workspace_id: str,
     year: int,
     round_number: int | None,
     country: str | None,
@@ -226,9 +226,9 @@ def event_schedule(
 ):
     """Fetch event schedule and store in workspace."""
     # Verify workspace exists
-    if not workspace_exists(session_id):
+    if not workspace_exists(workspace_id):
         click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
             err=True,
         )
         sys.exit(1)
@@ -242,7 +242,7 @@ def event_schedule(
         )
         sys.exit(1)
 
-    workspace_path = get_workspace_path(session_id)
+    workspace_path = get_workspace_path(workspace_id)
     data_dir = workspace_path / "data"
 
     try:
@@ -273,7 +273,7 @@ def event_schedule(
 
 
 @fetch.command("driver-standings")
-@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Championship year (e.g., 2024)")
 @click.option(
     "--round",
@@ -282,10 +282,10 @@ def event_schedule(
     default=None,
     help="Filter by specific round number (default: final standings)",
 )
-def driver_standings(session_id: str, year: int, round_number: int | None):
+def driver_standings(workspace_id: str, year: int, round_number: int | None):
     """Fetch driver championship standings and store in workspace."""
     # Validate request
-    data_dir = _validate_standings_request(session_id, year)
+    data_dir = _validate_standings_request(workspace_id, year)
 
     try:
         # Fetch standings
@@ -316,7 +316,7 @@ def driver_standings(session_id: str, year: int, round_number: int | None):
 
 
 @fetch.command("constructor-standings")
-@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Championship year (e.g., 2024)")
 @click.option(
     "--round",
@@ -325,10 +325,10 @@ def driver_standings(session_id: str, year: int, round_number: int | None):
     default=None,
     help="Filter by specific round number (default: final standings)",
 )
-def constructor_standings(session_id: str, year: int, round_number: int | None):
+def constructor_standings(workspace_id: str, year: int, round_number: int | None):
     """Fetch constructor championship standings and store in workspace."""
     # Validate request
-    data_dir = _validate_standings_request(session_id, year)
+    data_dir = _validate_standings_request(workspace_id, year)
 
     try:
         # Fetch standings
@@ -359,7 +359,7 @@ def constructor_standings(session_id: str, year: int, round_number: int | None):
 
 
 @fetch.command("race-control")
-@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -411,7 +411,7 @@ def constructor_standings(session_id: str, year: int, round_number: int | None):
     help="Filter by track sector number",
 )
 def race_control(
-    session_id: str,
+    workspace_id: str,
     year: int,
     gp: str,
     session: str,
@@ -425,14 +425,14 @@ def race_control(
 ):
     """Fetch race control messages and store in workspace."""
     # Verify workspace exists
-    if not workspace_exists(session_id):
+    if not workspace_exists(workspace_id):
         click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
             err=True,
         )
         sys.exit(1)
 
-    workspace_path = get_workspace_path(session_id)
+    workspace_path = get_workspace_path(workspace_id)
     data_dir = workspace_path / "data"
 
     try:

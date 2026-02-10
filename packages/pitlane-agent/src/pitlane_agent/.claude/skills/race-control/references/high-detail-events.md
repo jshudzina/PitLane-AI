@@ -48,7 +48,7 @@ Session stopped immediately due to dangerous conditions. All cars must return to
 
 **Analysis**:
 ```bash
-pitlane fetch race-control --session-id $PITLANE_SESSION_ID --lap-start 1 --lap-end 10
+pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --lap-start 1 --lap-end 10
 ```
 
 If you see "RED FLAG" on lap 3 and "GREEN LIGHT" on lap 8:
@@ -91,7 +91,7 @@ Race neutralized to safely manage an incident. Field bunches together, no overta
 
 **Analysis**:
 ```bash
-pitlane fetch race-control --session-id $PITLANE_SESSION_ID --lap-start 14 --lap-end 16 --category SafetyCar
+pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --lap-start 14 --lap-end 16 --category SafetyCar
 ```
 
 If you see "SAFETY CAR DEPLOYED" on lap 15:
@@ -144,7 +144,7 @@ If you see "SAFETY CAR DEPLOYED" on lap 15:
 
 **Analysis**:
 ```bash
-pitlane fetch race-control --session-id $PITLANE_SESSION_ID --driver 16 --detail high
+pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --driver 16 --detail high
 ```
 
 If you see collision message involving car 16:

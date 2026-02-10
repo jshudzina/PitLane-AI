@@ -194,8 +194,8 @@ Agent: I'll analyze the qualifying lap times for those three drivers.
 
 [Invokes f1-analyst skill → lap_times.md]
 
-pitlane fetch session-info --session-id abc123 --year 2024 --gp Monaco --session Q
-pitlane analyze lap-times --session-id abc123 --year 2024 --gp Monaco --session Q \
+pitlane fetch session-info --workspace-id abc123 --year 2024 --gp Monaco --session Q
+pitlane analyze lap-times --workspace-id abc123 --year 2024 --gp Monaco --session Q \
   --drivers VER --drivers HAM --drivers LEC
 
 [Generates lap_times.png]
@@ -220,8 +220,8 @@ Agent: I'll check Red Bull's tyre strategy for the Silverstone race.
 
 [Invokes f1-analyst skill → strategy.md]
 
-pitlane fetch session-info --session-id abc123 --year 2024 --gp Silverstone --session R
-pitlane analyze tyre-strategy --session-id abc123 --year 2024 --gp Silverstone --session R
+pitlane fetch session-info --workspace-id abc123 --year 2024 --gp Silverstone --session R
+pitlane analyze tyre-strategy --workspace-id abc123 --year 2024 --gp Silverstone --session R
 
 [Generates strategy.png]
 
@@ -244,7 +244,7 @@ Agent: I'll look up McLaren's driver lineup for the 2023 season.
 
 [Invokes f1-drivers skill]
 
-pitlane fetch drivers --session-id abc123 --year 2023 --team McLaren
+pitlane fetch drivers --workspace-id abc123 --year 2023 --team McLaren
 
 McLaren's 2023 drivers:
 - Lando Norris (NOR) - British
@@ -307,7 +307,7 @@ McLaren's 2023 drivers:
 - Tool permission denied
 
 **Solution:**
-- Check workspace: `pitlane workspace info --session-id <id>`
+- Check workspace: `pitlane workspace info --workspace-id <id>`
 - Enable tracing: `PITLANE_TRACING_ENABLED=1`
 
 ## Related Documentation

@@ -1,4 +1,8 @@
-"""Agent caching and lifecycle management for PitLane AI web application."""
+"""Agent caching and lifecycle management for PitLane AI web application.
+
+Note: The 'session_id' parameter in this module refers to the workspace identifier,
+not the Claude SDK agent session ID.
+"""
 
 import asyncio
 import logging

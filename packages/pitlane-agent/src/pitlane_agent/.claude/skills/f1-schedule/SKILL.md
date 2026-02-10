@@ -19,12 +19,12 @@ Use this skill when users ask about:
 
 **Complementary with f1-analyst**: This skill provides "when and where" information. Use the f1-analyst skill for race results, lap times, and performance analysis.
 
-## Step 1: Create or Get Workspace Session ID
+## Step 1: Create or Get Workspace Workspace ID
 
-**IMPORTANT**: Before running any fetch commands, you need a workspace session ID.
+**IMPORTANT**: Before running any fetch commands, you need a workspace ID.
 
 ### If this is a new conversation:
-Create a new workspace and capture the session ID from the output:
+Create a new workspace and capture the workspace ID from the output:
 
 ```bash
 pitlane workspace create
@@ -42,7 +42,7 @@ This returns JSON like:
 **Extract the `session_id` from this output - you'll use it in all subsequent commands.**
 
 ### If continuing an existing conversation:
-Use the same session ID you created earlier in this conversation.
+Use the same workspace ID you created earlier in this conversation.
 
 ## Step 2: Identify the Query Parameters
 
@@ -56,29 +56,29 @@ If the user doesn't specify a year, default to the most recent completed or curr
 
 ## Step 3: Get Schedule Using PitLane CLI
 
-Use the PitLane CLI to fetch schedule data. All commands require a `--session-id` parameter which is provided by the F1Agent managing your workspace.
+Use the PitLane CLI to fetch schedule data. All commands require a `--workspace-id` parameter which is provided by the F1Agent managing your workspace.
 
 ### Get Full Season Calendar
 ```bash
-pitlane fetch event-schedule --session-id SESSION_ID --year 2024
+pitlane fetch event-schedule --workspace-id SESSION_ID --year 2024
 ```
 Returns JSON with all events for the season and saves to workspace.
 
 ### Get Specific Round
 ```bash
-pitlane fetch event-schedule --session-id SESSION_ID --year 2024 --round 6
+pitlane fetch event-schedule --workspace-id SESSION_ID --year 2024 --round 6
 ```
 Returns data for only round 6.
 
 ### Filter by Country
 ```bash
-pitlane fetch event-schedule --session-id SESSION_ID --year 2024 --country Italy
+pitlane fetch event-schedule --workspace-id SESSION_ID --year 2024 --country Italy
 ```
 Returns all Italian races (e.g., Imola, Monza if both are scheduled).
 
 ### Exclude Testing Sessions
 ```bash
-pitlane fetch event-schedule --session-id SESSION_ID --year 2024 --no-testing
+pitlane fetch event-schedule --workspace-id SESSION_ID --year 2024 --no-testing
 ```
 Returns only championship rounds without pre-season testing.
 

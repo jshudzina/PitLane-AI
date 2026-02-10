@@ -370,8 +370,8 @@ class TestBashEnvironmentVariableValidation:
     """Tests for environment variable validation in Bash commands."""
 
     def test_bash_allowed_env_vars_pitlane_session_id(self):
-        """Test that PITLANE_SESSION_ID is allowed."""
-        assert _is_allowed_bash_command("PITLANE_SESSION_ID=abc123 pitlane analyze")
+        """Test that PITLANE_WORKSPACE_ID is allowed."""
+        assert _is_allowed_bash_command("PITLANE_WORKSPACE_ID=abc123 pitlane analyze")
 
     def test_bash_allowed_env_vars_pitlane_cache_dir(self):
         """Test that PITLANE_CACHE_DIR is allowed."""
@@ -387,7 +387,7 @@ class TestBashEnvironmentVariableValidation:
 
     def test_bash_multiple_allowed_env_vars(self):
         """Test that multiple whitelisted env vars are allowed."""
-        assert _is_allowed_bash_command("PITLANE_SESSION_ID=abc PITLANE_CACHE_DIR=/tmp pitlane analyze")
+        assert _is_allowed_bash_command("PITLANE_WORKSPACE_ID=abc PITLANE_CACHE_DIR=/tmp pitlane analyze")
 
     def test_bash_blocked_env_var_pythonpath(self):
         """Test that PYTHONPATH is blocked."""
@@ -411,11 +411,11 @@ class TestBashEnvironmentVariableValidation:
 
     def test_bash_mixed_allowed_and_blocked_env_vars(self):
         """Test commands with both allowed and blocked env vars are rejected."""
-        assert not _is_allowed_bash_command("PITLANE_SESSION_ID=abc PYTHONPATH=/evil pitlane analyze")
+        assert not _is_allowed_bash_command("PITLANE_WORKSPACE_ID=abc PYTHONPATH=/evil pitlane analyze")
 
     def test_bash_mixed_blocked_and_allowed_env_vars(self):
         """Test commands with blocked vars first are rejected."""
-        assert not _is_allowed_bash_command("PYTHONPATH=/evil PITLANE_SESSION_ID=abc pitlane analyze")
+        assert not _is_allowed_bash_command("PYTHONPATH=/evil PITLANE_WORKSPACE_ID=abc pitlane analyze")
 
     def test_bash_no_env_vars(self):
         """Test that commands without env vars still work."""
@@ -423,11 +423,11 @@ class TestBashEnvironmentVariableValidation:
 
     def test_bash_only_env_vars_no_command(self):
         """Test that only env vars without a command is rejected."""
-        assert not _is_allowed_bash_command("PITLANE_SESSION_ID=abc")
+        assert not _is_allowed_bash_command("PITLANE_WORKSPACE_ID=abc")
 
     def test_bash_env_var_with_non_pitlane_command(self):
         """Test that allowed env vars with non-pitlane command are rejected."""
-        assert not _is_allowed_bash_command("PITLANE_SESSION_ID=abc ls -la")
+        assert not _is_allowed_bash_command("PITLANE_WORKSPACE_ID=abc ls -la")
 
     def test_bash_empty_command(self):
         """Test that empty command is rejected."""

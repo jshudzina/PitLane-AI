@@ -193,7 +193,7 @@ The agent automatically:
 
 ## Workspace Integration
 
-Skills access session data via the `PITLANE_SESSION_ID` environment variable. All data and charts are stored in `~/.pitlane/workspaces/<session-id>/`.
+Skills access session data via the `PITLANE_WORKSPACE_ID` environment variable. All data and charts are stored in `~/.pitlane/workspaces/<session-id>/`.
 
 ## Tool Permissions in Skills
 

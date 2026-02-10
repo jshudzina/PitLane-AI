@@ -38,21 +38,21 @@ Create a new workspace for analysis.
 
 **Usage:**
 ```bash
-pitlane workspace create [--session-id ID] [--description TEXT]
+pitlane workspace create [--workspace-id ID] [--description TEXT]
 ```
 
 **Options:**
-- `--session-id` - Explicit session ID (auto-generated if omitted)
+- `--workspace-id` - Explicit workspace ID (auto-generated if omitted)
 - `--description` - Optional workspace description
 
 **Examples:**
 ```bash
-# Auto-generated session ID
+# Auto-generated workspace ID
 pitlane workspace create
 # Output: {"session_id": "abc123-...", "workspace_path": "~/.pitlane/workspaces/abc123-..."}
 
-# Explicit session ID
-pitlane workspace create --session-id monaco-2024 --description "Monaco Grand Prix analysis"
+# Explicit workspace ID
+pitlane workspace create --workspace-id monaco-2024 --description "Monaco Grand Prix analysis"
 
 # Use in scripts
 SESSION_ID=$(pitlane workspace create | jq -r '.session_id')
@@ -112,15 +112,15 @@ Show detailed workspace information.
 
 **Usage:**
 ```bash
-pitlane workspace info --session-id SESSION_ID
+pitlane workspace info --workspace-id SESSION_ID
 ```
 
 **Options:**
-- `--session-id` (required) - Session ID to inspect
+- `--workspace-id` (required) - Workspace ID to inspect
 
 **Examples:**
 ```bash
-pitlane workspace info --session-id abc123
+pitlane workspace info --workspace-id abc123
 ```
 
 **Output:**
@@ -176,20 +176,20 @@ Remove a specific workspace.
 
 **Usage:**
 ```bash
-pitlane workspace remove --session-id SESSION_ID [--yes]
+pitlane workspace remove --workspace-id SESSION_ID [--yes]
 ```
 
 **Options:**
-- `--session-id` (required) - Session ID to remove
+- `--workspace-id` (required) - Workspace ID to remove
 - `--yes`, `-y` - Skip confirmation prompt
 
 **Examples:**
 ```bash
 # Remove with confirmation
-pitlane workspace remove --session-id abc123
+pitlane workspace remove --workspace-id abc123
 
 # Remove without confirmation
-pitlane workspace remove --session-id abc123 --yes
+pitlane workspace remove --workspace-id abc123 --yes
 ```
 
 ## Fetch Commands
@@ -202,19 +202,19 @@ Fetch session information and driver list.
 
 **Usage:**
 ```bash
-pitlane fetch session-info --session-id ID --year YEAR --gp GP_NAME --session SESSION_TYPE
+pitlane fetch session-info --workspace-id ID --year YEAR --gp GP_NAME --session SESSION_TYPE
 ```
 
 **Options:**
-- `--session-id` (required) - Workspace session ID
+- `--workspace-id` (required) - Workspace ID
 - `--year` (required) - Season year (e.g., 2024)
 - `--gp` (required) - Grand Prix name (e.g., Monaco, Silverstone)
 - `--session` (required) - Session type (R, Q, FP1, FP2, FP3, S, SQ)
 
 **Examples:**
 ```bash
-pitlane fetch session-info --session-id abc123 --year 2024 --gp Monaco --session R
-pitlane fetch session-info --session-id abc123 --year 2024 --gp Silverstone --session Q
+pitlane fetch session-info --workspace-id abc123 --year 2024 --gp Monaco --session R
+pitlane fetch session-info --workspace-id abc123 --year 2024 --gp Silverstone --session Q
 ```
 
 **Output:**
@@ -234,18 +234,18 @@ Fetch driver information for a season.
 
 **Usage:**
 ```bash
-pitlane fetch drivers --session-id ID --year YEAR [--team TEAM]
+pitlane fetch drivers --workspace-id ID --year YEAR [--team TEAM]
 ```
 
 **Options:**
-- `--session-id` (required) - Workspace session ID
+- `--workspace-id` (required) - Workspace ID
 - `--year` (required) - Season year
 - `--team` (optional) - Filter by team (e.g., "Ferrari", "Mercedes")
 
 **Examples:**
 ```bash
-pitlane fetch drivers --session-id abc123 --year 2024
-pitlane fetch drivers --session-id abc123 --year 2024 --team Ferrari
+pitlane fetch drivers --workspace-id abc123 --year 2024
+pitlane fetch drivers --workspace-id abc123 --year 2024 --team Ferrari
 ```
 
 ### `pitlane fetch schedule`
@@ -254,16 +254,16 @@ Fetch season calendar with race dates.
 
 **Usage:**
 ```bash
-pitlane fetch schedule --session-id ID --year YEAR
+pitlane fetch schedule --workspace-id ID --year YEAR
 ```
 
 **Options:**
-- `--session-id` (required) - Workspace session ID
+- `--workspace-id` (required) - Workspace ID
 - `--year` (required) - Season year
 
 **Examples:**
 ```bash
-pitlane fetch schedule --session-id abc123 --year 2024
+pitlane fetch schedule --workspace-id abc123 --year 2024
 ```
 
 ## Analyze Commands
@@ -276,11 +276,11 @@ Analyze lap time distributions with visualizations.
 
 **Usage:**
 ```bash
-pitlane analyze lap-times --session-id ID --year YEAR --gp GP_NAME --session SESSION_TYPE --drivers DRIVER [--drivers DRIVER2 ...]
+pitlane analyze lap-times --workspace-id ID --year YEAR --gp GP_NAME --session SESSION_TYPE --drivers DRIVER [--drivers DRIVER2 ...]
 ```
 
 **Options:**
-- `--session-id` (required) - Workspace session ID
+- `--workspace-id` (required) - Workspace ID
 - `--year` (required) - Season year
 - `--gp` (required) - Grand Prix name
 - `--session` (required) - Session type (R, Q, FP1, etc.)
@@ -289,10 +289,10 @@ pitlane analyze lap-times --session-id ID --year YEAR --gp GP_NAME --session SES
 **Examples:**
 ```bash
 # Compare two drivers
-pitlane analyze lap-times --session-id abc123 --year 2024 --gp Monaco --session Q --drivers VER --drivers HAM
+pitlane analyze lap-times --workspace-id abc123 --year 2024 --gp Monaco --session Q --drivers VER --drivers HAM
 
 # Compare multiple drivers
-pitlane analyze lap-times --session-id abc123 --year 2024 --gp Silverstone --session R --drivers VER --drivers HAM --drivers LEC
+pitlane analyze lap-times --workspace-id abc123 --year 2024 --gp Silverstone --session R --drivers VER --drivers HAM --drivers LEC
 ```
 
 **Output:**
@@ -312,18 +312,18 @@ Visualize tyre strategy and pit stops.
 
 **Usage:**
 ```bash
-pitlane analyze tyre-strategy --session-id ID --year YEAR --gp GP_NAME --session R
+pitlane analyze tyre-strategy --workspace-id ID --year YEAR --gp GP_NAME --session R
 ```
 
 **Options:**
-- `--session-id` (required) - Workspace session ID
+- `--workspace-id` (required) - Workspace ID
 - `--year` (required) - Season year
 - `--gp` (required) - Grand Prix name
 - `--session` (required) - Must be 'R' (Race only)
 
 **Examples:**
 ```bash
-pitlane analyze tyre-strategy --session-id abc123 --year 2024 --gp Monaco --session R
+pitlane analyze tyre-strategy --workspace-id abc123 --year 2024 --gp Monaco --session R
 ```
 
 **Output:**

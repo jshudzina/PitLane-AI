@@ -32,10 +32,10 @@ AI-powered Formula 1 data analysis built with [Claude's Agent SDK](https://githu
     pip install pitlane-agent
 
     # Create workspace
-    pitlane workspace create --session-id my-analysis
+    pitlane workspace create --workspace-id my-analysis
 
     # Analyze Monaco qualifying
-    pitlane analyze lap-times --session-id my-analysis \
+    pitlane analyze lap-times --workspace-id my-analysis \
       --year 2024 --gp Monaco --session Q \
       --drivers VER --drivers HAM
     ```

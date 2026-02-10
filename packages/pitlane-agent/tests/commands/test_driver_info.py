@@ -185,7 +185,7 @@ class TestDriverInfoCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(cli, ["--session-id", "test-session"])
+            result = runner.invoke(cli, ["--workspace-id", "test-session"])
 
             assert result.exit_code == 0
             output = json.loads(result.output)
@@ -226,7 +226,7 @@ class TestDriverInfoCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(cli, ["--session-id", "test-session", "--driver-code", "VER"])
+            result = runner.invoke(cli, ["--workspace-id", "test-session", "--driver-code", "VER"])
 
             assert result.exit_code == 0
             mock_get_info.assert_called_once_with(driver_code="VER", season=None, limit=100, offset=0)
@@ -266,7 +266,7 @@ class TestDriverInfoCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(cli, ["--session-id", "test-session", "--season", "2024"])
+            result = runner.invoke(cli, ["--workspace-id", "test-session", "--season", "2024"])
 
             assert result.exit_code == 0
             mock_get_info.assert_called_once_with(driver_code=None, season=2024, limit=100, offset=0)
@@ -306,7 +306,7 @@ class TestDriverInfoCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(cli, ["--session-id", "test-session", "--limit", "10", "--offset", "50"])
+            result = runner.invoke(cli, ["--workspace-id", "test-session", "--limit", "10", "--offset", "50"])
 
             assert result.exit_code == 0
             mock_get_info.assert_called_once_with(driver_code=None, season=None, limit=10, offset=50)
@@ -317,7 +317,7 @@ class TestDriverInfoCLI:
         mock_exists.return_value = False
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["--session-id", "nonexistent"])
+        result = runner.invoke(cli, ["--workspace-id", "nonexistent"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -330,7 +330,7 @@ class TestDriverInfoCLI:
         mock_exists.return_value = True
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["--session-id", "test-session", "--season", "1949"])
+        result = runner.invoke(cli, ["--workspace-id", "test-session", "--season", "1949"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -346,7 +346,7 @@ class TestDriverInfoCLI:
         current_year = datetime.now().year
         future_year = current_year + 3
 
-        result = runner.invoke(cli, ["--session-id", "test-session", "--season", str(future_year)])
+        result = runner.invoke(cli, ["--workspace-id", "test-session", "--season", str(future_year)])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -368,7 +368,7 @@ class TestDriverInfoCLI:
         mock_get_info.side_effect = Exception("Ergast error")
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["--session-id", "test-session"])
+        result = runner.invoke(cli, ["--workspace-id", "test-session"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)

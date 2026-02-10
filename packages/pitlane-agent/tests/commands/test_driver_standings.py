@@ -217,7 +217,7 @@ class TestDriverStandingsCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(fetch, ["driver-standings", "--session-id", "test-session", "--year", "2024"])
+            result = runner.invoke(fetch, ["driver-standings", "--workspace-id", "test-session", "--year", "2024"])
 
             assert result.exit_code == 0
             output = json.loads(result.output)
@@ -261,7 +261,7 @@ class TestDriverStandingsCLI:
             runner = CliRunner()
             result = runner.invoke(
                 fetch,
-                ["driver-standings", "--session-id", "test-session", "--year", "2024", "--round", "10"],
+                ["driver-standings", "--workspace-id", "test-session", "--year", "2024", "--round", "10"],
             )
 
             assert result.exit_code == 0
@@ -273,7 +273,7 @@ class TestDriverStandingsCLI:
         mock_exists.return_value = False
 
         runner = CliRunner()
-        result = runner.invoke(fetch, ["driver-standings", "--session-id", "nonexistent", "--year", "2024"])
+        result = runner.invoke(fetch, ["driver-standings", "--workspace-id", "nonexistent", "--year", "2024"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -286,7 +286,7 @@ class TestDriverStandingsCLI:
         mock_exists.return_value = True
 
         runner = CliRunner()
-        result = runner.invoke(fetch, ["driver-standings", "--session-id", "test-session", "--year", "1949"])
+        result = runner.invoke(fetch, ["driver-standings", "--workspace-id", "test-session", "--year", "1949"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -299,7 +299,9 @@ class TestDriverStandingsCLI:
         current_year = datetime.now().year
         future_year = current_year + 3
 
-        result = runner.invoke(fetch, ["driver-standings", "--session-id", "test-session", "--year", str(future_year)])
+        result = runner.invoke(
+            fetch, ["driver-standings", "--workspace-id", "test-session", "--year", str(future_year)]
+        )
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -317,7 +319,7 @@ class TestDriverStandingsCLI:
         mock_get_standings.side_effect = Exception("Ergast error")
 
         runner = CliRunner()
-        result = runner.invoke(fetch, ["driver-standings", "--session-id", "test-session", "--year", "2024"])
+        result = runner.invoke(fetch, ["driver-standings", "--workspace-id", "test-session", "--year", "2024"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)

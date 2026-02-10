@@ -15,7 +15,7 @@ pip install pitlane-agent
 Workspaces isolate your analysis sessions and store generated charts:
 
 ```bash
-pitlane workspace create --session-id monaco-analysis
+pitlane workspace create --workspace-id monaco-analysis
 ```
 
 ### 3. Fetch Driver Information
@@ -40,7 +40,7 @@ Compare lap times between drivers at a specific race:
 
 ```bash
 pitlane analyze lap-times \
-  --session-id monaco-analysis \
+  --workspace-id monaco-analysis \
   --year 2024 \
   --gp Monaco \
   --session Q \
@@ -56,7 +56,7 @@ Visualize pit stop and tyre compound usage:
 
 ```bash
 pitlane analyze tyre-strategy \
-  --session-id monaco-analysis \
+  --workspace-id monaco-analysis \
   --year 2024 \
   --gp Monaco \
   --session R
@@ -144,7 +144,7 @@ pitlane workspace list
 ### View Workspace Info
 
 ```bash
-pitlane workspace info --session-id monaco-analysis
+pitlane workspace info --workspace-id monaco-analysis
 ```
 
 ### Clean Old Workspaces
@@ -158,7 +158,7 @@ pitlane workspace clean --older-than 7 --yes
 ### Remove a Specific Workspace
 
 ```bash
-pitlane workspace remove --session-id monaco-analysis --yes
+pitlane workspace remove --workspace-id monaco-analysis --yes
 ```
 
 ## Common Session Types
@@ -179,17 +179,17 @@ When using the `--session` parameter, these are the valid session types:
 
 ```bash
 # Create workspace
-pitlane workspace create --session-id silverstone-2024
+pitlane workspace create --workspace-id silverstone-2024
 
 # Analyze qualifying
 pitlane analyze lap-times \
-  --session-id silverstone-2024 \
+  --workspace-id silverstone-2024 \
   --year 2024 --gp "Great Britain" --session Q \
   --drivers VER --drivers NOR
 
 # Analyze race tyre strategy
 pitlane analyze tyre-strategy \
-  --session-id silverstone-2024 \
+  --workspace-id silverstone-2024 \
   --year 2024 --gp "Great Britain" --session R
 
 # View all generated charts
@@ -200,7 +200,7 @@ ls -lh ~/.pitlane/workspaces/silverstone-2024/charts/
 
 ```bash
 pitlane analyze lap-times \
-  --session-id multi-driver \
+  --workspace-id multi-driver \
   --year 2024 --gp Monaco --session R \
   --drivers VER \
   --drivers HAM \
@@ -216,7 +216,7 @@ pitlane analyze lap-times \
     - `Monaco`, `"Great Britain"`, `Italy`, `Singapore`
     - Multi-word names should be quoted: `"Saudi Arabia"`, `"United States"`
 
-!!! tip "Session IDs"
+!!! tip "Workspace IDs"
     Use descriptive session IDs that indicate the race or analysis type:
 
     - `monaco-quali-analysis`

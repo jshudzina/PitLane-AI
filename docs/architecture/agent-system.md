@@ -43,7 +43,7 @@ from pitlane_agent import F1Agent
 # Auto-generated session
 agent = F1Agent()
 
-# Explicit session ID
+# Explicit workspace ID
 agent = F1Agent(session_id="my-session-123")
 
 # With tracing enabled
@@ -147,7 +147,7 @@ Each agent session has an isolated workspace:
 └── charts/                # Generated visualizations
 ```
 
-The session ID is passed to skills via the `PITLANE_SESSION_ID` environment variable, enabling workspace-scoped operations.
+The session ID is passed to skills via the `PITLANE_WORKSPACE_ID` environment variable, enabling workspace-scoped operations.
 
 ### Session Lifecycle
 

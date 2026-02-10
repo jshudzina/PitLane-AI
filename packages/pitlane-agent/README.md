@@ -9,13 +9,13 @@ AI agent for F1 data analysis using Claude Agent SDK and FastF1.
 pip install pitlane-agent
 
 # Create a workspace
-pitlane workspace create --session-id my-analysis
+pitlane workspace create --workspace-id my-analysis
 
 # Fetch session data
-pitlane fetch session-info --session-id my-analysis --year 2024 --gp Monaco --session R
+pitlane fetch session-info --workspace-id my-analysis --year 2024 --gp Monaco --session R
 
 # Analyze lap times
-pitlane analyze lap-times --session-id my-analysis --year 2024 --gp Monaco --session Q --drivers VER --drivers HAM
+pitlane analyze lap-times --workspace-id my-analysis --year 2024 --gp Monaco --session Q --drivers VER --drivers HAM
 ```
 
 ## Features
@@ -34,8 +34,8 @@ Lap time and tyre strategy analysis with visualizations.
 
 **Examples:**
 ```bash
-pitlane analyze lap-times --session-id my-session --year 2024 --gp Monaco --session Q
-pitlane analyze tyre-strategy --session-id my-session --year 2024 --gp Monaco --session R
+pitlane analyze lap-times --workspace-id my-session --year 2024 --gp Monaco --session Q
+pitlane analyze tyre-strategy --workspace-id my-session --year 2024 --gp Monaco --session R
 ```
 
 ### f1-drivers
@@ -60,19 +60,19 @@ pitlane fetch event-info --year 2024 --round 6
 
 ```bash
 # Create workspace
-pitlane workspace create --session-id my-analysis
+pitlane workspace create --workspace-id my-analysis
 
 # List workspaces
 pitlane workspace list
 
 # Get workspace info
-pitlane workspace info --session-id my-analysis
+pitlane workspace info --workspace-id my-analysis
 
 # Clean old workspaces (older than 7 days)
 pitlane workspace clean --older-than 7
 
 # Remove specific workspace
-pitlane workspace remove --session-id my-analysis
+pitlane workspace remove --workspace-id my-analysis
 ```
 
 ## Requirements

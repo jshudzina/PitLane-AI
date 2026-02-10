@@ -11,7 +11,7 @@ Visualize pit stop timing and tyre compound usage across all drivers in a race.
 **Command:**
 ```bash
 pitlane analyze tyre-strategy \
-  --session-id $PITLANE_SESSION_ID \
+  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R
@@ -107,7 +107,7 @@ Track how driver positions evolve throughout a race, showing overtakes and pit s
 **Command:**
 ```bash
 pitlane analyze position-changes \
-  --session-id $PITLANE_SESSION_ID \
+  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R

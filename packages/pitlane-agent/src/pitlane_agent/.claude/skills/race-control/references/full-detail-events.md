@@ -87,7 +87,7 @@ CLEAR flags just indicate state transitions - the yellow flag ending. The yellow
 
 **Analysis**:
 ```bash
-pitlane fetch race-control --session-id $PITLANE_SESSION_ID --sector 2 --detail full
+pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --sector 2 --detail full
 ```
 
 Look for "CLEAR IN TRACK SECTOR 2" message - that's when normal racing resumed in sector 2.
@@ -139,7 +139,7 @@ Track limits violations are administrative and very frequent. They rarely explai
 
 **Analysis**:
 ```bash
-pitlane fetch race-control --session-id $PITLANE_SESSION_ID --driver 14 --detail full
+pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --driver 14 --detail full
 ```
 
 If you see lap deleted message for Alonso's fastest lap:
@@ -170,28 +170,28 @@ These messages provide context but rarely explain data anomalies. They're useful
 When you need every piece of information about a specific lap or incident, use full detail to ensure nothing is missed.
 
 ```bash
-pitlane fetch race-control --session-id $PITLANE_SESSION_ID --lap-start 15 --lap-end 15 --detail full
+pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --lap-start 15 --lap-end 15 --detail full
 ```
 
 **Track limits analysis**:
 Understanding qualifying grid position discrepancies or race penalties due to track limits.
 
 ```bash
-pitlane fetch race-control --session-id $PITLANE_SESSION_ID --driver 14 --detail full
+pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --driver 14 --detail full
 ```
 
 **Qualifying lap validation**:
 Checking if lap times were deleted or if yellow flags affected qualifying runs.
 
 ```bash
-pitlane fetch race-control --session-id $PITLANE_SESSION_ID --session Q --detail full
+pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --session Q --detail full
 ```
 
 **Blue flag compliance**:
 Investigating if a driver failed to yield to leaders (rare but can explain penalties).
 
 ```bash
-pitlane fetch race-control --session-id $PITLANE_SESSION_ID --flag-type BLUE --detail full
+pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --flag-type BLUE --detail full
 ```
 
 ### When NOT to Use Full Detail

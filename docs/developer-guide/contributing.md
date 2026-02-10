@@ -139,7 +139,7 @@ def fetch_lap_times(
     """Fetch lap times for a session.
 
     Args:
-        session_id: Workspace session ID.
+        session_id: Workspace ID.
         year: Season year.
         gp_name: Grand Prix name (e.g., "Monaco").
         session_type: Session code (R, Q, FP1, etc.).

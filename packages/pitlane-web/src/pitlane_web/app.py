@@ -92,6 +92,9 @@ async def index(
     session: str | None = Cookie(None, alias=SESSION_COOKIE_NAME),
 ):
     """Render the home page with session management."""
+    # Note: session_id in this context refers to the workspace identifier (stored in browser cookie),
+    # which is distinct from the agent_session_id (Claude SDK session for conversation resumption)
+
     # Validate existing session (with timing attack protection)
     is_valid, validated_session = validate_session_safely(session)
 

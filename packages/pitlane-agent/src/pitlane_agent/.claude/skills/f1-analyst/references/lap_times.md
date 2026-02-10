@@ -11,7 +11,7 @@ Compare lap times across drivers to identify pace differences and consistency pa
 **Command:**
 ```bash
 pitlane analyze lap-times \
-  --session-id $PITLANE_SESSION_ID \
+  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session Q \
@@ -42,14 +42,14 @@ Analyze lap time distributions to understand statistical spread, consistency, an
 ```bash
 # Default to top 10 finishers
 pitlane analyze lap-times-distribution \
-  --session-id $PITLANE_SESSION_ID \
+  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R
 
 # With specific drivers
 pitlane analyze lap-times-distribution \
-  --session-id $PITLANE_SESSION_ID \
+  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R \
