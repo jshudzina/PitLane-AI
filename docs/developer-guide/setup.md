@@ -4,7 +4,7 @@ Set up your local development environment for contributing to PitLane-AI.
 
 ## Prerequisites
 
-- Python 3.12 or later
+- Python 3.12, 3.13, or 3.14
 - [uv](https://docs.astral.sh/uv/) package manager
 - Git
 

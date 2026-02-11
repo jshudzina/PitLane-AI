@@ -77,7 +77,7 @@ pitlane workspace remove --workspace-id my-analysis
 
 ## Requirements
 
-- Python 3.11 or higher (up to 3.13)
+- Python 3.12, 3.13, or 3.14
 - Claude API key (for AI agent functionality)
 
 ## Dependencies

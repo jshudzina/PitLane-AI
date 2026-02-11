@@ -4,7 +4,7 @@ PitLane-AI is available as three Python packages on PyPI. You can install just t
 
 ## Requirements
 
-- Python 3.11, 3.12, or 3.13
+- Python 3.12, 3.13, or 3.14
 - pip or [uv](https://docs.astral.sh/uv/) package manager
 
 ## Install Options
