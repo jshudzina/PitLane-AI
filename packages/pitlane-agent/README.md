@@ -34,8 +34,8 @@ Lap time and tyre strategy analysis with visualizations.
 
 **Examples:**
 ```bash
-pitlane analyze lap-times --workspace-id my-session --year 2024 --gp Monaco --session Q
-pitlane analyze tyre-strategy --workspace-id my-session --year 2024 --gp Monaco --session R
+pitlane analyze lap-times --workspace-id my-analysis --year 2024 --gp Monaco --session Q
+pitlane analyze tyre-strategy --workspace-id my-analysis --year 2024 --gp Monaco --session R
 ```
 
 ### f1-drivers
