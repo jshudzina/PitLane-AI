@@ -1,7 +1,7 @@
 """Generate speed trace visualization from FastF1 telemetry data.
 
 Usage:
-    pitlane analyze speed-trace --session-id <id> --year 2024 --gp Monaco --session Q --drivers VER --drivers HAM
+    pitlane analyze speed-trace --workspace-id <id> --year 2024 --gp Monaco --session Q --drivers VER --drivers HAM
 """
 
 from pathlib import Path

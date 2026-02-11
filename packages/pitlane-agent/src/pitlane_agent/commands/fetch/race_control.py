@@ -1,7 +1,7 @@
 """Get F1 race control messages from FastF1.
 
 Usage:
-    pitlane fetch race-control --session-id SESSION_ID --year 2024 --gp Monaco --session R
+    pitlane fetch race-control --workspace-id WORKSPACE_ID --year 2024 --gp Monaco --session R
 
     # Or using module invocation
     python -m pitlane_agent.commands.fetch.race_control --year 2024 --gp Monaco --session R

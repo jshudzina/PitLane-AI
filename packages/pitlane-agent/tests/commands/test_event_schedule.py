@@ -488,7 +488,7 @@ class TestEventScheduleCLI:
     def test_cli_missing_required_args(self):
         """Test CLI with missing required arguments."""
         runner = CliRunner()
-        # Test missing --session-id
+        # Test missing --workspace-id
         result = runner.invoke(cli, ["--year", "2024"])
 
         assert result.exit_code != 0

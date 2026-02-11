@@ -1,8 +1,8 @@
 """Get F1 constructor championship standings from FastF1 Ergast API.
 
 Usage:
-    pitlane fetch constructor-standings --session-id SESSION_ID --year 2024
-    pitlane fetch constructor-standings --session-id SESSION_ID --year 2024 --round 10
+    pitlane fetch constructor-standings --workspace-id WORKSPACE_ID --year 2024
+    pitlane fetch constructor-standings --workspace-id WORKSPACE_ID --year 2024 --round 10
 """
 
 from pitlane_agent.utils.constants import FINAL_ROUND

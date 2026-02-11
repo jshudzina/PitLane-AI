@@ -1,9 +1,9 @@
 """Generate championship possibilities visualization from FastF1 data.
 
 Usage:
-    pitlane analyze championship-possibilities --session-id <id> --year 2024
-    pitlane analyze championship-possibilities --session-id <id> --year 2024 --championship constructors
-    pitlane analyze championship-possibilities --session-id <id> --year 2024 --after-round 10
+    pitlane analyze championship-possibilities --workspace-id <id> --year 2024
+    pitlane analyze championship-possibilities --workspace-id <id> --year 2024 --championship constructors
+    pitlane analyze championship-possibilities --workspace-id <id> --year 2024 --after-round 10
 """
 
 from pathlib import Path
