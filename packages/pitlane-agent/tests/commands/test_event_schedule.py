@@ -268,7 +268,7 @@ class TestEventScheduleCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(cli, ["--session-id", "test-session", "--year", "2024"])
+            result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", "2024"])
 
             assert result.exit_code == 0
 
@@ -319,7 +319,7 @@ class TestEventScheduleCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(cli, ["--session-id", "test-session", "--year", "2024", "--round", "6"])
+            result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", "2024", "--round", "6"])
 
             assert result.exit_code == 0
             mock_get_schedule.assert_called_once_with(
@@ -365,7 +365,7 @@ class TestEventScheduleCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(cli, ["--session-id", "test-session", "--year", "2024", "--country", "Italy"])
+            result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", "2024", "--country", "Italy"])
 
             assert result.exit_code == 0
             mock_get_schedule.assert_called_once_with(
@@ -411,7 +411,7 @@ class TestEventScheduleCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(cli, ["--session-id", "test-session", "--year", "2024", "--no-testing"])
+            result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", "2024", "--no-testing"])
 
             assert result.exit_code == 0
             mock_get_schedule.assert_called_once_with(
@@ -427,7 +427,7 @@ class TestEventScheduleCLI:
         mock_exists.return_value = False
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["--session-id", "nonexistent", "--year", "2024"])
+        result = runner.invoke(cli, ["--workspace-id", "nonexistent", "--year", "2024"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -440,7 +440,7 @@ class TestEventScheduleCLI:
         mock_exists.return_value = True
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["--session-id", "test-session", "--year", "1949"])
+        result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", "1949"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -456,7 +456,7 @@ class TestEventScheduleCLI:
         current_year = datetime.now().year
         future_year = current_year + 3
 
-        result = runner.invoke(cli, ["--session-id", "test-session", "--year", str(future_year)])
+        result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", str(future_year)])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -478,7 +478,7 @@ class TestEventScheduleCLI:
         mock_get_schedule.side_effect = Exception("FastF1 error")
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["--session-id", "test-session", "--year", "2024"])
+        result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", "2024"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -501,7 +501,7 @@ class TestEventScheduleCLI:
 
         runner = CliRunner()
         # Test missing --year
-        result = runner.invoke(cli, ["--session-id", "test-session"])
+        result = runner.invoke(cli, ["--workspace-id", "test-session"])
 
         assert result.exit_code != 0
         assert "Missing option" in result.output or "Error" in result.output

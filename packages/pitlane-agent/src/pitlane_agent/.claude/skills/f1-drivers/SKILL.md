@@ -19,12 +19,12 @@ Use this skill when users ask about:
 
 **Complementary with f1-analyst**: This skill provides driver reference data. Use f1-analyst for performance analysis (lap times, race results).
 
-## Step 1: Create or Get Workspace Session ID
+## Step 1: Create or Get Workspace Workspace ID
 
-**IMPORTANT**: Before running any fetch commands, you need a workspace session ID.
+**IMPORTANT**: Before running any fetch commands, you need a workspace ID.
 
 ### If this is a new conversation:
-Create a new workspace and capture the session ID from the output:
+Create a new workspace and capture the workspace ID from the output:
 
 ```bash
 pitlane workspace create
@@ -42,7 +42,7 @@ This returns JSON like:
 **Extract the `session_id` from this output - you'll use it in all subsequent commands.**
 
 ### If continuing an existing conversation:
-Use the same session ID you created earlier in this conversation.
+Use the same workspace ID you created earlier in this conversation.
 
 ## Step 2: Identify Query Parameters
 
@@ -54,29 +54,29 @@ Extract from the user's question:
 
 ## Step 3: Get Driver Data Using PitLane CLI
 
-All commands require a `--session-id` parameter which is provided by the F1Agent managing your workspace.
+All commands require a `--workspace-id` parameter which is provided by the F1Agent managing your workspace.
 
 ### Search by Driver Code
 ```bash
-pitlane fetch driver-info --session-id SESSION_ID --driver-code VER
+pitlane fetch driver-info --workspace-id SESSION_ID --driver-code VER
 ```
 Returns information for Max Verstappen and saves to workspace.
 
 ### Get All Drivers from a Season
 ```bash
-pitlane fetch driver-info --session-id SESSION_ID --season 2024
+pitlane fetch driver-info --workspace-id SESSION_ID --season 2024
 ```
 Returns all drivers who participated in the 2024 season (~20 drivers).
 
 ### Get All F1 Drivers in History
 ```bash
-pitlane fetch driver-info --session-id SESSION_ID --limit 50
+pitlane fetch driver-info --workspace-id SESSION_ID --limit 50
 ```
 Returns up to 50 drivers from F1 history (1950-present).
 
 ### Pagination for Large Results
 ```bash
-pitlane fetch driver-info --session-id SESSION_ID --limit 100 --offset 100
+pitlane fetch driver-info --workspace-id SESSION_ID --limit 100 --offset 100
 ```
 Gets drivers 101-200 from the complete dataset.
 

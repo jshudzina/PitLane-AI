@@ -96,13 +96,13 @@ You are a [role] with access to [capabilities].
 
 ### Command 1
 ```bash
-pitlane fetch data --session-id $PITLANE_SESSION_ID
+pitlane fetch data --workspace-id $PITLANE_WORKSPACE_ID
 ```
 [Description of what it does]
 
 ### Command 2
 ```bash
-pitlane analyze data --session-id $PITLANE_SESSION_ID
+pitlane analyze data --workspace-id $PITLANE_WORKSPACE_ID
 ```
 [Description]
 
@@ -165,7 +165,7 @@ You predict Formula 1 race outcomes using historical data analysis.
 
 1. **Fetch Historical Data**
    ```bash
-   pitlane fetch session-info --session-id $PITLANE_SESSION_ID \
+   pitlane fetch session-info --workspace-id $PITLANE_WORKSPACE_ID \
      --year 2023 --gp Monaco --session R
    ```
 
@@ -220,7 +220,7 @@ Skills cannot invoke other skills.
 1. **Clear Descriptions**: Help the agent choose the right skill
 2. **Specific Instructions**: Step-by-step guidance
 3. **Tool Safety**: Use `Bash(pitlane *)` not `Bash`
-4. **Workspace Integration**: Save data to `$PITLANE_SESSION_ID` workspace
+4. **Workspace Integration**: Save data to `$PITLANE_WORKSPACE_ID` workspace
 5. **Examples**: Include example queries and responses
 6. **Error Handling**: Explain common errors and solutions
 

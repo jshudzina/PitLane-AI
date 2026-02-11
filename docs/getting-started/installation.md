@@ -44,7 +44,7 @@ For one-off usage without installing, use `uvx`:
 
 ```bash
 # Run CLI commands
-uvx pitlane-agent workspace create --session-id my-analysis
+uvx pitlane-agent workspace create --workspace-id my-analysis
 
 # Run web server
 uvx pitlane-web --env development

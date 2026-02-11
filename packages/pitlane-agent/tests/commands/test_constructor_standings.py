@@ -198,7 +198,7 @@ class TestConstructorStandingsCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(fetch, ["constructor-standings", "--session-id", "test-session", "--year", "2024"])
+            result = runner.invoke(fetch, ["constructor-standings", "--workspace-id", "test-session", "--year", "2024"])
 
             assert result.exit_code == 0
             output = json.loads(result.output)
@@ -244,7 +244,7 @@ class TestConstructorStandingsCLI:
                 fetch,
                 [
                     "constructor-standings",
-                    "--session-id",
+                    "--workspace-id",
                     "test-session",
                     "--year",
                     "2024",
@@ -262,7 +262,7 @@ class TestConstructorStandingsCLI:
         mock_exists.return_value = False
 
         runner = CliRunner()
-        result = runner.invoke(fetch, ["constructor-standings", "--session-id", "nonexistent", "--year", "2024"])
+        result = runner.invoke(fetch, ["constructor-standings", "--workspace-id", "nonexistent", "--year", "2024"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -275,7 +275,7 @@ class TestConstructorStandingsCLI:
         mock_exists.return_value = True
 
         runner = CliRunner()
-        result = runner.invoke(fetch, ["constructor-standings", "--session-id", "test-session", "--year", "1949"])
+        result = runner.invoke(fetch, ["constructor-standings", "--workspace-id", "test-session", "--year", "1949"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -290,7 +290,7 @@ class TestConstructorStandingsCLI:
 
         result = runner.invoke(
             fetch,
-            ["constructor-standings", "--session-id", "test-session", "--year", str(future_year)],
+            ["constructor-standings", "--workspace-id", "test-session", "--year", str(future_year)],
         )
 
         assert result.exit_code == 1
@@ -311,7 +311,7 @@ class TestConstructorStandingsCLI:
         mock_get_standings.side_effect = Exception("Ergast error")
 
         runner = CliRunner()
-        result = runner.invoke(fetch, ["constructor-standings", "--session-id", "test-session", "--year", "2024"])
+        result = runner.invoke(fetch, ["constructor-standings", "--workspace-id", "test-session", "--year", "2024"])
 
         assert result.exit_code == 1
         error = json.loads(result.output)

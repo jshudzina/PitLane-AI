@@ -12,20 +12,20 @@ Calculate which drivers or constructors can still mathematically win their respe
 ```bash
 # Current standings
 pitlane analyze championship-possibilities \
-  --session-id $PITLANE_SESSION_ID \
+  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --championship drivers
 
 # Historical "what if" analysis after a specific round
 pitlane analyze championship-possibilities \
-  --session-id $PITLANE_SESSION_ID \
+  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --championship drivers \
   --after-round 10
 ```
 
 **Parameters:**
-- `--session-id`: Workspace session ID (required)
+- `--workspace-id`: Workspace ID (required)
 - `--year`: Championship year (required)
 - `--championship`: Type - "drivers" or "constructors" (default: drivers)
 - `--after-round`: Optional round number for historical "what if" analysis

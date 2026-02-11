@@ -71,7 +71,7 @@ Medium detail includes all high detail events plus:
 
 **Analysis**:
 ```bash
-pitlane fetch race-control --session-id $PITLANE_SESSION_ID --lap-start 12 --lap-end 12 --detail medium --category Flag
+pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --lap-start 12 --lap-end 12 --detail medium --category Flag
 ```
 
 If you see "DOUBLE YELLOW IN TRACK SECTOR 2" on lap 12:
@@ -114,7 +114,7 @@ DRS (Drag Reduction System) is an overtaking aid that reduces rear wing angle, a
 
 **Analysis**:
 ```bash
-pitlane fetch race-control --session-id $PITLANE_SESSION_ID --category Drs
+pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --category Drs
 ```
 
 If you see "DRS DISABLED" at race start:
@@ -178,7 +178,7 @@ If you see "DRS DISABLED" at race start:
 
 **Analysis**:
 ```bash
-pitlane fetch race-control --session-id $PITLANE_SESSION_ID --driver 11 --detail medium
+pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --driver 11 --detail medium
 ```
 
 If you see "5 SECOND TIME PENALTY FOR CAR 11":

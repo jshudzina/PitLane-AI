@@ -44,7 +44,7 @@ def analyze():
 
 
 @analyze.command()
-@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -59,17 +59,17 @@ def analyze():
     required=True,
     help="Driver abbreviation (can be specified multiple times: --drivers VER --drivers HAM)",
 )
-def lap_times(session_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
+def lap_times(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
     """Generate lap times chart for specified drivers."""
     # Verify workspace exists
-    if not workspace_exists(session_id):
+    if not workspace_exists(workspace_id):
         click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
             err=True,
         )
         sys.exit(1)
 
-    workspace_path = get_workspace_path(session_id)
+    workspace_path = get_workspace_path(workspace_id)
 
     try:
         # Generate chart (refactored function expects workspace_dir parameter)
@@ -82,7 +82,7 @@ def lap_times(session_id: str, year: int, gp: str, session: str, drivers: tuple[
         )
 
         # Add session info to result
-        result["session_id"] = session_id
+        result["workspace_id"] = workspace_id
 
         click.echo(json.dumps(result, indent=2))
 
@@ -92,7 +92,7 @@ def lap_times(session_id: str, year: int, gp: str, session: str, drivers: tuple[
 
 
 @analyze.command("lap-times-distribution")
-@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -107,17 +107,17 @@ def lap_times(session_id: str, year: int, gp: str, session: str, drivers: tuple[
     required=False,
     help="Driver abbreviations (optional; defaults to top 10 finishers)",
 )
-def lap_times_distribution(session_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
+def lap_times_distribution(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
     """Generate lap times distribution chart showing statistical spread."""
     # Verify workspace exists
-    if not workspace_exists(session_id):
+    if not workspace_exists(workspace_id):
         click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
             err=True,
         )
         sys.exit(1)
 
-    workspace_path = get_workspace_path(session_id)
+    workspace_path = get_workspace_path(workspace_id)
 
     try:
         # Convert empty drivers tuple to None for default behavior
@@ -133,7 +133,7 @@ def lap_times_distribution(session_id: str, year: int, gp: str, session: str, dr
         )
 
         # Add session info to result
-        result["session_id"] = session_id
+        result["workspace_id"] = workspace_id
 
         click.echo(json.dumps(result, indent=2))
 
@@ -143,21 +143,21 @@ def lap_times_distribution(session_id: str, year: int, gp: str, session: str, dr
 
 
 @analyze.command()
-@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
 @click.option("--session", type=str, default="R", help="Session type (default: R for Race)")
-def tyre_strategy(session_id: str, year: int, gp: str, session: str):
+def tyre_strategy(workspace_id: str, year: int, gp: str, session: str):
     """Generate tyre strategy visualization for a race."""
     # Verify workspace exists
-    if not workspace_exists(session_id):
+    if not workspace_exists(workspace_id):
         click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
             err=True,
         )
         sys.exit(1)
 
-    workspace_path = get_workspace_path(session_id)
+    workspace_path = get_workspace_path(workspace_id)
 
     try:
         # Generate chart (refactored function expects workspace_dir parameter)
@@ -169,7 +169,7 @@ def tyre_strategy(session_id: str, year: int, gp: str, session: str):
         )
 
         # Add session info to result
-        result["session_id"] = session_id
+        result["workspace_id"] = workspace_id
 
         click.echo(json.dumps(result, indent=2))
 
@@ -179,7 +179,7 @@ def tyre_strategy(session_id: str, year: int, gp: str, session: str):
 
 
 @analyze.command("speed-trace")
-@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -194,12 +194,12 @@ def tyre_strategy(session_id: str, year: int, gp: str, session: str):
     required=True,
     help="Driver abbreviations to compare (2-5 drivers: --drivers VER --drivers HAM)",
 )
-def speed_trace(session_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
+def speed_trace(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
     """Generate speed trace comparison for fastest laps of specified drivers."""
     # Verify workspace exists
-    if not workspace_exists(session_id):
+    if not workspace_exists(workspace_id):
         click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
             err=True,
         )
         sys.exit(1)
@@ -219,7 +219,7 @@ def speed_trace(session_id: str, year: int, gp: str, session: str, drivers: tupl
         )
         sys.exit(1)
 
-    workspace_path = get_workspace_path(session_id)
+    workspace_path = get_workspace_path(workspace_id)
 
     try:
         # Generate chart
@@ -232,7 +232,7 @@ def speed_trace(session_id: str, year: int, gp: str, session: str, drivers: tupl
         )
 
         # Add session info to result
-        result["session_id"] = session_id
+        result["workspace_id"] = workspace_id
 
         click.echo(json.dumps(result, indent=2))
 
@@ -242,7 +242,7 @@ def speed_trace(session_id: str, year: int, gp: str, session: str, drivers: tupl
 
 
 @analyze.command("position-changes")
-@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -265,17 +265,17 @@ def speed_trace(session_id: str, year: int, gp: str, session: str, drivers: tupl
     callback=validate_mutually_exclusive,
     help="Show only top N finishers (optional, e.g., --top-n 10). Mutually exclusive with --drivers.",
 )
-def position_changes(session_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...], top_n: int | None):
+def position_changes(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...], top_n: int | None):
     """Generate position changes chart showing driver positions throughout the race."""
     # Verify workspace exists
-    if not workspace_exists(session_id):
+    if not workspace_exists(workspace_id):
         click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
             err=True,
         )
         sys.exit(1)
 
-    workspace_path = get_workspace_path(session_id)
+    workspace_path = get_workspace_path(workspace_id)
 
     try:
         # Convert empty drivers tuple to None for default behavior
@@ -292,7 +292,7 @@ def position_changes(session_id: str, year: int, gp: str, session: str, drivers:
         )
 
         # Add session info to result
-        result["session_id"] = session_id
+        result["workspace_id"] = workspace_id
 
         click.echo(json.dumps(result, indent=2))
 
@@ -302,7 +302,7 @@ def position_changes(session_id: str, year: int, gp: str, session: str, drivers:
 
 
 @analyze.command("championship-possibilities")
-@click.option("--session-id", required=True, help="Workspace session ID")
+@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option(
     "--championship",
@@ -316,17 +316,17 @@ def position_changes(session_id: str, year: int, gp: str, session: str, drivers:
     required=False,
     help="Analyze standings after a specific round for 'what if' scenarios (e.g., --after-round 10)",
 )
-def championship_possibilities(session_id: str, year: int, championship: str, after_round: int | None):
+def championship_possibilities(workspace_id: str, year: int, championship: str, after_round: int | None):
     """Calculate who can still mathematically win the championship."""
     # Verify workspace exists
-    if not workspace_exists(session_id):
+    if not workspace_exists(workspace_id):
         click.echo(
-            json.dumps({"error": f"Workspace does not exist for session ID: {session_id}"}),
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
             err=True,
         )
         sys.exit(1)
 
-    workspace_path = get_workspace_path(session_id)
+    workspace_path = get_workspace_path(workspace_id)
 
     try:
         # Generate chart
@@ -338,7 +338,7 @@ def championship_possibilities(session_id: str, year: int, championship: str, af
         )
 
         # Add session info to result
-        result["session_id"] = session_id
+        result["workspace_id"] = workspace_id
 
         click.echo(json.dumps(result, indent=2))
 

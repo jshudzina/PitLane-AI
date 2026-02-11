@@ -106,12 +106,12 @@ The environment mode.
 
 Most CLI commands accept these common flags:
 
-#### --session-id
+#### --workspace-id
 
 Specify the workspace/session ID for analysis.
 
 ```bash
-pitlane analyze lap-times --session-id my-analysis ...
+pitlane analyze lap-times --workspace-id my-analysis ...
 ```
 
 #### --help
@@ -143,7 +143,7 @@ pitlane temporal-context --refresh
 
 ```bash
 # Create with description
-pitlane workspace create --session-id my-session --description "Monaco 2024 analysis"
+pitlane workspace create --workspace-id my-session --description "Monaco 2024 analysis"
 
 # List all workspaces
 pitlane workspace list --show-all
@@ -223,10 +223,10 @@ Each workspace contains:
 
 ### Workspace Lifecycle
 
-Workspaces are created automatically when you run analysis commands with a `--session-id` parameter, or manually using:
+Workspaces are created automatically when you run analysis commands with a `--workspace-id` parameter, or manually using:
 
 ```bash
-pitlane workspace create --session-id my-session
+pitlane workspace create --workspace-id my-session
 ```
 
 ## Tracing Configuration
@@ -315,7 +315,7 @@ If you get "workspace not found" errors:
 pitlane workspace list
 
 # Create the workspace manually
-pitlane workspace create --session-id your-session-id
+pitlane workspace create --workspace-id your-session-id
 ```
 
 ### Cache Issues

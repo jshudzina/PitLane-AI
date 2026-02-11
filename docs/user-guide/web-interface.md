@@ -84,7 +84,7 @@ Agent: "I've generated a lap time distribution chart"
 5. Displays inline in chat
 
 **Security:**
-- Session ID validated before serving charts
+- Workspace ID validated before serving charts
 - Filename sanitized (no directory traversal)
 - Only PNG files served
 - MIME type validation
@@ -373,7 +373,7 @@ X-Content-Type-Options: nosniff  # Prevent MIME sniffing
 ### Chart Not Displaying
 
 **Check:**
-1. Session ID matches between cookie and URL
+1. Workspace ID matches between cookie and URL
 2. Chart file exists in workspace
 3. Browser console for 401/404 errors
 

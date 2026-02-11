@@ -145,7 +145,7 @@ See detail-level reference files for interpretation guidance and strategy impact
 Driver racing numbers for a session are included in the `session-info` data:
 
 ```bash
-pitlane fetch session-info --session-id $PITLANE_SESSION_ID --year YEAR --gp "Grand Prix Name" --session SESSION_TYPE
+pitlane fetch session-info --workspace-id $PITLANE_WORKSPACE_ID --year YEAR --gp "Grand Prix Name" --session SESSION_TYPE
 ```
 
 The session info includes a `drivers` array with each driver's `number` field containing their racing number for that session.

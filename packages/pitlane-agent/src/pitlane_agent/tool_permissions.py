@@ -27,7 +27,7 @@ ALLOWED_WEBFETCH_DOMAINS = {
 # Allowed environment variables for Bash commands
 # Only these environment variables can be set when running pitlane CLI commands
 ALLOWED_ENV_VARS = {
-    "PITLANE_SESSION_ID",
+    "PITLANE_WORKSPACE_ID",
     "PITLANE_CACHE_DIR",
     "PITLANE_TRACING_ENABLED",
     "PITLANE_SPAN_PROCESSOR",

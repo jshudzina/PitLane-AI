@@ -11,7 +11,7 @@ Compare speed profiles between drivers across track distance to identify perform
 **Command:**
 ```bash
 pitlane analyze speed-trace \
-  --session-id $PITLANE_SESSION_ID \
+  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp "Spanish Grand Prix" \
   --session Q \

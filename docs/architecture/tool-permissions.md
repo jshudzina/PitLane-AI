@@ -56,7 +56,7 @@ Any attempt to use other tools (Edit, Grep, Task, etc.) is blocked at the SDK le
 3. Validate only allowed environment variables are used
 
 **Allowed Environment Variables**:
-- `PITLANE_SESSION_ID`
+- `PITLANE_WORKSPACE_ID`
 - `PITLANE_CACHE_DIR`
 - `PITLANE_TRACING_ENABLED`
 - `PITLANE_SPAN_PROCESSOR`
@@ -64,7 +64,7 @@ Any attempt to use other tools (Edit, Grep, Task, etc.) is blocked at the SDK le
 **Permitted Commands**:
 ```bash
 ✓ pitlane fetch session-info --year 2024 --gp Monaco
-✓ PITLANE_SESSION_ID=abc123 pitlane analyze lap-times
+✓ PITLANE_WORKSPACE_ID=abc123 pitlane analyze lap-times
 ✓ pitlane workspace list
 ```
 
