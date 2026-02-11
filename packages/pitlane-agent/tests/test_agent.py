@@ -11,26 +11,26 @@ class TestF1AgentInitialization:
     """Tests for F1Agent initialization."""
 
     def test_init_default_workspace(self, tmp_path):
-        """Test initialization creates workspace with auto-generated session ID."""
+        """Test initialization creates workspace with auto-generated workspace ID."""
         with patch("pitlane_agent.agent.get_workspace_path", return_value=tmp_path / "workspace"):
             agent = F1Agent()
 
-            assert agent.session_id is not None
+            assert agent.workspace_id is not None
             assert agent.workspace_dir == tmp_path / "workspace"
             assert agent.charts_dir == tmp_path / "workspace" / "charts"
 
-    def test_init_custom_session_id(self, tmp_path):
-        """Test initialization with custom session ID."""
-        custom_session = "test-session-123"
+    def test_init_custom_workspace_id(self, tmp_path):
+        """Test initialization with custom workspace ID."""
+        custom_workspace = "test-workspace-123"
         with (
-            patch("pitlane_agent.agent.get_workspace_path", return_value=tmp_path / custom_session),
+            patch("pitlane_agent.agent.get_workspace_path", return_value=tmp_path / custom_workspace),
             patch("pitlane_agent.agent.workspace_exists", return_value=False),
             patch("pitlane_agent.agent.create_workspace"),
         ):
-            agent = F1Agent(session_id=custom_session)
+            agent = F1Agent(workspace_id=custom_workspace)
 
-            assert agent.session_id == custom_session
-            assert agent.workspace_dir == tmp_path / custom_session
+            assert agent.workspace_id == custom_workspace
+            assert agent.workspace_dir == tmp_path / custom_workspace
 
     def test_init_custom_workspace_dir(self, tmp_path):
         """Test initialization with explicit workspace directory."""

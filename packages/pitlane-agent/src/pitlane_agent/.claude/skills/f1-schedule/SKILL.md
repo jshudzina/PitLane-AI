@@ -33,13 +33,13 @@ pitlane workspace create
 This returns JSON like:
 ```json
 {
-  "session_id": "abc-123-def",
+  "workspace_id": "abc-123-def",
   "workspace_path": "/Users/user/.pitlane/workspaces/abc-123-def",
   "created_at": "2024-01-27T10:30:00Z"
 }
 ```
 
-**Extract the `session_id` from this output - you'll use it in all subsequent commands.**
+**Extract the `workspace_id` from this output - you'll use it in all subsequent commands.**
 
 ### If continuing an existing conversation:
 Use the same workspace ID you created earlier in this conversation.

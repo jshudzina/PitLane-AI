@@ -36,7 +36,7 @@ from .config import (
 from .filters import register_filters
 from .security import is_safe_filename, is_valid_session_id
 from .session import (
-    generate_session_id,
+    generate_workspace_id,
     update_workspace_metadata_safe,
     validate_session_safely,
 )
@@ -106,7 +106,7 @@ async def index(
         update_workspace_metadata_safe(session_id)
     else:
         # Create new session
-        session_id = generate_session_id()
+        session_id = generate_workspace_id()
         needs_new_session = True
         logger.info(f"Index page loaded, creating new session: {session_id}")
 
@@ -156,7 +156,7 @@ async def chat(
         update_workspace_metadata_safe(session_id)
     else:
         # Create new session
-        session_id = generate_session_id()
+        session_id = generate_workspace_id()
         needs_new_session = True
         logger.info(f"Creating new session: {session_id}")
 

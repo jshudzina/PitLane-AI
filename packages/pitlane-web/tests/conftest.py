@@ -84,7 +84,7 @@ def mock_agent():
 def mock_workspace_functions(monkeypatch, test_session_id, tmp_workspace):
     """Mock workspace management functions."""
     monkeypatch.setattr("pitlane_web.session.workspace_exists", MagicMock(return_value=True))
-    monkeypatch.setattr("pitlane_web.session.generate_session_id", MagicMock(return_value=test_session_id))
+    monkeypatch.setattr("pitlane_web.session.generate_workspace_id", MagicMock(return_value=test_session_id))
     monkeypatch.setattr(
         "pitlane_agent.commands.workspace.get_workspace_path",
         MagicMock(return_value=tmp_workspace),

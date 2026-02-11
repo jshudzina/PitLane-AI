@@ -10,7 +10,7 @@ from time import time
 
 from fastapi import Response
 from pitlane_agent.commands.workspace import (
-    generate_session_id,
+    generate_workspace_id,
     update_workspace_metadata,
     workspace_exists,
 )
@@ -188,5 +188,5 @@ __all__ = [
     "update_workspace_metadata_safe",
     "create_session_cookie_params",
     "set_session_cookie",
-    "generate_session_id",
+    "generate_workspace_id",
 ]
