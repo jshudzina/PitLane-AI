@@ -1,7 +1,7 @@
 """Generate position changes visualization from FastF1 data.
 
 Usage:
-    pitlane analyze position-changes --session-id <id> --year 2024 --gp Monaco --session R
+    pitlane analyze position-changes --workspace-id <id> --year 2024 --gp Monaco --session R
 """
 
 from pathlib import Path
