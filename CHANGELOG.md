@@ -5,15 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2026-02-11
+## [0.2.0] - 2026-02-10
+
+### Breaking Changes
+
+- **CLI**: Renamed `--session-id` to `--workspace-id` across all commands to avoid confusion with F1 session terminology (Race, Qualifying, Practice, Sprint)
+- **Environment Variable**: Renamed `PITLANE_SESSION_ID` to `PITLANE_WORKSPACE_ID` for consistency
+- **Skills**: Updated all skill files to reference `$PITLANE_WORKSPACE_ID`
+
+### Migration Guide
+
+**CLI Commands:**
+```bash
+# Old:
+pitlane workspace create --session-id my-analysis
+pitlane fetch session-info --session-id my-analysis --year 2024 --gp Monaco --session R
+
+# New:
+pitlane workspace create --workspace-id my-analysis
+pitlane fetch session-info --workspace-id my-analysis --year 2024 --gp Monaco --session R
+```
+
+**Environment Variable:**
+- Skills now use `$PITLANE_WORKSPACE_ID` instead of `$PITLANE_SESSION_ID`
+- Tool permissions updated to allow new variable name
+
+**No Data Migration Required:**
+- Existing workspaces continue to work without modification
+- Workspace directories remain at `~/.pitlane/workspaces/{id}/`
+- Internal Python function parameters unchanged (planned for v0.3.0)
+
+## [0.1.3] - 2026-02-08
 
 ### Documentation
 
 - Fix broken links and update PyPI badges ([#44](https://github.com/jshudzina/PitLane-AI/pull/44))
 
 - Add mermaid diagrams and streamline architecture docs ([#45](https://github.com/jshudzina/PitLane-AI/pull/45))
-
-- Update documentation for v0.1.3 features and refactoring ([#72](https://github.com/jshudzina/PitLane-AI/pull/72))
 
 
 ### Features
@@ -37,16 +65,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix dependency group in docs deployment workflow ([#43](https://github.com/jshudzina/PitLane-AI/pull/43))
 
-- Update Python version requirement to 3.12-3.14 ([#73](https://github.com/jshudzina/PitLane-AI/pull/73))
-
-- Lock file updates ([#74](https://github.com/jshudzina/PitLane-AI/pull/74))
-
 
 ### Refactor
 
 - Code smell fixes base on #60 review ([#65](https://github.com/jshudzina/PitLane-AI/pull/65))
-
-- Rename session to workspace and add uv-pytest skill ([#75](https://github.com/jshudzina/PitLane-AI/pull/75))
 
 
 ### Refactoring
