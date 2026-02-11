@@ -60,25 +60,25 @@ Use the PitLane CLI to fetch schedule data. All commands require a `--workspace-
 
 ### Get Full Season Calendar
 ```bash
-pitlane fetch event-schedule --workspace-id SESSION_ID --year 2024
+pitlane fetch event-schedule --workspace-id $PITLANE_WORKSPACE_ID --year 2024
 ```
 Returns JSON with all events for the season and saves to workspace.
 
 ### Get Specific Round
 ```bash
-pitlane fetch event-schedule --workspace-id SESSION_ID --year 2024 --round 6
+pitlane fetch event-schedule --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --round 6
 ```
 Returns data for only round 6.
 
 ### Filter by Country
 ```bash
-pitlane fetch event-schedule --workspace-id SESSION_ID --year 2024 --country Italy
+pitlane fetch event-schedule --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --country Italy
 ```
 Returns all Italian races (e.g., Imola, Monza if both are scheduled).
 
 ### Exclude Testing Sessions
 ```bash
-pitlane fetch event-schedule --workspace-id SESSION_ID --year 2024 --no-testing
+pitlane fetch event-schedule --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --no-testing
 ```
 Returns only championship rounds without pre-season testing.
 
