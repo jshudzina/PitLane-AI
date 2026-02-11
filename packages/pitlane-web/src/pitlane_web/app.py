@@ -105,7 +105,7 @@ async def index(
         # Update last accessed time with proper error handling
         update_workspace_metadata_safe(session_id)
     else:
-        # Create new session
+        # Create new session — workspace ID doubles as the web session ID
         session_id = generate_workspace_id()
         needs_new_session = True
         logger.info(f"Index page loaded, creating new session: {session_id}")
@@ -155,7 +155,7 @@ async def chat(
         # Update last accessed time with proper error handling
         update_workspace_metadata_safe(session_id)
     else:
-        # Create new session
+        # Create new session — workspace ID doubles as the web session ID
         session_id = generate_workspace_id()
         needs_new_session = True
         logger.info(f"Creating new session: {session_id}")

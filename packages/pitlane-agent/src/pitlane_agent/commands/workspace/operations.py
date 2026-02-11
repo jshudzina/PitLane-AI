@@ -320,15 +320,15 @@ def clean_workspaces(older_than_days: int | None = None, remove_all: bool = Fals
         Dictionary with cleanup statistics:
         {
             "removed_count": int,
-            "removed_sessions": list[str],
+            "removed_workspaces": list[str],
         }
     """
     workspace_base = get_workspace_base()
 
     if not workspace_base.exists():
-        return {"removed_count": 0, "removed_sessions": []}
+        return {"removed_count": 0, "removed_workspaces": []}
 
-    removed_sessions = []
+    removed_workspaces = []
 
     for workspace_dir in workspace_base.iterdir():
         if not workspace_dir.is_dir():
@@ -354,14 +354,14 @@ def clean_workspaces(older_than_days: int | None = None, remove_all: bool = Fals
         if should_remove:
             try:
                 remove_workspace(workspace_id)
-                removed_sessions.append(workspace_id)
+                removed_workspaces.append(workspace_id)
             except Exception:
                 # Skip if removal fails
                 continue
 
     return {
-        "removed_count": len(removed_sessions),
-        "removed_sessions": removed_sessions,
+        "removed_count": len(removed_workspaces),
+        "removed_workspaces": removed_workspaces,
     }
 
 
