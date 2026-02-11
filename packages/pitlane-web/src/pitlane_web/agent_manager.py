@@ -65,7 +65,7 @@ class AgentCache:
 
             # Create new agent
             logger.info(f"Creating new agent for session: {session_id}")
-            agent = F1Agent(session_id=session_id)
+            agent = F1Agent(workspace_id=session_id)
             self._cache[session_id] = agent
             logger.debug(f"Agent cache size: {len(self._cache)}/{self._max_size}")
             return agent
