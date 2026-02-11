@@ -74,7 +74,7 @@ Structure your response as:
 **YOU MUST include the chart using markdown image syntax:**
 
 ```markdown
-![Tyre Strategy at Monaco 2024 Race](/Users/user/.pitlane/workspaces/{session_id}/charts/tyre_strategy.png)
+![Tyre Strategy at Monaco 2024 Race](/Users/user/.pitlane/workspaces/{workspace_id}/charts/tyre_strategy.png)
 ```
 
 Use the full workspace path returned by the command. The web app will automatically rewrite this to a web-relative URL.
@@ -171,7 +171,7 @@ The command returns JSON with:
 **YOU MUST include the chart using markdown image syntax:**
 
 ```markdown
-![Position Changes at Monaco 2024 Race](/Users/user/.pitlane/workspaces/{session_id}/charts/position_changes.png)
+![Position Changes at Monaco 2024 Race](/Users/user/.pitlane/workspaces/{workspace_id}/charts/position_changes.png)
 ```
 
 ## Example Position Changes Analysis

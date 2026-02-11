@@ -57,7 +57,7 @@ PITLANE_TRACING_ENABLED=1 uvx pitlane-web --env development
 
 ## Requirements
 
-- Python 3.11 or higher (up to 3.13)
+- Python 3.12, 3.13, or 3.14
 - `pitlane-agent` package (installed automatically as a dependency)
 
 ## Architecture

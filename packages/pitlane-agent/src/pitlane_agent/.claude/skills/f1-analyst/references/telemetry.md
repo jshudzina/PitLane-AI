@@ -82,7 +82,7 @@ Identify where drivers gain/lose time based on speed traces:
 **YOU MUST include the chart using markdown image syntax:**
 
 ```markdown
-![Speed Trace Comparison at Spanish GP 2024](/Users/user/.pitlane/workspaces/{session_id}/charts/speed_trace_2024_spanish_grand_prix_Q_HAM_LEC_VER.png)
+![Speed Trace Comparison at Spanish GP 2024](/Users/user/.pitlane/workspaces/{workspace_id}/charts/speed_trace_2024_spanish_grand_prix_Q_HAM_LEC_VER.png)
 ```
 
 Use the full workspace path returned by the command. The web app will automatically rewrite this to a web-relative URL.

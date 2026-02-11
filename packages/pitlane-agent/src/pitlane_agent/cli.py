@@ -49,7 +49,7 @@ def workspace():
 def create(workspace_id: str | None, description: str | None):
     """Create a new workspace."""
     try:
-        result = create_workspace(session_id=workspace_id, description=description)
+        result = create_workspace(workspace_id=workspace_id, description=description)
         click.echo(json.dumps(result, indent=2))
     except ValueError as e:
         click.echo(json.dumps({"error": str(e)}), err=True)

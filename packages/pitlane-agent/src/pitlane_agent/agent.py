@@ -18,7 +18,7 @@ from claude_agent_sdk.types import (
 
 from pitlane_agent.commands.workspace import (
     create_workspace,
-    generate_session_id,
+    generate_workspace_id,
     get_workspace_path,
     update_workspace_metadata,
     workspace_exists,
@@ -43,7 +43,7 @@ class F1Agent:
 
     def __init__(
         self,
-        session_id: str | None = None,
+        workspace_id: str | None = None,
         workspace_dir: Path | None = None,
         enable_tracing: bool | None = None,
         inject_temporal_context: bool = True,
@@ -51,22 +51,22 @@ class F1Agent:
         """Initialize the F1 agent.
 
         Args:
-            session_id: Session identifier. Auto-generated if None.
-            workspace_dir: Explicit workspace path. Derived from session_id if None.
+            workspace_id: Workspace identifier. Auto-generated if None.
+            workspace_dir: Explicit workspace path. Derived from workspace_id if None.
             enable_tracing: Enable OpenTelemetry tracing. If None, uses PITLANE_TRACING_ENABLED env var.
             inject_temporal_context: Enable temporal context in system prompt. Default True.
         """
-        self.session_id = session_id or generate_session_id()
-        self.workspace_dir = workspace_dir or get_workspace_path(self.session_id)
+        self.workspace_id = workspace_id or generate_workspace_id()
+        self.workspace_dir = workspace_dir or get_workspace_path(self.workspace_id)
         self.inject_temporal_context = inject_temporal_context
         self._agent_session_id: str | None = None  # Captured from Claude SDK
 
         # Verify workspace exists or create it
         if not self.workspace_dir.exists():
-            create_workspace(self.session_id)
-        elif workspace_exists(self.session_id):
+            create_workspace(self.workspace_id)
+        elif workspace_exists(self.workspace_id):
             # Update last accessed timestamp
-            update_workspace_metadata(self.session_id)
+            update_workspace_metadata(self.workspace_id)
 
         # Configure tracing
         if enable_tracing is not None:
@@ -111,7 +111,7 @@ class F1Agent:
         import os
 
         # Set workspace ID as environment variable so skills can access it
-        os.environ["PITLANE_WORKSPACE_ID"] = self.session_id
+        os.environ["PITLANE_WORKSPACE_ID"] = self.workspace_id
 
         # Configure hooks for tracing
         hooks = None
@@ -123,14 +123,14 @@ class F1Agent:
 
         # Create a wrapper for can_use_tool that has access to workspace context
         workspace_dir = str(self.workspace_dir)
-        session_id = self.session_id
+        workspace_id = self.workspace_id
 
         async def can_use_tool_with_context(tool_name, input_params, context):
             # Add workspace context to the permission context
             context_with_workspace = {
                 **context,
                 "workspace_dir": workspace_dir,
-                "session_id": session_id,
+                "workspace_id": workspace_id,
             }
             return await can_use_tool(tool_name, input_params, context_with_workspace)
 

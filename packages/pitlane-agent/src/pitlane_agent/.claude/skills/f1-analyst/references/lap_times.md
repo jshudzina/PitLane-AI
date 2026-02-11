@@ -123,7 +123,7 @@ Structure your response as:
 **YOU MUST include the chart using markdown image syntax:**
 
 ```markdown
-![Verstappen vs Hamilton Lap Times at Monaco 2024 Qualifying](/Users/user/.pitlane/workspaces/{session_id}/charts/lap_times.png)
+![Verstappen vs Hamilton Lap Times at Monaco 2024 Qualifying](/Users/user/.pitlane/workspaces/{workspace_id}/charts/lap_times.png)
 ```
 
 Use the full workspace path returned by the command. The web app will automatically rewrite this to a web-relative URL.

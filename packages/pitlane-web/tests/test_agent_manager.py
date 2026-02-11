@@ -23,7 +23,7 @@ class TestAgentCacheGetOrCreate:
             agent = await cache.get_or_create(session_id)
 
             # Verify agent was created
-            mock_agent_class.assert_called_once_with(session_id=session_id)
+            mock_agent_class.assert_called_once_with(workspace_id=session_id)
             assert agent == mock_agent
             assert cache.size() == 1
 
@@ -58,7 +58,7 @@ class TestAgentCacheGetOrCreate:
             await cache.get_or_create(session_id)
 
             # Verify agent was created with correct session_id
-            mock_agent_class.assert_called_once_with(session_id=session_id)
+            mock_agent_class.assert_called_once_with(workspace_id=session_id)
 
     @pytest.mark.asyncio
     async def test_cache_size_tracked_correctly(self):

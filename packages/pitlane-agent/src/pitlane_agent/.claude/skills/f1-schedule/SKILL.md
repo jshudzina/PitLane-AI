@@ -33,13 +33,13 @@ pitlane workspace create
 This returns JSON like:
 ```json
 {
-  "session_id": "abc-123-def",
+  "workspace_id": "abc-123-def",
   "workspace_path": "/Users/user/.pitlane/workspaces/abc-123-def",
   "created_at": "2024-01-27T10:30:00Z"
 }
 ```
 
-**Extract the `session_id` from this output - you'll use it in all subsequent commands.**
+**Extract the `workspace_id` from this output - you'll use it in all subsequent commands.**
 
 ### If continuing an existing conversation:
 Use the same workspace ID you created earlier in this conversation.
@@ -60,25 +60,25 @@ Use the PitLane CLI to fetch schedule data. All commands require a `--workspace-
 
 ### Get Full Season Calendar
 ```bash
-pitlane fetch event-schedule --workspace-id SESSION_ID --year 2024
+pitlane fetch event-schedule --workspace-id $PITLANE_WORKSPACE_ID --year 2024
 ```
 Returns JSON with all events for the season and saves to workspace.
 
 ### Get Specific Round
 ```bash
-pitlane fetch event-schedule --workspace-id SESSION_ID --year 2024 --round 6
+pitlane fetch event-schedule --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --round 6
 ```
 Returns data for only round 6.
 
 ### Filter by Country
 ```bash
-pitlane fetch event-schedule --workspace-id SESSION_ID --year 2024 --country Italy
+pitlane fetch event-schedule --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --country Italy
 ```
 Returns all Italian races (e.g., Imola, Monza if both are scheduled).
 
 ### Exclude Testing Sessions
 ```bash
-pitlane fetch event-schedule --workspace-id SESSION_ID --year 2024 --no-testing
+pitlane fetch event-schedule --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --no-testing
 ```
 Returns only championship rounds without pre-season testing.
 

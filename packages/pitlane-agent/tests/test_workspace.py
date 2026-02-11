@@ -153,7 +153,7 @@ class TestCreateConversation:
         )
 
         conv = create_conversation(
-            session_id="test-session",
+            workspace_id="test-workspace",
             agent_session_id="sdk-session-123",
             first_message="What was Hamilton's fastest lap?",
         )

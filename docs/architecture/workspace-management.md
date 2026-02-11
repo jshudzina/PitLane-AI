@@ -1,15 +1,15 @@
 # Workspace Management
 
-PitLane-AI uses **session-based workspaces** to isolate agent data, ensuring clean separation between conversations and enabling concurrent multi-user deployments.
+PitLane-AI uses **workspaces** to isolate agent data, ensuring clean separation between conversations and enabling concurrent multi-user deployments.
 
 ## Overview
 
-Each F1Agent session operates in its own workspace directory, providing:
+Each F1Agent operates in its own workspace directory, providing:
 
-- **Data Isolation**: Session data never conflicts or mixes
+- **Data Isolation**: Workspace data never conflicts or mixes
 - **Concurrent Access**: Multiple agents can run simultaneously
 - **Resource Management**: Old workspaces can be cleaned up
-- **Reproducibility**: Session data persists for debugging
+- **Reproducibility**: Workspace data persists for debugging
 
 ## Workspace Structure
 
@@ -18,7 +18,7 @@ Each F1Agent session operates in its own workspace directory, providing:
 ```
 ~/.pitlane/
 ├── workspaces/
-│   ├── <session-id-1>/
+│   ├── <workspace-id-1>/
 │   │   ├── .metadata.json
 │   │   ├── data/
 │   │   │   ├── session_info.json
@@ -27,7 +27,7 @@ Each F1Agent session operates in its own workspace directory, providing:
 │   │   └── charts/
 │   │       ├── lap_times.png
 │   │       └── strategy.png
-│   └── <session-id-2>/
+│   └── <workspace-id-2>/
 │       └── ...
 └── cache/
     ├── fastf1/              # Shared FastF1 cache
@@ -36,17 +36,17 @@ Each F1Agent session operates in its own workspace directory, providing:
 
 ### Workspace Components
 
-**`.metadata.json`**: Session metadata
+**`.metadata.json`**: Workspace metadata
 ```json
 {
-  "session_id": "abc123-def456-...",
+  "workspace_id": "abc123-def456-...",
   "created_at": "2024-05-23T14:30:00Z",
   "last_accessed": "2024-05-23T15:45:00Z",
   "description": "Monaco 2024 analysis"  // optional
 }
 ```
 
-**`data/`**: Session-specific data files
+**`data/`**: Workspace-specific data files
 - JSON outputs from CLI commands
 - Query results (drivers, schedules, session info)
 - Intermediate analysis data
@@ -57,24 +57,24 @@ Each F1Agent session operates in its own workspace directory, providing:
 - Strategy visualizations
 - Telemetry plots
 
-## Session Lifecycle
+## Workspace Lifecycle
 
 ### 1. Creation
 
 Workspaces are created automatically when F1Agent is initialized:
 
 ```python
-agent = F1Agent()  # Auto-generates session ID and creates workspace
+agent = F1Agent()  # Auto-generates workspace ID and creates workspace
 ```
 
-Or with explicit session ID:
+Or with explicit workspace ID:
 
 ```python
-agent = F1Agent(session_id="my-session-123")
+agent = F1Agent(workspace_id="my-workspace-123")
 ```
 
 **Creation Process**:
-1. Generate UUID session ID (if not provided)
+1. Generate UUID workspace ID (if not provided)
 2. Check for collision (retry up to 3 times for auto-generated IDs)
 3. Create directory structure (`workspace/`, `data/`, `charts/`)
 4. Write `.metadata.json` with timestamp
@@ -82,13 +82,13 @@ agent = F1Agent(session_id="my-session-123")
 
 **Collision Handling**: Auto-generated UUIDs handle collisions gracefully:
 ```python
-create_workspace(session_id=None, max_retries=3)
+create_workspace(workspace_id=None, max_retries=3)
 # Retries UUID generation if workspace already exists
 ```
 
 Explicit workspace IDs fail immediately if workspace exists:
 ```python
-create_workspace(session_id="explicit-id")
+create_workspace(workspace_id="explicit-id")
 # Raises ValueError if workspace exists
 ```
 
@@ -116,20 +116,20 @@ pitlane workspace clean --all
 2. Read `.metadata.json` to check `last_accessed`
 3. Calculate age from current time
 4. Remove if age exceeds threshold
-5. Return cleanup stats (count, session IDs)
+5. Return cleanup stats (count, workspace IDs)
 
 ## Workspace ID Propagation
 
-The session ID flows through the system via **environment variable**:
+The workspace ID flows through the system via **environment variable**:
 
 ```python
-# F1Agent sets session ID for skills
-os.environ["PITLANE_WORKSPACE_ID"] = self.session_id
+# F1Agent sets workspace ID for skills
+os.environ["PITLANE_WORKSPACE_ID"] = self.workspace_id
 
-# Skills access session ID
-session_id = os.environ["PITLANE_WORKSPACE_ID"]
+# Skills access workspace ID
+workspace_id = os.environ["PITLANE_WORKSPACE_ID"]
 
-# CLI commands use session ID
+# CLI commands use workspace ID
 pitlane fetch session-info --workspace-id $PITLANE_WORKSPACE_ID --year 2024
 ```
 
@@ -150,14 +150,14 @@ from pitlane_agent.commands.workspace import create_workspace
 # Auto-generated workspace ID
 workspace_info = create_workspace()
 # Returns: {
-#   "session_id": "abc123-...",
+#   "workspace_id": "abc123-...",
 #   "workspace_path": "/Users/alice/.pitlane/workspaces/abc123-...",
 #   "created_at": "2024-05-23T14:30:00Z"
 # }
 
 # Explicit workspace ID
 workspace_info = create_workspace(
-    session_id="my-session",
+    workspace_id="my-workspace",
     description="Monaco 2024 analysis"
 )
 
@@ -170,9 +170,9 @@ workspace_info = create_workspace(max_retries=5)
 ```python
 from pitlane_agent.commands.workspace import get_workspace_info
 
-info = get_workspace_info(session_id="abc123")
+info = get_workspace_info(workspace_id="abc123")
 # Returns: {
-#   "session_id": "abc123",
+#   "workspace_id": "abc123",
 #   "workspace_path": "~/.pitlane/workspaces/abc123",
 #   "created_at": "2024-05-23T14:30:00Z",
 #   "last_accessed": "2024-05-23T15:45:00Z",
@@ -201,7 +201,7 @@ workspaces = list_workspaces(show_all=True)
 ```python
 from pitlane_agent.commands.workspace import remove_workspace
 
-remove_workspace(session_id="abc123")
+remove_workspace(workspace_id="abc123")
 # Raises ValueError if workspace doesn't exist
 ```
 
@@ -214,7 +214,7 @@ from pitlane_agent.commands.workspace import clean_workspaces
 result = clean_workspaces(older_than_days=7)
 # Returns: {
 #   "removed_count": 3,
-#   "removed_sessions": ["abc123", "def456", "ghi789"]
+#   "removed_workspaces": ["abc123", "def456", "ghi789"]
 # }
 
 # Remove all workspaces
@@ -223,7 +223,7 @@ result = clean_workspaces(remove_all=True)
 
 ## Shared Cache
 
-Some data is **shared across all sessions** to avoid redundant downloads:
+Some data is **shared across all workspaces** to avoid redundant downloads:
 
 ### FastF1 Cache
 
@@ -237,7 +237,7 @@ Location: `~/.pitlane/cache/fastf1/`
 **Benefits**:
 - Faster analysis (no re-downloads)
 - Reduced API load
-- Shared across all sessions
+- Shared across all workspaces
 
 ### Temporal Context Cache
 
@@ -255,22 +255,22 @@ Location: `~/.pitlane/cache/temporal/`
 
 ## Concurrency
 
-Workspaces enable **concurrent agent sessions**:
+Workspaces enable **concurrent agent operations**:
 
 ```python
-# Session 1: Monaco 2024 analysis
-agent1 = F1Agent(session_id="monaco-2024")
+# Workspace 1: Monaco 2024 analysis
+agent1 = F1Agent(workspace_id="monaco-2024")
 await agent1.chat("Analyze Verstappen lap times")
 
-# Session 2: Silverstone 2023 analysis (concurrent)
-agent2 = F1Agent(session_id="silverstone-2023")
+# Workspace 2: Silverstone 2023 analysis (concurrent)
+agent2 = F1Agent(workspace_id="silverstone-2023")
 await agent2.chat("Show Hamilton strategy")
 ```
 
 **Isolation Guarantees**:
-- Each session has its own workspace directory
+- Each workspace has its own directory
 - File I/O restricted to workspace paths (via tool permissions)
-- No cross-session data leakage
+- No cross-workspace data leakage
 - Shared cache uses thread-safe FastF1 implementation
 
 ## CLI Integration
@@ -299,7 +299,7 @@ See [User Guide: CLI Reference](../agent-cli/cli-reference.md) for details.
 
 ### 1. Data Isolation
 
-Each session is completely isolated:
+Each workspace is completely isolated:
 - No accidental data mixing
 - No file path conflicts
 - Clean slate for each conversation
@@ -307,7 +307,7 @@ Each session is completely isolated:
 ### 2. Multi-User Support
 
 Web deployments can serve multiple users:
-- Each user gets unique session ID
+- Each user gets a unique workspace ID
 - Concurrent analysis sessions
 - No user-to-user data leakage
 

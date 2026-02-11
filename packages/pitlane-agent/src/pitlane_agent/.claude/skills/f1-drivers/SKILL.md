@@ -33,13 +33,13 @@ pitlane workspace create
 This returns JSON like:
 ```json
 {
-  "session_id": "abc-123-def",
+  "workspace_id": "abc-123-def",
   "workspace_path": "/Users/user/.pitlane/workspaces/abc-123-def",
   "created_at": "2024-01-27T10:30:00Z"
 }
 ```
 
-**Extract the `session_id` from this output - you'll use it in all subsequent commands.**
+**Extract the `workspace_id` from this output - you'll use it in all subsequent commands.**
 
 ### If continuing an existing conversation:
 Use the same workspace ID you created earlier in this conversation.
@@ -58,25 +58,25 @@ All commands require a `--workspace-id` parameter which is provided by the F1Age
 
 ### Search by Driver Code
 ```bash
-pitlane fetch driver-info --workspace-id SESSION_ID --driver-code VER
+pitlane fetch driver-info --workspace-id $PITLANE_WORKSPACE_ID --driver-code VER
 ```
 Returns information for Max Verstappen and saves to workspace.
 
 ### Get All Drivers from a Season
 ```bash
-pitlane fetch driver-info --workspace-id SESSION_ID --season 2024
+pitlane fetch driver-info --workspace-id $PITLANE_WORKSPACE_ID --season 2024
 ```
 Returns all drivers who participated in the 2024 season (~20 drivers).
 
 ### Get All F1 Drivers in History
 ```bash
-pitlane fetch driver-info --workspace-id SESSION_ID --limit 50
+pitlane fetch driver-info --workspace-id $PITLANE_WORKSPACE_ID --limit 50
 ```
 Returns up to 50 drivers from F1 history (1950-present).
 
 ### Pagination for Large Results
 ```bash
-pitlane fetch driver-info --workspace-id SESSION_ID --limit 100 --offset 100
+pitlane fetch driver-info --workspace-id $PITLANE_WORKSPACE_ID --limit 100 --offset 100
 ```
 Gets drivers 101-200 from the complete dataset.
 
