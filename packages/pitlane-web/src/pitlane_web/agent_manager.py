@@ -1,7 +1,7 @@
 """Agent caching and lifecycle management for PitLane AI web application.
 
-Note: The 'session_id' parameter in this module refers to the workspace identifier,
-not the Claude SDK agent session ID.
+This module manages F1Agent instances, using workspace IDs to identify and cache agents.
+The workspace_id corresponds to the web session ID from the user's browser cookie.
 """
 
 import asyncio
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class AgentCache:
     """Cache for F1Agent instances with LRU-style eviction.
 
-    Manages a pool of F1Agent instances, one per session, with automatic
+    Manages a pool of F1Agent instances, one per workspace, with automatic
     eviction of oldest entries when the cache reaches its size limit.
     """
 
@@ -32,8 +32,8 @@ class AgentCache:
         self._max_size = max_size
         self._lock = asyncio.Lock()
 
-    async def get_or_create(self, session_id: str) -> F1Agent:
-        """Get cached agent or create new one for session.
+    async def get_or_create(self, workspace_id: str) -> F1Agent:
+        """Get cached agent or create new one for workspace.
 
         Implements LRU-style eviction when cache is full.
         When accessing an existing agent, it's moved to the end (most recently used).
@@ -42,46 +42,46 @@ class AgentCache:
         in concurrent access scenarios.
 
         Args:
-            session_id: Session ID for the agent
+            workspace_id: Workspace identifier for the agent
 
         Returns:
-            F1Agent instance for the session
+            F1Agent instance for the workspace
         """
         async with self._lock:
-            if session_id in self._cache:
-                logger.debug(f"Using cached agent for session: {session_id}")
+            if workspace_id in self._cache:
+                logger.debug(f"Using cached agent for workspace: {workspace_id}")
                 # Move to end to mark as recently used (LRU) - atomic operation
-                self._cache.move_to_end(session_id)
-                return self._cache[session_id]
+                self._cache.move_to_end(workspace_id)
+                return self._cache[workspace_id]
 
             # Evict oldest entry if cache is full
             if len(self._cache) >= self._max_size:
                 # Remove first item (least recently used)
-                oldest_session = next(iter(self._cache))
+                oldest_workspace = next(iter(self._cache))
                 logger.info(
-                    f"Agent cache full ({self._max_size}), evicting least recently used session: {oldest_session}"
+                    f"Agent cache full ({self._max_size}), evicting least recently used workspace: {oldest_workspace}"
                 )
-                del self._cache[oldest_session]
+                del self._cache[oldest_workspace]
 
             # Create new agent
-            logger.info(f"Creating new agent for session: {session_id}")
-            agent = F1Agent(workspace_id=session_id)
-            self._cache[session_id] = agent
+            logger.info(f"Creating new agent for workspace: {workspace_id}")
+            agent = F1Agent(workspace_id=workspace_id)
+            self._cache[workspace_id] = agent
             logger.debug(f"Agent cache size: {len(self._cache)}/{self._max_size}")
             return agent
 
-    async def evict(self, session_id: str) -> None:
+    async def evict(self, workspace_id: str) -> None:
         """Manually evict agent from cache.
 
         This method is async-safe and uses a lock to prevent race conditions.
 
         Args:
-            session_id: Session ID to evict
+            workspace_id: Workspace identifier to evict
         """
         async with self._lock:
-            if session_id in self._cache:
-                del self._cache[session_id]
-                logger.info(f"Manually evicted agent for session: {session_id}")
+            if workspace_id in self._cache:
+                del self._cache[workspace_id]
+                logger.info(f"Manually evicted agent for workspace: {workspace_id}")
 
     def clear(self) -> None:
         """Clear all cached agents."""
