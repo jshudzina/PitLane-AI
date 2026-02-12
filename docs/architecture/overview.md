@@ -22,6 +22,7 @@ graph TB
         f1a[f1-analyst]
         f1d[f1-drivers]
         f1s[f1-schedule]
+        rc[race-control]
     end
 
     subgraph Tools["Agent Tools"]
@@ -38,9 +39,11 @@ graph TB
     SDK -->|Skill tool| f1a
     SDK -->|Skill tool| f1d
     SDK -->|Skill tool| f1s
+    SDK -->|Skill tool| rc
     f1a -->|Bash tool| CLI
     f1d -->|Bash tool| CLI
     f1s -->|Bash tool| CLI
+    rc -->|Bash tool| CLI
     CLI --> FF1
     CLI --> Ergast
 ```
@@ -51,7 +54,8 @@ graph TB
 
 The main agent class that orchestrates all functionality:
 
-- **Session Management**: Unique session IDs with workspace isolation
+- **Workspace Management**: Unique workspace IDs for data isolation
+- **Conversation Resumption**: Agent session IDs for resuming conversations (via `agent_session_id`)
 - **Temporal Context**: Real-time F1 calendar awareness
 - **Tool Permissions**: Restricted tool access for security
 - **Tracing**: OpenTelemetry observability hooks
@@ -65,6 +69,7 @@ Modular, composable skills for domain-specific analysis:
 - **f1-analyst**: Lap times, strategy, telemetry analysis
 - **f1-drivers**: Driver information via Ergast API
 - **f1-schedule**: Event calendar and session schedules
+- **race-control**: Race incidents, flags, safety cars, penalties
 
 Each skill has its own prompt, tool restrictions, and data access patterns.
 
@@ -95,16 +100,22 @@ Defense-in-depth security through tool restrictions:
 
 ### 5. Workspace Management
 
-Session-based workspaces for data isolation:
+Each user gets an isolated workspace directory for data storage:
 
 ```
-~/.pitlane/workspaces/<session-id>/
+~/.pitlane/workspaces/<workspace-id>/
 ├── .metadata.json
-├── data/              # Session data
+├── data/              # F1 session data (race sessions, not user sessions!)
 └── charts/            # Generated visualizations
 ```
 
-Enables concurrent sessions and multi-user deployments.
+Workspaces are identified by `workspace_id` (UUID v4) and enable:
+
+- Concurrent analysis sessions by different users
+- Data isolation between users
+- Multi-user deployments
+
+**Note:** This is separate from conversation resumption, which uses `agent_session_id` from the Claude SDK.
 
 [Learn more →](workspace-management.md)
 

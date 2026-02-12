@@ -1,5 +1,18 @@
 # Workspace Management
 
+!!! note "Terminology: Workspace vs Agent Session"
+    **Workspace** - Isolated directory for F1 analysis data, identified by `workspace_id` (UUID)
+
+    - Example: `~/.pitlane/workspaces/a1b2c3d4-.../`
+    - F1Agent parameter: `workspace_id`
+
+    **Agent Session** - Claude SDK conversation session for resumption, identified by `agent_session_id`
+
+    - Used with: `agent.chat(resume_session_id=...)`
+    - F1Agent property: `agent.agent_session_id`
+
+    These are separate concepts. One workspace can have multiple conversation sessions over time.
+
 PitLane-AI uses **workspaces** to isolate agent data, ensuring clean separation between conversations and enabling concurrent multi-user deployments.
 
 ## Overview

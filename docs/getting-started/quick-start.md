@@ -217,7 +217,7 @@ pitlane analyze lap-times \
     - Multi-word names should be quoted: `"Saudi Arabia"`, `"United States"`
 
 !!! tip "Workspace IDs"
-    Use descriptive session IDs that indicate the race or analysis type:
+    Use descriptive workspace IDs that indicate the race or analysis type:
 
     - `monaco-quali-analysis`
     - `bahrain-2024-strategy`
