@@ -21,7 +21,7 @@ classifiers = [
 dependencies = [
     "claude-agent-sdk",
     "click>=8.1.0",
-    "fastf1>=3.0",
+    "fastf1>=3.8",
     "matplotlib>=3.8",
     "numpy>=1.24",
     "opentelemetry-api>=1.24.0",
