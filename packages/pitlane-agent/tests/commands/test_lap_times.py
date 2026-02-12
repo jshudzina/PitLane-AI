@@ -37,7 +37,7 @@ class TestLapTimesBusinessLogic:
                 {"LapNumber": 2, "LapTime": pd.Timedelta(seconds=89)},
             ]
         )
-        mock_fastf1_session.laps.pick_driver.return_value.pick_quicklaps.return_value = mock_laps
+        mock_fastf1_session.laps.pick_drivers.return_value.pick_quicklaps.return_value = mock_laps
 
         # Mock pyplot
         mock_fig = MagicMock()
@@ -103,7 +103,7 @@ class TestLapTimesBusinessLogic:
                 {"LapNumber": 2, "LapTime": pd.Timedelta(seconds=89)},
             ]
         )
-        mock_fastf1_session.laps.pick_driver.return_value.pick_quicklaps.return_value = mock_laps
+        mock_fastf1_session.laps.pick_drivers.return_value.pick_quicklaps.return_value = mock_laps
 
         # Mock pyplot
         mock_fig = MagicMock()

@@ -50,7 +50,7 @@ def generate_tyre_strategy_chart(
     strategies = []
 
     for idx, driver in enumerate(drivers):
-        driver_laps = session.laps.pick_driver(driver)
+        driver_laps = session.laps.pick_drivers(driver)
 
         if driver_laps.empty:
             continue
