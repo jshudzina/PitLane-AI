@@ -42,29 +42,32 @@ Agent: [Streams response chunks as they're generated]
 - Transparent agent reasoning
 - Better user experience for long-running analyses
 
-### 2. Session Management
+### 2. Workspace Management
 
-Each browser session gets a unique **session ID** stored in a secure cookie:
+Each browser session gets a unique **workspace ID** stored in a secure cookie:
 
 ```
-Session Cookie:
-- Name: pitlane_session
+Workspace Cookie:
+- Name: pitlane_session (cookie name for historical reasons)
+- Value: workspace_id (UUID)
 - HttpOnly: true (XSS protection)
 - SameSite: Lax (CSRF protection)
 - Max-Age: 7 days
 ```
 
-**Session Flow:**
+**Workspace Flow:**
 1. User visits homepage
-2. Server generates UUID session ID
-3. Cookie set in response
-4. All subsequent requests include session cookie
-5. Agent uses session ID for workspace isolation
+2. Server generates UUID workspace ID
+3. Cookie set in response with workspace ID
+4. All subsequent requests include workspace cookie
+5. Agent uses workspace ID for data isolation
 
 **Benefits:**
 - Data isolation between users
-- Persistent chat history per session
+- Persistent chat history per workspace
 - Concurrent multi-user support
+
+**Note:** The workspace ID is distinct from the agent session ID used for conversation resumption.
 
 ### 3. Chart Visualization
 
@@ -80,7 +83,7 @@ Agent: "I've generated a lap time distribution chart"
 1. Skill generates matplotlib chart → workspace/charts/lap_times.png
 2. Agent references chart in response
 3. Frontend detects chart path
-4. Fetches chart via `/charts/<session_id>/<filename>`
+4. Fetches chart via `/charts/<workspace_id>/<filename>`
 5. Displays inline in chat
 
 **Security:**
@@ -169,15 +172,15 @@ RATE_LIMIT_ENABLED = True  # Disable for development
 Render the chat homepage.
 
 **Response:**
-- HTML page with session ID
-- Sets session cookie (if new session)
+- HTML page with workspace ID
+- Sets workspace cookie (if new workspace)
 
-**Session Logic:**
-1. Check for existing session cookie
-2. Validate session ID (timing-safe comparison)
-3. Create new session if invalid/missing
+**Workspace Logic:**
+1. Check for existing workspace cookie
+2. Validate workspace ID (timing-safe comparison)
+3. Create new workspace if invalid/missing
 4. Update `last_accessed` timestamp
-5. Render template with session ID
+5. Render template with workspace ID
 
 ### `POST /chat`
 
@@ -213,7 +216,7 @@ data: {"type": "done"}
 - `done` - Agent execution completed
 - `error` - Error occurred
 
-### `GET /charts/<session_id>/<filename>`
+### `GET /charts/<workspace_id>/<filename>`
 
 Serve generated chart images.
 
@@ -224,9 +227,9 @@ Cookie: pitlane_session=abc123
 ```
 
 **Security Checks:**
-1. Extract session ID from cookie
-2. Validate session ID format (UUID)
-3. Compare cookie session with URL session (timing-safe)
+1. Extract workspace ID from cookie
+2. Validate workspace ID format (UUID)
+3. Compare cookie workspace ID with URL workspace ID (timing-safe)
 4. Validate filename (alphanumeric + underscores/dashes only)
 5. Check file exists in workspace charts directory
 6. Validate PNG extension
@@ -240,7 +243,7 @@ Cache-Control: max-age=3600
 ```
 
 **Error Responses:**
-- `401 Unauthorized` - Session mismatch
+- `401 Unauthorized` - Workspace ID mismatch
 - `404 Not Found` - Chart doesn't exist
 - `400 Bad Request` - Invalid filename
 
@@ -255,7 +258,7 @@ PITLANE_TRACING_ENABLED=1
 # Tracing processor type
 PITLANE_SPAN_PROCESSOR=simple  # or 'batch' for production
 
-# Session cookie settings (production)
+# Workspace cookie settings (production)
 SESSION_COOKIE_SECURE=true     # HTTPS only
 SESSION_COOKIE_HTTPONLY=true   # XSS protection
 SESSION_COOKIE_SAMESITE=Lax    # CSRF protection
@@ -292,7 +295,7 @@ The web interface uses an **agent manager** for lifecycle management:
 from pitlane_web.agent_manager import get_or_create_agent
 
 # Get cached agent or create new one
-agent = await get_or_create_agent(session_id, enable_tracing=True)
+agent = await get_or_create_agent(workspace_id, enable_tracing=True)
 
 # Stream response
 async for chunk in agent.chat(message):
@@ -301,29 +304,29 @@ async for chunk in agent.chat(message):
 
 **Agent Caching:**
 - Agents cached in memory (TTL: 30 minutes)
-- Shared across requests for same session
+- Shared across requests for same workspace
 - Automatic eviction on idle
 - Thread-safe (asyncio locks)
 
 **Benefits:**
 - Faster response times (no re-initialization)
-- Maintains conversation context
+- Maintains conversation context within workspace
 - Efficient resource usage
 
 ## Security Features
 
-### 1. Session Validation
+### 1. Workspace Validation
 
 **Timing-Safe Comparison:**
 ```python
 # Prevents timing attacks
-secrets.compare_digest(cookie_session, url_session)
+secrets.compare_digest(cookie_workspace_id, url_workspace_id)
 ```
 
 **UUID Validation:**
 ```python
 # Prevents path traversal
-uuid.UUID(session_id)  # Raises ValueError if invalid
+uuid.UUID(workspace_id)  # Raises ValueError if invalid
 ```
 
 ### 2. Filename Sanitization
@@ -354,7 +357,7 @@ X-Content-Type-Options: nosniff  # Prevent MIME sniffing
 ### 4. Rate Limiting
 
 **Per-IP limits** prevent abuse:
-- 30 session creations per minute
+- 30 workspace creations per minute
 - 60 chat messages per minute
 - 120 chart requests per minute
 
@@ -380,10 +383,10 @@ X-Content-Type-Options: nosniff  # Prevent MIME sniffing
 **Debug:**
 ```bash
 # Check workspace charts
-ls ~/.pitlane/workspaces/<session-id>/charts/
+ls ~/.pitlane/workspaces/<workspace-id>/charts/
 
-# Check session cookie
-# Browser DevTools → Application → Cookies
+# Check workspace cookie
+# Browser DevTools → Application → Cookies → pitlane_session
 ```
 
 ### Streaming Not Working
@@ -418,5 +421,5 @@ PITLANE_TRACING_ENABLED=1 uvx pitlane-web --env development
 
 - [Analysis Types](analysis-types.md) - Available analysis workflows
 - [Architecture: Agent System](../architecture/agent-system.md) - Agent internals
-- [Architecture: Workspace Management](../architecture/workspace-management.md) - Session isolation
+- [Architecture: Workspace Management](../architecture/workspace-management.md) - Workspace isolation
 - [Agent CLI Reference](../agent-cli/cli-reference.md) - CLI reference (for agents/developers)

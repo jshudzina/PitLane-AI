@@ -1,6 +1,6 @@
 # Agent System
 
-PitLane-AI's agent system is built on the [Claude Agent SDK](https://github.com/anthropics/anthropic-sdk-python), providing an agentic framework for F1 data analysis with tool access, permission controls, and session management.
+PitLane-AI's agent system is built on the [Claude Agent SDK](https://github.com/anthropics/anthropic-sdk-python), providing an agentic framework for F1 data analysis with tool access, permission controls, and workspace management.
 
 ## Architecture Overview
 
@@ -9,7 +9,7 @@ The core agent architecture consists of three main components:
 ```mermaid
 graph TB
     subgraph F1Agent["F1Agent"]
-        Session[Session Management]
+        WM[Workspace Management]
         TC[Temporal Context]
     end
 
@@ -28,6 +28,7 @@ graph TB
         analyst[f1-analyst]
         drivers[f1-drivers]
         schedule[f1-schedule]
+        rc[race-control]
     end
 ```
 
@@ -40,11 +41,11 @@ The [`F1Agent`](https://github.com/jshudzina/PitLane-AI/blob/main/packages/pitla
 ```python
 from pitlane_agent import F1Agent
 
-# Auto-generated session
+# Auto-generated workspace
 agent = F1Agent()
 
 # Explicit workspace ID
-agent = F1Agent(session_id="my-session-123")
+agent = F1Agent(workspace_id="my-workspace-123")
 
 # With tracing enabled
 agent = F1Agent(enable_tracing=True)
@@ -55,10 +56,12 @@ agent = F1Agent(inject_temporal_context=False)
 
 **Parameters:**
 
-- `session_id` (optional): Session identifier. Auto-generated UUID if not provided.
-- `workspace_dir` (optional): Explicit workspace path. Derived from `session_id` if None.
+- `workspace_id` (optional): Workspace identifier. Auto-generated UUID if not provided.
+- `workspace_dir` (optional): Explicit workspace path. Derived from `workspace_id` if None.
 - `enable_tracing` (optional): Enable OpenTelemetry tracing. Uses `PITLANE_TRACING_ENABLED` env var if None.
 - `inject_temporal_context` (optional): Inject F1 calendar context into system prompt. Default: `True`.
+
+**Note:** The workspace ID (for data isolation) is distinct from the agent session ID (for conversation resumption).
 
 ### Chat Methods
 
@@ -134,22 +137,24 @@ packages/pitlane-agent/src/pitlane_agent/.claude/skills/
 
 Each skill provides specialized functionality with its own prompt, scripts, and dependencies.
 
-## Session Management
+## Workspace Management
 
 ### Workspace Isolation
 
-Each agent session has an isolated workspace:
+Each agent operates in an isolated workspace for data storage:
 
 ```
-~/.pitlane/workspaces/<session-id>/
-├── .metadata.json         # Session metadata
-├── data/                  # Session-specific data
+~/.pitlane/workspaces/<workspace-id>/
+├── .metadata.json         # Workspace metadata
+├── data/                  # Workspace-specific data
 └── charts/                # Generated visualizations
 ```
 
-The session ID is passed to skills via the `PITLANE_WORKSPACE_ID` environment variable, enabling workspace-scoped operations.
+The workspace ID is passed to skills via the `PITLANE_WORKSPACE_ID` environment variable, enabling workspace-scoped operations.
 
-### Session Lifecycle
+**Note:** This workspace ID is distinct from the agent session ID used for conversation resumption.
+
+### Workspace Lifecycle
 
 1. **Creation**: Workspace created on first agent initialization
 2. **Access**: `last_accessed` timestamp updated on each agent init

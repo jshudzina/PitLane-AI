@@ -108,7 +108,7 @@ Most CLI commands accept these common flags:
 
 #### --workspace-id
 
-Specify the workspace/session ID for analysis.
+Specify the workspace ID for analysis (used for data isolation).
 
 ```bash
 pitlane analyze lap-times --workspace-id my-analysis ...
