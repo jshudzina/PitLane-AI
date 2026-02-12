@@ -41,7 +41,7 @@ def _extract_driver_position_data(
     Returns:
         Dictionary with driver statistics, or None if driver should be excluded
     """
-    driver_laps = session.laps.pick_driver(driver_abbr)
+    driver_laps = session.laps.pick_drivers(driver_abbr)
 
     if driver_laps.empty:
         return None
@@ -219,7 +219,7 @@ def generate_position_changes_chart(
 
     # Setup plotting
     setup_plot_style()
-    fastf1.plotting.setup_mpl(misc_mpl_mods=False)
+    fastf1.plotting.setup_mpl()
 
     # Create figure
     fig, ax = plt.subplots(figsize=(FIGURE_WIDTH, FIGURE_HEIGHT))

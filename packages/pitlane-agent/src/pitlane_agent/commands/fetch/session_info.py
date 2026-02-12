@@ -11,7 +11,8 @@ import contextlib
 from typing import TypedDict
 
 import pandas as pd
-from fastf1.core import DataNotLoadedError, Session
+from fastf1.core import Session
+from fastf1.exceptions import DataNotLoadedError
 
 from pitlane_agent.utils.constants import (
     TRACK_STATUS_RED_FLAG,

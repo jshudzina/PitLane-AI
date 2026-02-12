@@ -55,7 +55,7 @@ def generate_speed_trace_chart(
 
     # Setup plotting
     setup_plot_style()
-    fastf1.plotting.setup_mpl(misc_mpl_mods=False)
+    fastf1.plotting.setup_mpl()
 
     # Create figure with wide format for full lap distance
     fig, ax = plt.subplots(figsize=(14, 7))
@@ -67,7 +67,7 @@ def generate_speed_trace_chart(
     # Plot each driver's speed trace
     for driver_abbr in drivers:
         # Get fastest lap for the driver
-        driver_laps = session.laps.pick_driver(driver_abbr)
+        driver_laps = session.laps.pick_drivers(driver_abbr)
 
         if driver_laps.empty:
             continue

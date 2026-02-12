@@ -72,7 +72,7 @@ def generate_lap_times_distribution_chart(
 
     # Setup plotting
     setup_plot_style()
-    fastf1.plotting.setup_mpl(mpl_timedelta_support=True, misc_mpl_mods=False)
+    fastf1.plotting.setup_mpl(mpl_timedelta_support=True)
 
     # Create figure
     fig, ax = plt.subplots(figsize=(12, 7))

@@ -51,12 +51,12 @@ class TestPositionChangesBusinessLogic:
             ]
         )
 
-        def mock_pick_driver(driver):
+        def mock_pick_drivers(driver):
             if driver == "VER":
                 return mock_laps_ver
             return mock_laps_ham
 
-        mock_fastf1_session.laps.pick_driver.side_effect = mock_pick_driver
+        mock_fastf1_session.laps.pick_drivers.side_effect = mock_pick_drivers
 
         # Mock pyplot
         mock_fig = MagicMock()
@@ -104,7 +104,7 @@ class TestPositionChangesBusinessLogic:
                 {"LapNumber": 2, "Position": 1, "PitOutTime": pd.NaT},
             ]
         )
-        mock_fastf1_session.laps.pick_driver.return_value = mock_laps
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_laps
 
         mock_fig = MagicMock()
         mock_ax = MagicMock()
@@ -147,7 +147,7 @@ class TestPositionChangesBusinessLogic:
                 {"LapNumber": 1, "Position": 1, "PitOutTime": pd.NaT},
             ]
         )
-        mock_fastf1_session.laps.pick_driver.return_value = mock_laps
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_laps
 
         mock_fig = MagicMock()
         mock_ax = MagicMock()
@@ -187,7 +187,7 @@ class TestPositionChangesBusinessLogic:
                 {"LapNumber": 3, "Position": 4, "PitOutTime": pd.NaT},
             ]
         )
-        mock_fastf1_session.laps.pick_driver.return_value = mock_laps
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_laps
 
         mock_fig = MagicMock()
         mock_ax = MagicMock()
@@ -224,7 +224,7 @@ class TestPositionChangesBusinessLogic:
 
         # Mock empty laps (DNS scenario)
         mock_laps = pd.DataFrame()
-        mock_fastf1_session.laps.pick_driver.return_value = mock_laps
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_laps
 
         # Mock pyplot
         mock_fig = MagicMock()
@@ -283,7 +283,7 @@ class TestPositionChangesBusinessLogic:
                 {"LapNumber": 4, "Position": 2, "PitOutTime": pd.NaT},  # +2 positions
             ]
         )
-        mock_fastf1_session.laps.pick_driver.return_value = mock_laps
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_laps
 
         mock_fig = MagicMock()
         mock_ax = MagicMock()
@@ -326,7 +326,7 @@ class TestPositionChangesBusinessLogic:
                 {"LapNumber": 2, "Position": 1, "PitOutTime": pd.NaT},
             ]
         )
-        mock_fastf1_session.laps.pick_driver.return_value = mock_laps
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_laps
 
         mock_fig = MagicMock()
         mock_ax = MagicMock()

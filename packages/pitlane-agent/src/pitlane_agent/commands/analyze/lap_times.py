@@ -40,7 +40,7 @@ def generate_lap_times_chart(
 
     # Setup plotting
     setup_plot_style()
-    fastf1.plotting.setup_mpl(misc_mpl_mods=False)
+    fastf1.plotting.setup_mpl()
 
     # Create figure
     fig, ax = plt.subplots(figsize=(12, 7))
@@ -50,7 +50,7 @@ def generate_lap_times_chart(
 
     # Plot each driver's lap times
     for driver_abbr in drivers:
-        driver_laps = session.laps.pick_driver(driver_abbr).pick_quicklaps()
+        driver_laps = session.laps.pick_drivers(driver_abbr).pick_quicklaps()
 
         if driver_laps.empty:
             continue

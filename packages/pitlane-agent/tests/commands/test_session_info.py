@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-from fastf1.core import DataNotLoadedError
+from fastf1.exceptions import DataNotLoadedError
 from pitlane_agent.commands.fetch.session_info import (
     _extract_track_status,
     _extract_weather_data,

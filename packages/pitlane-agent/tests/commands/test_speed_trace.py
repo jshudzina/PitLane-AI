@@ -53,7 +53,7 @@ class TestSpeedTraceBusinessLogic:
         mock_driver_laps.empty = False
         mock_driver_laps.pick_fastest.return_value = mock_fastest_lap
 
-        mock_fastf1_session.laps.pick_driver.return_value = mock_driver_laps
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_driver_laps
 
         # Mock pyplot
         mock_fig = MagicMock()
@@ -123,7 +123,7 @@ class TestSpeedTraceBusinessLogic:
         mock_driver_laps.empty = False
         mock_driver_laps.pick_fastest.return_value = mock_fastest_lap
 
-        mock_fastf1_session.laps.pick_driver.return_value = mock_driver_laps
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_driver_laps
 
         # Mock pyplot
         mock_fig = MagicMock()
@@ -180,7 +180,7 @@ class TestSpeedTraceBusinessLogic:
         mock_driver_laps.empty = False
         mock_driver_laps.pick_fastest.return_value = mock_fastest_lap
 
-        mock_fastf1_session.laps.pick_driver.return_value = mock_driver_laps
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_driver_laps
 
         # Mock pyplot
         mock_fig = MagicMock()
@@ -261,7 +261,7 @@ class TestSpeedTraceBusinessLogic:
         mock_driver_laps.empty = False
         mock_driver_laps.pick_fastest.return_value = mock_fastest_lap
 
-        mock_fastf1_session.laps.pick_driver.return_value = mock_driver_laps
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_driver_laps
 
         # Mock pyplot
         mock_fig = MagicMock()
@@ -362,10 +362,10 @@ class TestSpeedTraceBusinessLogic:
         mock_valid_laps.pick_fastest.return_value = mock_fastest_lap
 
         # Return different mock based on driver
-        def pick_driver_side_effect(driver):
+        def pick_drivers_side_effect(driver):
             return mock_empty_laps if driver == "VER" else mock_valid_laps
 
-        mock_fastf1_session.laps.pick_driver.side_effect = pick_driver_side_effect
+        mock_fastf1_session.laps.pick_drivers.side_effect = pick_drivers_side_effect
 
         # Mock pyplot
         mock_fig = MagicMock()

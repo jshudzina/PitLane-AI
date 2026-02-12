@@ -41,7 +41,7 @@ class TestTyreStrategyBusinessLogic:
                 {"LapNumber": 3, "Compound": "MEDIUM"},
             ]
         )
-        mock_fastf1_session.laps.pick_driver.return_value = mock_laps
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_laps
 
         # Mock pyplot
         mock_fig = MagicMock()
