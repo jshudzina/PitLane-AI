@@ -1,7 +1,7 @@
 """Generate gear shift visualization on track map from FastF1 telemetry.
 
 Usage:
-    pitlane analyze gear-shifts-map --workspace-id <id> --year 2024 --gp Monaco --session Q --drivers VER --drivers HAM
+    pitlane analyze gear-shifts-map --workspace-id <id> --year 2024 --gp Monaco --session Q --drivers VER
 """
 
 from pathlib import Path
@@ -16,6 +16,10 @@ from pitlane_agent.utils.constants import (
     GEAR_SHIFTS_LINE_WIDTH,
     MAX_GEAR_SHIFTS_MAP_DRIVERS,
     MIN_GEAR_SHIFTS_MAP_DRIVERS,
+    TRACK_MAP_CORNER_LABEL_OFFSET,
+    TRACK_MAP_CORNER_LINE_ALPHA,
+    TRACK_MAP_CORNER_LINE_WIDTH,
+    TRACK_MAP_CORNER_MARKER_SIZE,
 )
 from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
 from pitlane_agent.utils.plotting import save_figure, setup_plot_style
@@ -65,20 +69,20 @@ def generate_gear_shifts_map_chart(
     drivers: list[str],
     workspace_dir: Path,
 ) -> dict:
-    """Generate gear shift visualization on track map for driver comparison.
+    """Generate gear shift visualization on track map for a single driver.
 
     Args:
         year: Season year
         gp: Grand Prix name
         session_type: Session identifier (R, Q, FP1, etc.)
-        drivers: List of 1-3 driver abbreviations to compare
+        drivers: List containing exactly 1 driver abbreviation
         workspace_dir: Workspace directory for outputs and cache
 
     Returns:
         Dictionary with chart metadata and gear statistics
 
     Raises:
-        ValueError: If drivers list has <1 or >3 entries
+        ValueError: If drivers list does not contain exactly 1 driver
         ValueError: If telemetry data is unavailable
     """
     # Validate driver count
@@ -103,96 +107,123 @@ def generate_gear_shifts_map_chart(
     # Setup plotting
     setup_plot_style()
 
-    # Create subplot layout
-    num_drivers = len(drivers)
-    fig_width = 6 * num_drivers
-    fig, axes = plt.subplots(1, num_drivers, figsize=(fig_width, 8), sharey=True)
-    if num_drivers == 1:
-        axes = [axes]
+    # Create single figure (only 1 driver supported)
+    fig, ax = plt.subplots(figsize=(10, 8))
 
-    # Track statistics
-    all_stats = []
-    last_lc = None
+    # Get the single driver
+    driver_abbr = drivers[0]
 
-    # Plot each driver
-    for idx, driver_abbr in enumerate(drivers):
-        ax = axes[idx]
+    # Get fastest lap
+    driver_laps = session.laps.pick_drivers(driver_abbr)
+    if driver_laps.empty:
+        raise ValueError(f"No laps found for {driver_abbr} at {gp} {year}")
 
-        # Get fastest lap
-        driver_laps = session.laps.pick_drivers(driver_abbr)
-        if driver_laps.empty:
-            continue
+    fastest_lap = driver_laps.pick_fastest()
 
-        fastest_lap = driver_laps.pick_fastest()
+    # Get position data (X, Y) and car data (nGear)
+    pos_data = fastest_lap.get_pos_data()
+    car_data = fastest_lap.get_car_data()
 
-        # Get telemetry (includes X, Y, nGear)
-        telemetry = fastest_lap.get_car_data()
+    if pos_data.empty or car_data.empty:
+        raise ValueError(f"No telemetry data for {driver_abbr} at {gp} {year}")
 
-        if telemetry.empty or "nGear" not in telemetry.columns:
-            raise ValueError(f"No gear telemetry for {driver_abbr} at {gp} {year}")
+    if "nGear" not in car_data.columns:
+        raise ValueError(f"No gear telemetry for {driver_abbr} at {gp} {year}")
 
-        # Extract coordinates and gear
-        x = telemetry["X"].to_numpy()
-        y = telemetry["Y"].to_numpy()
-        gear = telemetry["nGear"].to_numpy()
+    # Merge position and car data
+    telemetry = pos_data.merge(car_data, left_index=True, right_index=True, how="inner")
 
-        # Create line segments
-        points = np.array([x, y]).T.reshape(-1, 1, 2)
-        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    # Extract coordinates and gear
+    x = telemetry["X"].to_numpy()
+    y = telemetry["Y"].to_numpy()
+    gear = telemetry["nGear"].to_numpy()
 
-        # Rotate segments
-        rotated_segments = np.zeros_like(segments)
-        for i in range(segments.shape[0]):
-            rotated_segments[i, 0] = _rotate(segments[i, 0], angle=track_angle)
-            rotated_segments[i, 1] = _rotate(segments[i, 1], angle=track_angle)
+    # Create line segments
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
 
-        # Create LineCollection
-        lc = LineCollection(
-            rotated_segments,
-            cmap=GEAR_COLORMAP,
-            norm=plt.Normalize(1, 9),
-            linewidth=GEAR_SHIFTS_LINE_WIDTH,
+    # Rotate segments
+    rotated_segments = np.zeros_like(segments)
+    for i in range(segments.shape[0]):
+        rotated_segments[i, 0] = _rotate(segments[i, 0], angle=track_angle)
+        rotated_segments[i, 1] = _rotate(segments[i, 1], angle=track_angle)
+
+    # Create LineCollection
+    lc = LineCollection(
+        rotated_segments,
+        cmap=GEAR_COLORMAP,
+        norm=plt.Normalize(1, 9),
+        linewidth=GEAR_SHIFTS_LINE_WIDTH,
+    )
+    lc.set_array(gear)
+    ax.add_collection(lc)
+
+    # Configure axes
+    ax.set_aspect("equal")
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    # Auto-scale to fit the track
+    ax.autoscale()
+
+    # Draw corner markers
+    offset_vector = [TRACK_MAP_CORNER_LABEL_OFFSET, 0]
+
+    for _, corner in circuit_info.corners.iterrows():
+        number = int(corner["Number"])
+        letter = str(corner["Letter"]) if pd.notna(corner["Letter"]) and corner["Letter"] else ""
+        txt = f"{number}{letter}"
+
+        # Calculate offset position for label
+        offset_angle = corner["Angle"] / 180 * np.pi
+        offset_x, offset_y = _rotate(offset_vector, angle=offset_angle)
+
+        text_x = corner["X"] + offset_x
+        text_y = corner["Y"] + offset_y
+        text_x, text_y = _rotate([text_x, text_y], angle=track_angle)
+        track_x, track_y = _rotate([corner["X"], corner["Y"]], angle=track_angle)
+
+        # Draw connecting line and label bubble
+        ax.plot(
+            [track_x, text_x],
+            [track_y, text_y],
+            color="grey",
+            linewidth=TRACK_MAP_CORNER_LINE_WIDTH,
+            alpha=TRACK_MAP_CORNER_LINE_ALPHA,
         )
-        lc.set_array(gear)
-        ax.add_collection(lc)
-        last_lc = lc
+        ax.scatter(text_x, text_y, color="grey", s=TRACK_MAP_CORNER_MARKER_SIZE, zorder=5)
+        ax.text(text_x, text_y, txt, va="center_baseline", ha="center", size="small", color="white", zorder=6)
 
-        # Configure axes
-        ax.set_title(f"{driver_abbr}\n{str(fastest_lap['LapTime'])[10:18]}")
-        ax.set_aspect("equal")
-        ax.set_xticks([])
-        ax.set_yticks([])
+    # Add vertical colorbar on the right side
+    cbar = fig.colorbar(
+        lc,
+        ax=ax,
+        label="Gear",
+        boundaries=np.arange(1, 10),
+        ticks=np.arange(1.5, 9.5),
+        orientation="vertical",
+        pad=0.02,
+        fraction=0.046,
+        aspect=20,
+    )
+    cbar.set_ticklabels(np.arange(1, 9))
 
-        # Auto-scale to fit the track
-        ax.autoscale()
+    # Calculate statistics
+    stats = _calculate_gear_statistics(telemetry)
+    all_stats = [
+        {
+            "driver": driver_abbr,
+            "lap_number": int(fastest_lap["LapNumber"]),
+            "lap_time": str(fastest_lap["LapTime"])[10:18],
+            **stats,
+        }
+    ]
 
-        # Calculate statistics
-        stats = _calculate_gear_statistics(telemetry)
-        all_stats.append(
-            {
-                "driver": driver_abbr,
-                "lap_number": int(fastest_lap["LapNumber"]),
-                "lap_time": str(fastest_lap["LapTime"])[10:18],
-                **stats,
-            }
-        )
-
-    # Add shared colorbar
-    if last_lc is not None:
-        cbar = fig.colorbar(
-            last_lc,
-            ax=axes,
-            label="Gear",
-            boundaries=np.arange(1, 10),
-            ticks=np.arange(1.5, 9.5),
-            orientation="horizontal",
-            pad=0.05,
-        )
-        cbar.set_ticklabels(np.arange(1, 9))
-
-    # Main title
+    # Main title with driver info
     fig.suptitle(
-        f"{session.event['EventName']} {year} - {session.name}\nGear Usage on Track",
+        f"{session.event['EventName']} {year} - {session.name}\n"
+        f"{driver_abbr} - Lap {fastest_lap['LapNumber']} ({str(fastest_lap['LapTime'])[10:18]})\n"
+        f"Gear Usage on Track",
         fontsize=14,
     )
 

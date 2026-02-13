@@ -102,6 +102,6 @@ TRACK_MAP_TITLE_FONT_SIZE = 16  # Title font size
 
 # Gear Shifts Map Visualization Constants
 MIN_GEAR_SHIFTS_MAP_DRIVERS = 1  # Minimum drivers for gear shifts map
-MAX_GEAR_SHIFTS_MAP_DRIVERS = 3  # Maximum drivers for gear shifts map (readability)
+MAX_GEAR_SHIFTS_MAP_DRIVERS = 1  # Maximum drivers for gear shifts map (single driver only)
 GEAR_COLORMAP = "Paired"  # Matplotlib colormap for gears 1-8
 GEAR_SHIFTS_LINE_WIDTH = 4  # Width of gear-colored track segments
