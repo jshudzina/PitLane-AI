@@ -357,37 +357,29 @@ def get_race_control_messages(
         # Apply filters in sequence
         filtered_df = messages_df.copy()
 
-        # Apply category filter first if specified
-        filtered_df = _filter_by_category(filtered_df, category)
-
-        # Apply flag type filter
-        filtered_df = _filter_by_flag_type(filtered_df, flag_type)
-
-        # Apply driver filter
-        filtered_df = _filter_by_driver(filtered_df, driver)
-
-        # Apply lap range filter
-        filtered_df = _filter_by_lap_range(filtered_df, lap_start, lap_end)
-
-        # Apply sector filter
-        filtered_df = _filter_by_sector(filtered_df, sector)
-
-        # Apply detail level filter last (unless detail is "full")
+        # Apply detail level filter first to reduce dataset size early
         filtered_df = _filter_by_detail_level(filtered_df, detail)
 
-        # Convert to list of messages
+        # Apply remaining filters on reduced dataset
+        filtered_df = _filter_by_category(filtered_df, category)
+        filtered_df = _filter_by_flag_type(filtered_df, flag_type)
+        filtered_df = _filter_by_driver(filtered_df, driver)
+        filtered_df = _filter_by_lap_range(filtered_df, lap_start, lap_end)
+        filtered_df = _filter_by_sector(filtered_df, sector)
+
+        # Convert to list of messages using to_dict for better performance
         messages = []
-        for _, row in filtered_df.iterrows():
+        for row_dict in filtered_df.to_dict("records"):
             messages.append(
                 {
-                    "lap": int(row["Lap"]) if pd.notna(row["Lap"]) else None,
-                    "time": row["Time"].isoformat() if pd.notna(row["Time"]) else None,
-                    "category": row["Category"] if pd.notna(row["Category"]) else None,
-                    "message": row["Message"] if pd.notna(row["Message"]) else "",
-                    "flag": row["Flag"] if pd.notna(row["Flag"]) else None,
-                    "scope": row["Scope"] if pd.notna(row["Scope"]) else None,
-                    "sector": int(row["Sector"]) if pd.notna(row["Sector"]) else None,
-                    "racing_number": row["RacingNumber"] if pd.notna(row["RacingNumber"]) else None,
+                    "lap": int(row_dict["Lap"]) if pd.notna(row_dict["Lap"]) else None,
+                    "time": row_dict["Time"].isoformat() if pd.notna(row_dict["Time"]) else None,
+                    "category": row_dict["Category"] if pd.notna(row_dict["Category"]) else None,
+                    "message": row_dict["Message"] if pd.notna(row_dict["Message"]) else "",
+                    "flag": row_dict["Flag"] if pd.notna(row_dict["Flag"]) else None,
+                    "scope": row_dict["Scope"] if pd.notna(row_dict["Scope"]) else None,
+                    "sector": int(row_dict["Sector"]) if pd.notna(row_dict["Sector"]) else None,
+                    "racing_number": row_dict["RacingNumber"] if pd.notna(row_dict["RacingNumber"]) else None,
                 }
             )
 
