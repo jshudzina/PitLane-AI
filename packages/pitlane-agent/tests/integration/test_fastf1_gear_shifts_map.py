@@ -155,7 +155,7 @@ class TestGearShiftsMapIntegration:
     @pytest.mark.timeout(300)
     def test_gear_shifts_validation_error_multiple_drivers(self, fastf1_cache_dir, stable_test_data, tmp_path):
         """Test that multiple drivers raises validation error."""
-        with pytest.raises(ValueError, match="maximum 1 driver"):
+        with pytest.raises(ValueError, match="exactly 1 driver"):
             generate_gear_shifts_map_chart(
                 year=stable_test_data["year"],
                 gp=stable_test_data["test_gp"],

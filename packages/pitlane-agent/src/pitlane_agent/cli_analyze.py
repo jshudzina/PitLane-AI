@@ -358,7 +358,7 @@ def track_map(workspace_id: str, year: int, gp: str, session: str):
     "--drivers",
     multiple=True,
     required=True,
-    help="Driver abbreviation (can be specified 1-3 times: --drivers VER --drivers HAM)",
+    help="Driver abbreviation (exactly 1 driver, e.g., VER)",
 )
 def gear_shifts_map(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
     """Generate gear shift visualization on track map."""

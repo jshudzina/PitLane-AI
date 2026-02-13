@@ -14,8 +14,6 @@ from matplotlib.collections import LineCollection
 from pitlane_agent.utils.constants import (
     GEAR_COLORMAP,
     GEAR_SHIFTS_LINE_WIDTH,
-    MAX_GEAR_SHIFTS_MAP_DRIVERS,
-    MIN_GEAR_SHIFTS_MAP_DRIVERS,
     TRACK_MAP_CORNER_LABEL_OFFSET,
     TRACK_MAP_CORNER_LINE_ALPHA,
     TRACK_MAP_CORNER_LINE_WIDTH,
@@ -37,6 +35,21 @@ def _rotate(xy: np.ndarray, *, angle: float) -> np.ndarray:
     """
     rot_mat = np.array([[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]])
     return np.matmul(xy, rot_mat)
+
+
+def _format_lap_time(lap_time: pd.Timedelta) -> str:
+    """Format lap time as MM:SS.mmm.
+
+    Args:
+        lap_time: Pandas Timedelta object representing lap time.
+
+    Returns:
+        Formatted lap time string (e.g., "1:23.456").
+    """
+    total_seconds = lap_time.total_seconds()
+    minutes = int(total_seconds // 60)
+    seconds = total_seconds % 60
+    return f"{minutes}:{seconds:06.3f}"
 
 
 def _calculate_gear_statistics(telemetry: pd.DataFrame) -> dict:
@@ -85,14 +98,9 @@ def generate_gear_shifts_map_chart(
         ValueError: If drivers list does not contain exactly 1 driver
         ValueError: If telemetry data is unavailable
     """
-    # Validate driver count
-    if len(drivers) < MIN_GEAR_SHIFTS_MAP_DRIVERS:
-        raise ValueError(f"Gear shifts map requires at least {MIN_GEAR_SHIFTS_MAP_DRIVERS} driver")
-    if len(drivers) > MAX_GEAR_SHIFTS_MAP_DRIVERS:
-        raise ValueError(
-            f"Gear shifts map supports maximum {MAX_GEAR_SHIFTS_MAP_DRIVERS} drivers "
-            f"for readability, got {len(drivers)}"
-        )
+    # Validate driver count (exactly 1 driver required)
+    if len(drivers) != 1:
+        raise ValueError(f"Gear shifts map requires exactly 1 driver, got {len(drivers)}")
 
     # Build output path
     output_path = build_chart_path(workspace_dir, "gear_shifts_map", year, gp, session_type, drivers)
@@ -102,7 +110,8 @@ def generate_gear_shifts_map_chart(
 
     # Get circuit info for rotation
     circuit_info = session.get_circuit_info()
-    track_angle = circuit_info.rotation / 180 * np.pi
+    rotation = circuit_info.rotation if circuit_info.rotation is not None else 0
+    track_angle = rotation / 180 * np.pi
 
     # Setup plotting
     setup_plot_style()
@@ -133,6 +142,13 @@ def generate_gear_shifts_map_chart(
     # Merge position and car data
     telemetry = pos_data.merge(car_data, left_index=True, right_index=True, how="inner")
 
+    # Validate merged data has sufficient points
+    if len(telemetry) < 10:
+        raise ValueError(
+            f"Insufficient merged telemetry data for {driver_abbr} at {gp} {year} "
+            f"(only {len(telemetry)} points after merge)"
+        )
+
     # Extract coordinates and gear
     x = telemetry["X"].to_numpy()
     y = telemetry["Y"].to_numpy()
@@ -152,7 +168,7 @@ def generate_gear_shifts_map_chart(
     lc = LineCollection(
         rotated_segments,
         cmap=GEAR_COLORMAP,
-        norm=plt.Normalize(1, 9),
+        norm=plt.Normalize(1, 8),
         linewidth=GEAR_SHIFTS_LINE_WIDTH,
     )
     lc.set_array(gear)
@@ -214,7 +230,7 @@ def generate_gear_shifts_map_chart(
         {
             "driver": driver_abbr,
             "lap_number": int(fastest_lap["LapNumber"]),
-            "lap_time": str(fastest_lap["LapTime"])[10:18],
+            "lap_time": _format_lap_time(fastest_lap["LapTime"]),
             **stats,
         }
     ]
@@ -222,7 +238,7 @@ def generate_gear_shifts_map_chart(
     # Main title with driver info
     fig.suptitle(
         f"{session.event['EventName']} {year} - {session.name}\n"
-        f"{driver_abbr} - Lap {fastest_lap['LapNumber']} ({str(fastest_lap['LapTime'])[10:18]})\n"
+        f"{driver_abbr} - Lap {fastest_lap['LapNumber']} ({_format_lap_time(fastest_lap['LapTime'])})\n"
         f"Gear Usage on Track",
         fontsize=14,
     )

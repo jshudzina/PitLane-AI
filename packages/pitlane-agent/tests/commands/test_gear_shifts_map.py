@@ -134,7 +134,7 @@ class TestGearShiftsMapBusinessLogic:
 
     def test_generate_gear_shifts_map_too_many_drivers(self, tmp_output_dir):
         """Test validation error when more than 1 driver specified."""
-        with pytest.raises(ValueError, match="maximum 1 driver"):
+        with pytest.raises(ValueError, match="exactly 1 driver"):
             generate_gear_shifts_map_chart(
                 year=2024,
                 gp="Monaco",
