@@ -7,7 +7,7 @@ and chart path construction used across all F1 data fetching and visualization c
 from pathlib import Path
 
 import fastf1
-from fastf1.core import Session
+from fastf1.core import Lap, Session, Telemetry
 
 from pitlane_agent.utils.fastf1_cache import get_fastf1_cache_dir
 from pitlane_agent.utils.filename import sanitize_filename
@@ -99,7 +99,7 @@ def build_chart_path(
     return workspace_dir / "charts" / filename
 
 
-def get_merged_telemetry(lap, required_channels: list[str] | None = None):
+def get_merged_telemetry(lap: Lap, required_channels: list[str] | None = None) -> Telemetry:
     """Get merged telemetry with validation.
 
     Uses FastF1's get_telemetry() which merges position and car data with proper
