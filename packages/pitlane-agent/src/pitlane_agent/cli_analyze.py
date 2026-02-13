@@ -11,6 +11,7 @@ import click
 
 from pitlane_agent.commands.analyze import (
     generate_championship_possibilities_chart,
+    generate_gear_shifts_map_chart,
     generate_lap_times_chart,
     generate_lap_times_distribution_chart,
     generate_position_changes_chart,
@@ -336,6 +337,50 @@ def track_map(workspace_id: str, year: int, gp: str, session: str):
         # Add session info to result
         result["workspace_id"] = workspace_id
 
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@analyze.command("gear-shifts-map")
+@click.option("--workspace-id", required=True, help="Workspace ID")
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
+@click.option(
+    "--session",
+    type=str,
+    required=True,
+    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
+)
+@click.option(
+    "--drivers",
+    multiple=True,
+    required=True,
+    help="Driver abbreviation (exactly 1 driver, e.g., VER)",
+)
+def gear_shifts_map(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
+    """Generate gear shift visualization on track map."""
+    if not workspace_exists(workspace_id):
+        click.echo(
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(workspace_id)
+
+    try:
+        result = generate_gear_shifts_map_chart(
+            year=year,
+            gp=gp,
+            session_type=session,
+            drivers=list(drivers),
+            workspace_dir=workspace_path,
+        )
+
+        result["workspace_id"] = workspace_id
         click.echo(json.dumps(result, indent=2))
 
     except Exception as e:

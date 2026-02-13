@@ -42,6 +42,64 @@ pitlane analyze speed-trace \
 - Minimum 2 drivers, maximum 5 drivers for chart readability
 - Some historic sessions may have incomplete telemetry data
 
+### 2. Gear Shifts on Track Map
+
+Visualize gear usage overlaid on the circuit layout, showing which gear a driver uses through each section of the track with numbered corner labels.
+
+**Command:**
+```bash
+pitlane analyze gear-shifts-map \
+  --workspace-id $PITLANE_WORKSPACE_ID \
+  --year 2024 \
+  --gp Monaco \
+  --session Q \
+  --drivers VER
+```
+
+**What it does:**
+- Loads fastest lap telemetry including position data (X, Y) and car data (nGear)
+- Merges position and gear telemetry on time-based index
+- Creates color-coded track map showing gear selection (1-8)
+- Adds numbered corner markers with connecting lines for reference
+- Displays vertical colorbar on the right showing gear range
+- Returns JSON with chart path, gear statistics, and lap details
+
+**Parameters:**
+- `--year`: Season year (e.g., 2024)
+- `--gp`: Grand Prix name (e.g., "Monaco", "Silverstone")
+- `--session`: Session type (R=Race, Q=Qualifying, FP1, FP2, FP3, S=Sprint, SQ)
+- `--drivers`: Single driver abbreviation (only 1 driver supported)
+
+**Example Questions:**
+- "Show me Verstappen's gear usage on track at Monaco qualifying"
+- "What gear does Hamilton use through Maggots-Becketts?"
+- "Create a gear shift map for Norris at Spa"
+- "Which gear is used most at Monza?"
+- "Visualize Leclerc's gearing strategy around Silverstone"
+
+**Returned Statistics:**
+- `gear_distribution`: Count and percentage for each gear used
+- `most_used_gear`: The gear used most frequently on the lap
+- `highest_gear`: Maximum gear reached (typically on straights)
+- `total_gear_changes`: Number of gear shifts during the lap
+- `lap_number`: Which lap was analyzed (fastest lap)
+- `lap_time`: Lap time in format MM:SS.mmm
+
+**Chart Interpretation:**
+- Track outline colored by gear selection (1-8)
+- Colors from the "Paired" colormap distinguish between gears
+- Grey circles with white numbers show corner positions
+- Vertical colorbar on right shows gear number mapping (1-8)
+- Title includes driver name, lap number, and lap time
+- Track rotated for standard TV-style viewing orientation
+
+**Limitations:**
+- Only supports 1 driver at a time for clarity
+- Requires both position and gear telemetry (2018+ seasons)
+- Uses fastest lap only (not arbitrary lap selection)
+- Some circuits may have limited corner data
+- Gear data may be unavailable for some older sessions
+
 ## Analysis Workflow
 
 ### Step 1: Identify Session and Drivers
@@ -126,17 +184,6 @@ Verstappen's pole lap at Spanish GP 2024 qualifying showed superior straight-lin
 ## Future Telemetry Analysis Types
 
 The following telemetry analysis types are planned for future implementation:
-
-### 2. Gear Shifts on Track Map
-**What it would do:**
-- Display gear shift events overlaid on circuit map
-- Show gear selection through each corner
-- Identify shifting patterns and driving styles
-
-**Example Questions:**
-- "Show me gear shifts around Monaco"
-- "What gear do drivers use in Copse corner?"
-- "Compare gear selection between Verstappen and Perez"
 
 ### 3. Speed Traces with Corner Annotations
 **What it would do:**

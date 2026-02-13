@@ -99,3 +99,9 @@ TRACK_MAP_CORNER_LINE_WIDTH = 1  # Corner connecting line width
 TRACK_MAP_CORNER_LINE_ALPHA = 0.7  # Corner connecting line transparency
 TRACK_MAP_CORNER_MARKER_SIZE = 140  # Size of corner marker circles
 TRACK_MAP_TITLE_FONT_SIZE = 16  # Title font size
+
+# Gear Shifts Map Visualization Constants
+MIN_GEAR_SHIFTS_MAP_DRIVERS = 1  # Minimum drivers for gear shifts map
+MAX_GEAR_SHIFTS_MAP_DRIVERS = 1  # Maximum drivers for gear shifts map (single driver only)
+GEAR_COLORMAP = "Paired"  # Matplotlib colormap for gears 1-8
+GEAR_SHIFTS_LINE_WIDTH = 4  # Width of gear-colored track segments
