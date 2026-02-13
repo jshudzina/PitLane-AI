@@ -15,6 +15,7 @@ from pitlane_agent.commands.analyze import (
     generate_lap_times_distribution_chart,
     generate_position_changes_chart,
     generate_speed_trace_chart,
+    generate_track_map_chart,
     generate_tyre_strategy_chart,
 )
 from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
@@ -288,6 +289,47 @@ def position_changes(workspace_id: str, year: int, gp: str, session: str, driver
             session_type=session,
             drivers=drivers_list,
             top_n=top_n,
+            workspace_dir=workspace_path,
+        )
+
+        # Add session info to result
+        result["workspace_id"] = workspace_id
+
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@analyze.command("track-map")
+@click.option("--workspace-id", required=True, help="Workspace ID")
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
+@click.option(
+    "--session",
+    type=str,
+    required=True,
+    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
+)
+def track_map(workspace_id: str, year: int, gp: str, session: str):
+    """Generate track map with numbered corner labels."""
+    # Verify workspace exists
+    if not workspace_exists(workspace_id):
+        click.echo(
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(workspace_id)
+
+    try:
+        # Generate chart
+        result = generate_track_map_chart(
+            year=year,
+            gp=gp,
+            session_type=session,
             workspace_dir=workspace_path,
         )
 

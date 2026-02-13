@@ -56,6 +56,17 @@ Based on the user's question, read the appropriate reference file for detailed i
 
 **Read:** [references/standings.md](references/standings.md)
 
+### Circuit Visualization
+**When to use:** Questions about track layout, circuit maps, corner numbering, or circuit geography.
+
+**Examples:**
+- "Show me the Monaco circuit layout"
+- "What corners does Silverstone have?"
+- "Draw me a map of the Spa track"
+- "How many corners are there at Monza?"
+
+**Read:** [references/visualization.md](references/visualization.md)
+
 ### Telemetry Analysis
 **When to use:** Questions about speed traces, gear shifts, braking points, or detailed car data.
 
