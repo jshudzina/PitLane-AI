@@ -165,10 +165,11 @@ def generate_gear_shifts_map_chart(
         rotated_segments[i, 1] = _rotate(segments[i, 1], angle=track_angle)
 
     # Create LineCollection
+    # Note: Normalize to 1-9 (not 1-8) to improve color distinction between gears 7 and 8
     lc = LineCollection(
         rotated_segments,
         cmap=GEAR_COLORMAP,
-        norm=plt.Normalize(1, 8),
+        norm=plt.Normalize(1, 9),
         linewidth=GEAR_SHIFTS_LINE_WIDTH,
     )
     lc.set_array(gear)
