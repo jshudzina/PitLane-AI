@@ -42,6 +42,51 @@ pitlane analyze speed-trace \
 - Minimum 2 drivers, maximum 5 drivers for chart readability
 - Some historic sessions may have incomplete telemetry data
 
+### 2. Gear Shifts on Track Map
+
+Visualize gear usage overlaid on the circuit layout, showing which gear drivers use through each section of the track.
+
+**Command:**
+```bash
+pitlane analyze gear-shifts-map \
+  --workspace-id $PITLANE_WORKSPACE_ID \
+  --year 2024 \
+  --gp Monaco \
+  --session Q \
+  --drivers VER --drivers HAM
+```
+
+**What it does:**
+- Loads telemetry data for specified drivers' fastest laps
+- Creates track map colored by gear selection (1-8)
+- Supports 1-3 driver comparison in side-by-side subplots
+- Returns JSON with chart path and gear usage statistics
+
+**Parameters:**
+- `--year`: Season year (e.g., 2024)
+- `--gp`: Grand Prix name (e.g., "Monaco", "Silverstone")
+- `--session`: Session type (R=Race, Q=Qualifying, FP1, FP2, FP3, S=Sprint, SQ)
+- `--drivers`: 1-3 driver abbreviations for comparison (specify multiple times: --drivers VER --drivers HAM)
+
+**Example Questions:**
+- "Show me gear usage on track for Verstappen at Monaco qualifying"
+- "Compare Verstappen and Hamilton's gearing strategy at Silverstone"
+- "What gear do drivers use through Maggots-Becketts?"
+- "Show gear shifts around Monaco for the top 3 qualifiers"
+
+**Chart Interpretation:**
+- Track outline colored by gear (1-8)
+- Colors progress from cooler (lower gears, blues) to warmer (higher gears, reds/magentas)
+- Each driver shown in separate subplot for clear comparison
+- Shared colorbar at bottom shows gear number mapping
+- Lap time displayed above each driver's track map
+
+**Limitations:**
+- Requires telemetry data (2018+ seasons)
+- Compares fastest laps only
+- Maximum 3 drivers for readability
+- Some circuits may have limited corner data
+
 ## Analysis Workflow
 
 ### Step 1: Identify Session and Drivers
@@ -126,17 +171,6 @@ Verstappen's pole lap at Spanish GP 2024 qualifying showed superior straight-lin
 ## Future Telemetry Analysis Types
 
 The following telemetry analysis types are planned for future implementation:
-
-### 2. Gear Shifts on Track Map
-**What it would do:**
-- Display gear shift events overlaid on circuit map
-- Show gear selection through each corner
-- Identify shifting patterns and driving styles
-
-**Example Questions:**
-- "Show me gear shifts around Monaco"
-- "What gear do drivers use in Copse corner?"
-- "Compare gear selection between Verstappen and Perez"
 
 ### 3. Speed Traces with Corner Annotations
 **What it would do:**
