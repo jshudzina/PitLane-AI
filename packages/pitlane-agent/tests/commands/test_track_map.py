@@ -173,6 +173,15 @@ class TestTrackMapChart:
             generate_track_map_chart(year=2024, gp="Monaco", session_type="Q", workspace_dir=tmp_output_dir)
 
     @patch("pitlane_agent.commands.analyze.track_map.load_session")
+    def test_generate_track_map_chart_no_laps(self, mock_load_session, tmp_output_dir, mock_fastf1_session):
+        """Test error when no laps are available (pick_fastest returns None)."""
+        mock_load_session.return_value = mock_fastf1_session
+        mock_fastf1_session.laps.pick_fastest.return_value = None
+
+        with pytest.raises(ValueError, match="No laps available"):
+            generate_track_map_chart(year=2024, gp="Monaco", session_type="Q", workspace_dir=tmp_output_dir)
+
+    @patch("pitlane_agent.commands.analyze.track_map.load_session")
     def test_generate_track_map_chart_session_error(self, mock_load_session, tmp_output_dir):
         """Test error handling when session loading fails."""
         mock_load_session.side_effect = Exception("Session not found")

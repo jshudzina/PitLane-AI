@@ -8,12 +8,13 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
 from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
 
-def _rotate(xy, *, angle):
+def _rotate(xy: np.ndarray, *, angle: float) -> np.ndarray:
     """Rotate 2D coordinates by the given angle in radians.
 
     Args:
@@ -50,11 +51,13 @@ def generate_track_map_chart(
     # Build output path (no drivers for circuit-level chart)
     output_path = build_chart_path(workspace_dir, "track_map", year, gp, session_type)
 
-    # Load session — no telemetry needed, just lap/position data
+    # Load session with telemetry to ensure position data is available
     session = load_session(year, gp, session_type, telemetry=True)
 
     # Get fastest lap for position data
     lap = session.laps.pick_fastest()
+    if lap is None:
+        raise ValueError(f"No laps available for {gp} {year} {session_type}")
     pos = lap.get_pos_data()
 
     if pos.empty:
@@ -82,7 +85,7 @@ def generate_track_map_chart(
 
     for _, corner in circuit_info.corners.iterrows():
         number = int(corner["Number"])
-        letter = str(corner["Letter"]) if corner["Letter"] else ""
+        letter = str(corner["Letter"]) if pd.notna(corner["Letter"]) and corner["Letter"] else ""
         txt = f"{number}{letter}"
 
         # Calculate offset position for label
