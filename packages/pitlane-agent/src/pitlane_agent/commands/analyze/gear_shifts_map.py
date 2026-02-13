@@ -20,7 +20,11 @@ from pitlane_agent.utils.constants import (
     TRACK_MAP_CORNER_LINE_WIDTH,
     TRACK_MAP_CORNER_MARKER_SIZE,
 )
-from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
+from pitlane_agent.utils.fastf1_helpers import (
+    build_chart_path,
+    get_merged_telemetry,
+    load_session,
+)
 from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
 
@@ -131,18 +135,12 @@ def generate_gear_shifts_map_chart(
     fastest_lap = driver_laps.pick_fastest()
 
     # Get merged telemetry with position (X, Y) and car data (nGear, Speed, etc.)
-    # FastF1's get_telemetry() merges car_data and pos_data with proper interpolation
-    # This prevents gaps caused by misaligned timestamps between telemetry channels
-    telemetry = fastest_lap.get_telemetry()
-
-    if telemetry.empty:
-        raise ValueError(f"No telemetry data for {driver_abbr} at {gp} {year}")
-
-    # Validate required columns are present
-    required_columns = ["X", "Y", "nGear"]
-    missing_columns = [col for col in required_columns if col not in telemetry.columns]
-    if missing_columns:
-        raise ValueError(f"Missing required telemetry columns for {driver_abbr} at {gp} {year}: {missing_columns}")
+    # Uses helper that validates required channels and handles FastF1's interpolation
+    try:
+        telemetry = get_merged_telemetry(fastest_lap, required_channels=["X", "Y", "nGear"])
+    except ValueError as e:
+        # Re-raise with context-specific error message
+        raise ValueError(f"{e} for {driver_abbr} at {gp} {year}") from e
 
     # Validate sufficient data points for visualization
     if len(telemetry) < MIN_TELEMETRY_POINTS_TRACK_MAP:

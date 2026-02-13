@@ -180,7 +180,7 @@ class TestGearShiftsMapBusinessLogic:
         mock_fastf1_session.laps.pick_drivers.return_value = mock_driver_laps
 
         # Should raise ValueError for missing nGear
-        with pytest.raises(ValueError, match="Missing required telemetry columns"):
+        with pytest.raises(ValueError, match="Missing required telemetry channels"):
             generate_gear_shifts_map_chart(
                 year=2024,
                 gp="Monaco",
