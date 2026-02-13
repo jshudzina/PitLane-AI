@@ -89,3 +89,13 @@ FLAG_GREEN = "GREEN"
 FLAG_BLUE = "BLUE"
 FLAG_CLEAR = "CLEAR"
 FLAG_CHEQUERED = "CHEQUERED"
+
+# Track Map Visualization Constants
+TRACK_MAP_FIGURE_SIZE = 12  # Square figure size (12x12)
+TRACK_MAP_OUTLINE_WIDTH = 3  # Track outline line width
+TRACK_MAP_OUTLINE_ALPHA = 0.9  # Track outline transparency
+TRACK_MAP_CORNER_LABEL_OFFSET = 500  # Distance for corner label placement from track
+TRACK_MAP_CORNER_LINE_WIDTH = 1  # Corner connecting line width
+TRACK_MAP_CORNER_LINE_ALPHA = 0.7  # Corner connecting line transparency
+TRACK_MAP_CORNER_MARKER_SIZE = 140  # Size of corner marker circles
+TRACK_MAP_TITLE_FONT_SIZE = 16  # Title font size

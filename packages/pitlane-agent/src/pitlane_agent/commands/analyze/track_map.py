@@ -10,6 +10,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from pitlane_agent.utils.constants import (
+    TRACK_MAP_CORNER_LABEL_OFFSET,
+    TRACK_MAP_CORNER_LINE_ALPHA,
+    TRACK_MAP_CORNER_LINE_WIDTH,
+    TRACK_MAP_CORNER_MARKER_SIZE,
+    TRACK_MAP_FIGURE_SIZE,
+    TRACK_MAP_OUTLINE_ALPHA,
+    TRACK_MAP_OUTLINE_WIDTH,
+    TRACK_MAP_TITLE_FONT_SIZE,
+)
 from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
 from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
@@ -69,7 +79,7 @@ def generate_track_map_chart(
     # Setup plotting
     setup_plot_style()
 
-    fig, ax = plt.subplots(figsize=(12, 12))
+    fig, ax = plt.subplots(figsize=(TRACK_MAP_FIGURE_SIZE, TRACK_MAP_FIGURE_SIZE))
 
     # Rotate track coordinates for proper orientation
     track = pos.loc[:, ("X", "Y")].to_numpy()
@@ -77,10 +87,16 @@ def generate_track_map_chart(
     rotated_track = _rotate(track, angle=track_angle)
 
     # Draw track outline
-    ax.plot(rotated_track[:, 0], rotated_track[:, 1], color="white", linewidth=3, alpha=0.9)
+    ax.plot(
+        rotated_track[:, 0],
+        rotated_track[:, 1],
+        color="white",
+        linewidth=TRACK_MAP_OUTLINE_WIDTH,
+        alpha=TRACK_MAP_OUTLINE_ALPHA,
+    )
 
     # Draw corner markers
-    offset_vector = [500, 0]
+    offset_vector = [TRACK_MAP_CORNER_LABEL_OFFSET, 0]
     corner_details = []
 
     for _, corner in circuit_info.corners.iterrows():
@@ -98,14 +114,23 @@ def generate_track_map_chart(
         track_x, track_y = _rotate([corner["X"], corner["Y"]], angle=track_angle)
 
         # Draw connecting line and label bubble
-        ax.plot([track_x, text_x], [track_y, text_y], color="grey", linewidth=1, alpha=0.7)
-        ax.scatter(text_x, text_y, color="grey", s=140, zorder=5)
+        ax.plot(
+            [track_x, text_x],
+            [track_y, text_y],
+            color="grey",
+            linewidth=TRACK_MAP_CORNER_LINE_WIDTH,
+            alpha=TRACK_MAP_CORNER_LINE_ALPHA,
+        )
+        ax.scatter(text_x, text_y, color="grey", s=TRACK_MAP_CORNER_MARKER_SIZE, zorder=5)
         ax.text(text_x, text_y, txt, va="center_baseline", ha="center", size="small", color="white", zorder=6)
 
         corner_details.append({"number": number, "letter": letter})
 
     # Configure axes
-    ax.set_title(f"{session.event['EventName']} {year} - {session.name}\nTrack Map", fontsize=16)
+    ax.set_title(
+        f"{session.event['EventName']} {year} - {session.name}\nTrack Map",
+        fontsize=TRACK_MAP_TITLE_FONT_SIZE,
+    )
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_aspect("equal")
