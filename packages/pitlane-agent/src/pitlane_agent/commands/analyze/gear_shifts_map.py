@@ -14,6 +14,7 @@ from matplotlib.collections import LineCollection
 from pitlane_agent.utils.constants import (
     GEAR_COLORMAP,
     GEAR_SHIFTS_LINE_WIDTH,
+    MIN_TELEMETRY_POINTS_TRACK_MAP,
     TRACK_MAP_CORNER_LABEL_OFFSET,
     TRACK_MAP_CORNER_LINE_ALPHA,
     TRACK_MAP_CORNER_LINE_WIDTH,
@@ -129,24 +130,25 @@ def generate_gear_shifts_map_chart(
 
     fastest_lap = driver_laps.pick_fastest()
 
-    # Get position data (X, Y) and car data (nGear)
-    pos_data = fastest_lap.get_pos_data()
-    car_data = fastest_lap.get_car_data()
+    # Get merged telemetry with position (X, Y) and car data (nGear, Speed, etc.)
+    # FastF1's get_telemetry() merges car_data and pos_data with proper interpolation
+    # This prevents gaps caused by misaligned timestamps between telemetry channels
+    telemetry = fastest_lap.get_telemetry()
 
-    if pos_data.empty or car_data.empty:
+    if telemetry.empty:
         raise ValueError(f"No telemetry data for {driver_abbr} at {gp} {year}")
 
-    if "nGear" not in car_data.columns:
-        raise ValueError(f"No gear telemetry for {driver_abbr} at {gp} {year}")
+    # Validate required columns are present
+    required_columns = ["X", "Y", "nGear"]
+    missing_columns = [col for col in required_columns if col not in telemetry.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required telemetry columns for {driver_abbr} at {gp} {year}: {missing_columns}")
 
-    # Merge position and car data
-    telemetry = pos_data.merge(car_data, left_index=True, right_index=True, how="inner")
-
-    # Validate merged data has sufficient points
-    if len(telemetry) < 10:
+    # Validate sufficient data points for visualization
+    if len(telemetry) < MIN_TELEMETRY_POINTS_TRACK_MAP:
         raise ValueError(
-            f"Insufficient merged telemetry data for {driver_abbr} at {gp} {year} "
-            f"(only {len(telemetry)} points after merge)"
+            f"Insufficient telemetry data for {driver_abbr} at {gp} {year} "
+            f"(only {len(telemetry)} points, need at least {MIN_TELEMETRY_POINTS_TRACK_MAP})"
         )
 
     # Extract coordinates and gear

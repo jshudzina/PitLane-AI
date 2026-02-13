@@ -65,18 +65,12 @@ class TestGearShiftsMapBusinessLogic:
         )
         mock_fastf1_session.get_circuit_info.return_value = mock_circuit_info
 
-        # Mock position data (X, Y coordinates)
+        # Mock merged telemetry data (from get_telemetry())
         num_points = 100
-        mock_pos_data = pd.DataFrame(
+        mock_telemetry = pd.DataFrame(
             {
                 "X": np.linspace(0, 1000, num_points),
                 "Y": np.linspace(0, 500, num_points),
-            }
-        )
-
-        # Mock car data (nGear, Speed)
-        mock_car_data = pd.DataFrame(
-            {
                 "nGear": np.random.randint(1, 9, num_points),  # Gears 1-8
                 "Speed": np.random.uniform(100, 320, num_points),
             }
@@ -88,8 +82,7 @@ class TestGearShiftsMapBusinessLogic:
             "LapTime": pd.Timedelta(seconds=89.5),
             "LapNumber": 12,
         }[key]
-        mock_fastest_lap.get_pos_data.return_value = mock_pos_data
-        mock_fastest_lap.get_car_data.return_value = mock_car_data
+        mock_fastest_lap.get_telemetry.return_value = mock_telemetry
 
         # Mock driver laps
         mock_driver_laps = MagicMock()
@@ -166,25 +159,18 @@ class TestGearShiftsMapBusinessLogic:
         )
         mock_fastf1_session.get_circuit_info.return_value = mock_circuit_info
 
-        # Mock position data
-        mock_pos_data = pd.DataFrame(
+        # Mock telemetry WITHOUT nGear column
+        mock_telemetry = pd.DataFrame(
             {
                 "X": np.linspace(0, 1000, 100),
                 "Y": np.linspace(0, 500, 100),
-            }
-        )
-
-        # Mock car data WITHOUT nGear column
-        mock_car_data = pd.DataFrame(
-            {
                 "Speed": np.random.uniform(100, 320, 100),
             }
         )
 
         # Mock fastest lap
         mock_fastest_lap = MagicMock()
-        mock_fastest_lap.get_pos_data.return_value = mock_pos_data
-        mock_fastest_lap.get_car_data.return_value = mock_car_data
+        mock_fastest_lap.get_telemetry.return_value = mock_telemetry
 
         # Mock driver laps
         mock_driver_laps = MagicMock()
@@ -194,7 +180,7 @@ class TestGearShiftsMapBusinessLogic:
         mock_fastf1_session.laps.pick_drivers.return_value = mock_driver_laps
 
         # Should raise ValueError for missing nGear
-        with pytest.raises(ValueError, match="No gear telemetry"):
+        with pytest.raises(ValueError, match="Missing required telemetry columns"):
             generate_gear_shifts_map_chart(
                 year=2024,
                 gp="Monaco",
@@ -208,7 +194,7 @@ class TestGearShiftsMapBusinessLogic:
     def test_generate_gear_shifts_map_empty_telemetry(
         self, mock_load_session, mock_setup_plot_style, tmp_output_dir, mock_fastf1_session
     ):
-        """Test error when position or car data is empty."""
+        """Test error when telemetry data is empty."""
         # Setup session mock
         mock_load_session.return_value = mock_fastf1_session
 
@@ -226,16 +212,12 @@ class TestGearShiftsMapBusinessLogic:
         )
         mock_fastf1_session.get_circuit_info.return_value = mock_circuit_info
 
-        # Mock empty position data
-        mock_pos_data = pd.DataFrame({"X": [], "Y": []})
-
-        # Mock empty car data
-        mock_car_data = pd.DataFrame({"nGear": [], "Speed": []})
+        # Mock empty telemetry
+        mock_telemetry = pd.DataFrame({"X": [], "Y": [], "nGear": [], "Speed": []})
 
         # Mock fastest lap
         mock_fastest_lap = MagicMock()
-        mock_fastest_lap.get_pos_data.return_value = mock_pos_data
-        mock_fastest_lap.get_car_data.return_value = mock_car_data
+        mock_fastest_lap.get_telemetry.return_value = mock_telemetry
 
         # Mock driver laps
         mock_driver_laps = MagicMock()
@@ -317,18 +299,12 @@ class TestGearShiftsMapBusinessLogic:
         )
         mock_fastf1_session.get_circuit_info.return_value = mock_circuit_info
 
-        # Mock position data
-        num_points = 50
-        mock_pos_data = pd.DataFrame(
+        # Mock merged telemetry data
+        num_points = 100
+        mock_telemetry = pd.DataFrame(
             {
                 "X": np.linspace(0, 1000, num_points),
                 "Y": np.linspace(0, 500, num_points),
-            }
-        )
-
-        # Mock car data
-        mock_car_data = pd.DataFrame(
-            {
                 "nGear": [3] * num_points,  # Constant gear for simplicity
                 "Speed": [200.0] * num_points,
             }
@@ -340,8 +316,7 @@ class TestGearShiftsMapBusinessLogic:
             "LapTime": pd.Timedelta(seconds=89.5),
             "LapNumber": 12,
         }[key]
-        mock_fastest_lap.get_pos_data.return_value = mock_pos_data
-        mock_fastest_lap.get_car_data.return_value = mock_car_data
+        mock_fastest_lap.get_telemetry.return_value = mock_telemetry
 
         # Mock driver laps
         mock_driver_laps = MagicMock()
@@ -387,18 +362,12 @@ class TestGearShiftsMapBusinessLogic:
         )
         mock_fastf1_session.get_circuit_info.return_value = mock_circuit_info
 
-        # Mock position data
-        num_points = 50
-        mock_pos_data = pd.DataFrame(
+        # Mock merged telemetry data
+        num_points = 100
+        mock_telemetry = pd.DataFrame(
             {
                 "X": np.linspace(0, 1000, num_points),
                 "Y": np.linspace(0, 500, num_points),
-            }
-        )
-
-        # Mock car data
-        mock_car_data = pd.DataFrame(
-            {
                 "nGear": np.random.randint(1, 9, num_points),
                 "Speed": np.random.uniform(100, 320, num_points),
             }
@@ -410,8 +379,7 @@ class TestGearShiftsMapBusinessLogic:
             "LapTime": pd.Timedelta(seconds=89.5),
             "LapNumber": 12,
         }[key]
-        mock_fastest_lap.get_pos_data.return_value = mock_pos_data
-        mock_fastest_lap.get_car_data.return_value = mock_car_data
+        mock_fastest_lap.get_telemetry.return_value = mock_telemetry
 
         # Mock driver laps
         mock_driver_laps = MagicMock()

@@ -163,3 +163,55 @@ class TestGearShiftsMapIntegration:
                 drivers=["VER", "NOR"],
                 workspace_dir=tmp_path,
             )
+
+    @pytest.mark.timeout(120)
+    def test_merged_telemetry_has_no_gaps(self, fastf1_cache_dir, stable_test_data):
+        """Test that merged telemetry using get_telemetry() has continuous data without gaps."""
+        import fastf1
+
+        session = fastf1.get_session(stable_test_data["year"], stable_test_data["test_gp"], "Q")
+        session.load(telemetry=True)
+
+        # Get fastest lap for a driver
+        driver_laps = session.laps.pick_drivers("VER")
+        assert not driver_laps.empty, "Driver should have laps"
+
+        fastest_lap = driver_laps.pick_fastest()
+
+        # Get merged telemetry using get_telemetry()
+        telemetry = fastest_lap.get_telemetry()
+
+        # Verify telemetry is not empty
+        assert not telemetry.empty, "Merged telemetry should not be empty"
+
+        # Verify required columns are present
+        required_columns = ["X", "Y", "nGear"]
+        for col in required_columns:
+            assert col in telemetry.columns, f"Column {col} should be present in merged telemetry"
+
+        # Verify no NaN values in critical columns (no gaps)
+        assert not telemetry["X"].isna().any(), "X coordinates should not have gaps (NaN values)"
+        assert not telemetry["Y"].isna().any(), "Y coordinates should not have gaps (NaN values)"
+        assert not telemetry["nGear"].isna().any(), "Gear data should not have gaps (NaN values)"
+
+        # Verify sufficient data points for visualization
+        # get_telemetry() should provide more data than an inner merge would
+        assert len(telemetry) >= 100, f"Should have at least 100 telemetry points, got {len(telemetry)}"
+
+        # Verify gear values are valid
+        assert telemetry["nGear"].min() >= 1, "Minimum gear should be at least 1"
+        assert telemetry["nGear"].max() <= 8, "Maximum gear should be at most 8"
+
+        # Verify spatial continuity (coordinates should form a continuous path)
+        x_diff = telemetry["X"].diff().abs()
+        y_diff = telemetry["Y"].diff().abs()
+
+        # Large jumps would indicate gaps in spatial data
+        # Using a reasonable threshold based on typical track dimensions
+        max_spatial_jump = 1000  # meters
+        assert x_diff.max() < max_spatial_jump, (
+            f"X coordinates have large gaps (max jump: {x_diff.max()}m), indicating missing data"
+        )
+        assert y_diff.max() < max_spatial_jump, (
+            f"Y coordinates have large gaps (max jump: {y_diff.max()}m), indicating missing data"
+        )
