@@ -53,9 +53,14 @@ class TestComputeWildnessScore:
             "average_volatility": 5.0,
             "mean_pit_stops": 2.0,
         }
-
+        # 100 overtakes / 300 km = 0.333 per km (the max)
         score = _compute_wildness_score(
-            stats, num_safety_cars=3, num_red_flags=1, max_overtakes=100, max_volatility=5.0
+            stats,
+            num_safety_cars=3,
+            num_red_flags=1,
+            race_distance_km=300.0,
+            max_overtakes_per_km=100 / 300.0,
+            max_volatility=5.0,
         )
 
         assert score == 1.0
@@ -70,7 +75,12 @@ class TestComputeWildnessScore:
         }
 
         score = _compute_wildness_score(
-            stats, num_safety_cars=0, num_red_flags=0, max_overtakes=100, max_volatility=5.0
+            stats,
+            num_safety_cars=0,
+            num_red_flags=0,
+            race_distance_km=300.0,
+            max_overtakes_per_km=0.5,
+            max_volatility=5.0,
         )
 
         assert score == 0.0
@@ -84,9 +94,45 @@ class TestComputeWildnessScore:
             "mean_pit_stops": 0.0,
         }
 
-        score = _compute_wildness_score(stats, num_safety_cars=0, num_red_flags=0, max_overtakes=0, max_volatility=0.0)
+        score = _compute_wildness_score(
+            stats,
+            num_safety_cars=0,
+            num_red_flags=0,
+            race_distance_km=0.0,
+            max_overtakes_per_km=0.0,
+            max_volatility=0.0,
+        )
 
         assert score == 0.0
+
+    def test_short_race_scores_higher_than_full_race_with_same_overtakes(self):
+        """Test that a shortened race with same raw overtakes scores higher."""
+        stats = {
+            "total_overtakes": 40,
+            "total_position_changes": 20,
+            "average_volatility": 2.0,
+            "mean_pit_stops": 1.0,
+        }
+        # Short race: 40 overtakes in 150 km = 0.267/km
+        short_score = _compute_wildness_score(
+            stats,
+            num_safety_cars=0,
+            num_red_flags=0,
+            race_distance_km=150.0,
+            max_overtakes_per_km=40 / 150.0,
+            max_volatility=2.0,
+        )
+        # Full race: 40 overtakes in 300 km = 0.133/km
+        full_score = _compute_wildness_score(
+            stats,
+            num_safety_cars=0,
+            num_red_flags=0,
+            race_distance_km=300.0,
+            max_overtakes_per_km=40 / 150.0,
+            max_volatility=2.0,
+        )
+
+        assert short_score > full_score
 
 
 class TestGetSeasonSummary:
@@ -234,6 +280,7 @@ class TestGetSeasonSummary:
         mock_get_circuit_length,
     ):
         """Test that testing events (round 0) are skipped."""
+        mock_get_circuit_length.return_value = 5.412
         schedule = pd.DataFrame(
             [
                 {
@@ -294,6 +341,7 @@ class TestGetSeasonSummary:
         mock_get_circuit_length,
     ):
         """Test that a sprint weekend produces both R and S entries."""
+        mock_get_circuit_length.return_value = 5.451
         schedule = pd.DataFrame(
             [
                 {
@@ -340,7 +388,7 @@ class TestGetSeasonSummary:
     @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
     @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
     @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats")
-    def test_sprint_wildness_normalized_separately(
+    def test_sprint_density_compared_against_race(
         self,
         mock_compute_stats,
         mock_setup_cache,
@@ -348,7 +396,13 @@ class TestGetSeasonSummary:
         mock_load_session,
         mock_get_circuit_length,
     ):
-        """Test that sprint wildness is normalized against other sprints, not races."""
+        """Test that sprint and race wildness are normalized by overtake density.
+
+        With density-based normalization, sprints and races share a single
+        max.  A sprint with the same overtakes-per-lap as the race should
+        score equally on the overtakes component.
+        """
+        mock_get_circuit_length.return_value = 5.451
         schedule = pd.DataFrame(
             [
                 {
@@ -372,18 +426,21 @@ class TestGetSeasonSummary:
         )
         mock_load_session.return_value = mock_session
 
-        # Sprint has fewer overtakes/volatility than race (as expected)
+        # Give the sprint the same overtakes-per-lap as the race so both
+        # should receive the same overtake density component.
+        # Race: 56 overtakes / 56 laps = 1.0/lap
+        # Sprint: 20 overtakes / 20 laps = 1.0/lap
         race_stats = {
-            "total_overtakes": 60,
+            "total_overtakes": 56,
             "total_position_changes": 30,
             "average_volatility": 3.0,
             "mean_pit_stops": 2.0,
             "total_laps": 56,
         }
         sprint_stats = {
-            "total_overtakes": 15,
+            "total_overtakes": 20,
             "total_position_changes": 8,
-            "average_volatility": 1.5,
+            "average_volatility": 3.0,
             "mean_pit_stops": 0.0,
             "total_laps": 20,
         }
@@ -395,8 +452,7 @@ class TestGetSeasonSummary:
         race_entry = next(r for r in result["races"] if r["session_type"] == "R")
         sprint_entry = next(r for r in result["races"] if r["session_type"] == "S")
 
-        # Both are the only entry of their type, so overtakes and volatility
-        # are each normalized to 1.0 within their group. With no safety cars
-        # or red flags both should score: 0.4*1 + 0.3*1 + 0.2*0 + 0.1*0 = 0.7
+        # Both have the same overtakes/lap and same volatility, so both
+        # should score identically: 0.4*1 + 0.3*1 + 0.2*0 + 0.1*0 = 0.7
         assert race_entry["wildness_score"] == 0.7
         assert sprint_entry["wildness_score"] == 0.7

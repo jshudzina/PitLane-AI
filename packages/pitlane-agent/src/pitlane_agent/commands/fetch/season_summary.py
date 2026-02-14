@@ -39,6 +39,7 @@ class SeasonRaceSummary(TypedDict):
     date: str | None
     session_type: str
     circuit_length_km: float | None
+    race_distance_km: float
     podium: list[str]
     race_summary: RaceSummaryStats
     num_safety_cars: int
@@ -89,28 +90,34 @@ def _compute_wildness_score(
     race_summary: RaceSummaryStats,
     num_safety_cars: int,
     num_red_flags: int,
-    max_overtakes: int,
+    race_distance_km: float,
+    max_overtakes_per_km: float,
     max_volatility: float,
 ) -> float:
     """Compute a composite wildness score for a race.
 
-    The score is a weighted combination of normalized overtakes,
-    volatility, and safety car/red flag bonuses.
+    The score is a weighted combination of normalized overtake density,
+    volatility, and safety car/red flag bonuses.  Overtakes are expressed
+    as a per-km rate so that shortened races and sprints are not penalised
+    for covering fewer laps.
 
     Args:
         race_summary: Aggregate race statistics
         num_safety_cars: Number of safety car deployments
         num_red_flags: Number of red flags
-        max_overtakes: Maximum overtakes across all races (for normalization)
-        max_volatility: Maximum average volatility across all races (for normalization)
+        race_distance_km: Completed race distance (total_laps * circuit_length_km,
+            or total_laps when circuit length is unavailable)
+        max_overtakes_per_km: Maximum overtakes-per-km across comparable races
+        max_volatility: Maximum average volatility across comparable races
 
     Returns:
         Wildness score (higher = wilder race)
     """
-    norm_overtakes = race_summary["total_overtakes"] / max_overtakes if max_overtakes > 0 else 0
+    overtakes_per_km = race_summary["total_overtakes"] / race_distance_km if race_distance_km > 0 else 0
+    norm_overtakes = overtakes_per_km / max_overtakes_per_km if max_overtakes_per_km > 0 else 0
     norm_volatility = race_summary["average_volatility"] / max_volatility if max_volatility > 0 else 0
 
-    # Weighted formula: overtakes and volatility are primary signals,
+    # Weighted formula: overtake density and volatility are primary signals,
     # safety cars and red flags add bonus
     return round(
         0.4 * norm_overtakes
@@ -211,26 +218,36 @@ def get_season_summary(year: int) -> SeasonSummary:
             },
         }
 
-    # Compute normalization values per session type so sprints (shorter,
-    # no mandatory pitstops) are compared against other sprints rather
-    # than full-length races.
-    max_overtakes_by_type: dict[str, int] = {}
-    max_volatility_by_type: dict[str, float] = {}
-    for stype in {r["session_type"] for r in raw_races}:
-        type_races = [r for r in raw_races if r["session_type"] == stype]
-        max_overtakes_by_type[stype] = max(r["race_summary"]["total_overtakes"] for r in type_races)
-        max_volatility_by_type[stype] = max(r["race_summary"]["average_volatility"] for r in type_races)
+    # Compute race distance for each entry.  When circuit_length_km is
+    # available we use total_laps * circuit_length_km; otherwise we fall
+    # back to total_laps alone (per-lap normalisation).  Note:
+    # circuit_length_km requires telemetry, which is not loaded here
+    # (telemetry=False) to keep the command fast, so the per-lap
+    # fallback is the current default path.
+    for race in raw_races:
+        laps = race["race_summary"]["total_laps"]
+        circuit_km = race["circuit_length_km"]
+        race["race_distance_km"] = laps * circuit_km if circuit_km is not None else float(laps)
+
+    # Compute normalization maxima across all sessions.  Since overtakes
+    # are already expressed as a per-distance density, sprints and full
+    # races are directly comparable without separate bucketing.
+    max_overtakes_per_km = max(
+        (r["race_summary"]["total_overtakes"] / r["race_distance_km"] if r["race_distance_km"] > 0 else 0)
+        for r in raw_races
+    )
+    max_volatility = max(r["race_summary"]["average_volatility"] for r in raw_races)
 
     # Compute wildness scores and build final race list
     races: list[SeasonRaceSummary] = []
     for race in raw_races:
-        stype = race["session_type"]
         wildness = _compute_wildness_score(
             race["race_summary"],
             race["num_safety_cars"],
             race["num_red_flags"],
-            max_overtakes_by_type[stype],
-            max_volatility_by_type[stype],
+            race["race_distance_km"],
+            max_overtakes_per_km,
+            max_volatility,
         )
         races.append(
             {

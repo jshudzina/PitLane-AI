@@ -57,9 +57,17 @@ class TestSeasonSummaryIntegration:
             assert summary["mean_pit_stops"] >= 0
             assert summary["total_laps"] > 0
 
-            # Circuit length should be a positive number (all F1 circuits are 2-8 km)
-            assert race["circuit_length_km"] is not None
-            assert 2.0 < race["circuit_length_km"] < 8.0
+            # Circuit length should be a positive number when available
+            if race["circuit_length_km"] is not None:
+                assert 2.0 < race["circuit_length_km"] < 8.0
+                # Race distance should be total_laps * circuit_length_km
+                expected_distance = summary["total_laps"] * race["circuit_length_km"]
+                assert abs(race["race_distance_km"] - expected_distance) < 0.01
+            else:
+                # Fallback: race_distance_km equals total_laps
+                assert race["race_distance_km"] == float(summary["total_laps"])
+
+            assert race["race_distance_km"] > 0
 
             # Wildness score should be 0-1
             assert 0 <= race["wildness_score"] <= 1
