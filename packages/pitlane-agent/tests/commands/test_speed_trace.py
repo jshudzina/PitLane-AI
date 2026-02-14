@@ -387,3 +387,179 @@ class TestSpeedTraceBusinessLogic:
 
         # Should only have stats for HAM
         assert len(result["drivers_compared"]) == 1
+
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    def test_generate_speed_trace_chart_with_corners(
+        self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
+    ):
+        """Test speed trace chart generation with corner annotations enabled."""
+        mock_load_session.return_value = mock_fastf1_session
+
+        # Mock telemetry data
+        mock_telemetry = pd.DataFrame(
+            {
+                "Distance": [0.0, 100.0, 200.0, 300.0, 400.0],
+                "Speed": [250.0, 280.0, 310.0, 290.0, 270.0],
+            }
+        )
+
+        mock_fastest_lap = MagicMock()
+        mock_fastest_lap.__getitem__.side_effect = lambda key: {
+            "LapTime": pd.Timedelta(seconds=89.5),
+            "LapNumber": 12,
+        }[key]
+
+        mock_car_data = MagicMock()
+        mock_car_data.add_distance.return_value = mock_telemetry
+        mock_fastest_lap.get_car_data.return_value = mock_car_data
+
+        mock_driver_laps = MagicMock()
+        mock_driver_laps.empty = False
+        mock_driver_laps.pick_fastest.return_value = mock_fastest_lap
+
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_driver_laps
+
+        # Mock circuit info with corners
+        mock_corners = pd.DataFrame(
+            {
+                "Number": [1, 2, 3],
+                "Letter": ["", "", ""],
+                "Distance": [100.0, 250.0, 350.0],
+            }
+        )
+        mock_circuit_info = MagicMock()
+        mock_circuit_info.corners = mock_corners
+        mock_fastf1_session.get_circuit_info.return_value = mock_circuit_info
+
+        # Mock pyplot
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+        mock_ax.get_ylim.return_value = (240, 320)
+
+        mock_fastf1.plotting.get_driver_color.return_value = "#0600EF"
+
+        result = generate_speed_trace_chart(
+            year=2024,
+            gp="Monaco",
+            session_type="Q",
+            drivers=["VER", "HAM"],
+            workspace_dir=tmp_output_dir,
+            annotate_corners=True,
+        )
+
+        assert result["corners_annotated"] is True
+        # Verify corner annotations were drawn (3 corners = 3 axvline + 3 text calls)
+        assert mock_ax.axvline.call_count == 3
+        # text is called for corners (3) plus any other text calls
+        corner_text_calls = [call for call in mock_ax.text.call_args_list if call[0][2] in ("1", "2", "3")]
+        assert len(corner_text_calls) == 3
+
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    def test_generate_speed_trace_chart_corners_fallback(
+        self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
+    ):
+        """Test graceful degradation when corner data is unavailable."""
+        mock_load_session.return_value = mock_fastf1_session
+
+        mock_telemetry = pd.DataFrame(
+            {
+                "Distance": [0.0, 100.0, 200.0],
+                "Speed": [250.0, 280.0, 310.0],
+            }
+        )
+
+        mock_fastest_lap = MagicMock()
+        mock_fastest_lap.__getitem__.side_effect = lambda key: {
+            "LapTime": pd.Timedelta(seconds=89.5),
+            "LapNumber": 12,
+        }[key]
+
+        mock_car_data = MagicMock()
+        mock_car_data.add_distance.return_value = mock_telemetry
+        mock_fastest_lap.get_car_data.return_value = mock_car_data
+
+        mock_driver_laps = MagicMock()
+        mock_driver_laps.empty = False
+        mock_driver_laps.pick_fastest.return_value = mock_fastest_lap
+
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_driver_laps
+
+        # Mock circuit info to raise an exception
+        mock_fastf1_session.get_circuit_info.side_effect = Exception("No circuit data")
+
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+        mock_ax.get_ylim.return_value = (240, 320)
+
+        mock_fastf1.plotting.get_driver_color.return_value = "#0600EF"
+
+        # Should not raise — graceful degradation
+        result = generate_speed_trace_chart(
+            year=2024,
+            gp="Monaco",
+            session_type="Q",
+            drivers=["VER", "HAM"],
+            workspace_dir=tmp_output_dir,
+            annotate_corners=True,
+        )
+
+        assert result["corners_annotated"] is True
+        # No corner lines should be drawn
+        mock_ax.axvline.assert_not_called()
+
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    def test_generate_speed_trace_chart_without_corners_default(
+        self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
+    ):
+        """Test that corners are not annotated by default."""
+        mock_load_session.return_value = mock_fastf1_session
+
+        mock_telemetry = pd.DataFrame(
+            {
+                "Distance": [0.0, 100.0, 200.0],
+                "Speed": [250.0, 280.0, 310.0],
+            }
+        )
+
+        mock_fastest_lap = MagicMock()
+        mock_fastest_lap.__getitem__.side_effect = lambda key: {
+            "LapTime": pd.Timedelta(seconds=89.5),
+            "LapNumber": 12,
+        }[key]
+
+        mock_car_data = MagicMock()
+        mock_car_data.add_distance.return_value = mock_telemetry
+        mock_fastest_lap.get_car_data.return_value = mock_car_data
+
+        mock_driver_laps = MagicMock()
+        mock_driver_laps.empty = False
+        mock_driver_laps.pick_fastest.return_value = mock_fastest_lap
+
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_driver_laps
+
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+        mock_ax.get_ylim.return_value = (240, 320)
+
+        mock_fastf1.plotting.get_driver_color.return_value = "#0600EF"
+
+        result = generate_speed_trace_chart(
+            year=2024,
+            gp="Monaco",
+            session_type="Q",
+            drivers=["VER", "HAM"],
+            workspace_dir=tmp_output_dir,
+        )
+
+        assert result["corners_annotated"] is False
+        # get_circuit_info should never be called when annotate_corners is False
+        mock_fastf1_session.get_circuit_info.assert_not_called()

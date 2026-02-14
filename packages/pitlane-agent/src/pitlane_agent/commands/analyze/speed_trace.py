@@ -21,6 +21,7 @@ def generate_speed_trace_chart(
     session_type: str,
     drivers: list[str],
     workspace_dir: Path,
+    annotate_corners: bool = False,
 ) -> dict:
     """Generate a speed trace comparison for fastest laps.
 
@@ -30,6 +31,7 @@ def generate_speed_trace_chart(
         session_type: Session identifier
         drivers: List of 2-5 driver abbreviations to compare
         workspace_dir: Workspace directory for outputs and cache
+        annotate_corners: Whether to add corner markers and labels to the chart
 
     Returns:
         Dictionary with chart metadata and speed statistics
@@ -158,6 +160,27 @@ def generate_speed_trace_chart(
     y_range = y_max - y_min
     ax.set_ylim(y_min - y_range * 0.05, y_max + y_range * 0.05)
 
+    # Add corner annotations if requested
+    if annotate_corners:
+        try:
+            circuit_info = session.get_circuit_info()
+            for _, corner in circuit_info.corners.iterrows():
+                number = int(corner["Number"])
+                letter = str(corner["Letter"]) if pd.notna(corner["Letter"]) and corner["Letter"] else ""
+                label = f"{number}{letter}"
+                ax.axvline(x=corner["Distance"], color="grey", linestyle="--", linewidth=1, alpha=0.3)
+                ax.text(
+                    corner["Distance"],
+                    ax.get_ylim()[1],
+                    label,
+                    va="bottom",
+                    ha="center",
+                    size="x-small",
+                    color="white",
+                )
+        except Exception:
+            pass  # Graceful degradation — proceed without annotations
+
     # Save figure
     save_figure(fig, output_path)
 
@@ -170,4 +193,5 @@ def generate_speed_trace_chart(
         "drivers_compared": [s["driver"] for s in stats],
         "statistics": stats,
         "speed_delta": speed_delta,
+        "corners_annotated": annotate_corners,
     }

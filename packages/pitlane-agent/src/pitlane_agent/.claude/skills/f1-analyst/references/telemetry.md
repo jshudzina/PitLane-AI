@@ -29,12 +29,15 @@ pitlane analyze speed-trace \
 - `--gp`: Grand Prix name (e.g., "Spanish Grand Prix", "Monaco")
 - `--session`: Session type (R=Race, Q=Qualifying, FP1, FP2, FP3, S=Sprint, SQ)
 - `--drivers`: 2-5 driver abbreviations to compare (specify multiple times: --drivers VER --drivers HAM)
+- `--annotate-corners`: (optional flag) Add vertical corner markers and labels to the chart for easy track reference
 
 **Example Questions:**
 - "Compare Verstappen and Hamilton's speed traces at Silverstone qualifying"
 - "Where did Leclerc lose time to Sainz in Q3?"
 - "Show me the speed difference between the top 3 qualifiers"
 - "Which driver carries more speed through the corners at Monaco?"
+- "Show speed trace with corner labels at Spa"
+- "Annotate corners on the speed comparison for Monaco qualifying"
 
 **Limitations:**
 - Requires telemetry data to be available (typically 2018 onwards, varies by session)
@@ -153,6 +156,8 @@ Use the full workspace path returned by the command. The web app will automatica
 - Local minimums = corner apex speeds
 - Rising slopes = acceleration zones
 - Horizontal sections = flat-out / DRS zones
+- Vertical dashed lines = corner positions (when `--annotate-corners` is used)
+- Labels above the chart = corner numbers (e.g., "1", "2", "9a")
 
 ## Example Analysis
 
@@ -185,18 +190,7 @@ Verstappen's pole lap at Spanish GP 2024 qualifying showed superior straight-lin
 
 The following telemetry analysis types are planned for future implementation:
 
-### 3. Speed Traces with Corner Annotations
-**What it would do:**
-- Plot speed throughout a lap with corner markers
-- Label each corner for easy reference
-- Show speed zones and straight-line performance
-
-**Example Questions:**
-- "Show me Hamilton's speed through each corner at Spa"
-- "Which corners are taken flat out at Monza?"
-- "Where do drivers brake hardest at Singapore?"
-
-### 4. Speed Visualization on Track Map
+### 3. Speed Visualization on Track Map
 **What it would do:**
 - Map speed data spatially across the circuit layout
 - Color-code track sections by speed

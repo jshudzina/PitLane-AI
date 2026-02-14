@@ -72,6 +72,7 @@ Based on the user's question, read the appropriate reference file for detailed i
 
 **Examples:**
 - "Compare speed traces for two laps"
+- "Compare speed traces with corner annotations at Monaco"
 - "Show me gear shifts around Monaco"
 - "Where do drivers brake hardest?"
 
