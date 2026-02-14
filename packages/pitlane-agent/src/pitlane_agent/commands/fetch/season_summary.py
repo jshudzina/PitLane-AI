@@ -12,6 +12,7 @@ from typing import TypedDict
 
 import fastf1
 import pandas as pd
+from fastf1.core import Session
 from fastf1.exceptions import DataNotLoadedError
 
 from pitlane_agent.utils.constants import (
@@ -68,7 +69,7 @@ class SeasonSummary(TypedDict):
     season_averages: SeasonAverages
 
 
-def _count_track_interruptions(session) -> tuple[int, int, int]:
+def _count_track_interruptions(session: Session) -> tuple[int, int, int]:
     """Count safety cars, VSCs, and red flags from track status data.
 
     Returns:
