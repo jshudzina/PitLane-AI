@@ -9,6 +9,7 @@ from pitlane_agent.commands.analyze.speed_trace import (
     setup_plot_style,
 )
 from pitlane_agent.utils import sanitize_filename
+from pitlane_agent.utils.plotting import ensure_color_contrast, get_driver_team
 
 
 class TestSpeedTraceBusinessLogic:
@@ -563,3 +564,107 @@ class TestSpeedTraceBusinessLogic:
         assert result["corners_annotated"] is False
         # get_circuit_info should never be called when annotate_corners is False
         mock_fastf1_session.get_circuit_info.assert_not_called()
+
+    @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
+    @patch("pitlane_agent.commands.analyze.speed_trace.plt")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    def test_teammates_get_different_line_styles(
+        self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
+    ):
+        """Test that drivers on the same team get different line styles."""
+        mock_load_session.return_value = mock_fastf1_session
+
+        mock_telemetry = pd.DataFrame(
+            {
+                "Distance": [0.0, 100.0, 200.0],
+                "Speed": [250.0, 280.0, 310.0],
+            }
+        )
+
+        mock_fastest_lap = MagicMock()
+        mock_fastest_lap.__getitem__.side_effect = lambda key: {
+            "LapTime": pd.Timedelta(seconds=89.5),
+            "LapNumber": 12,
+        }[key]
+
+        mock_car_data = MagicMock()
+        mock_car_data.add_distance.return_value = mock_telemetry
+        mock_fastest_lap.get_car_data.return_value = mock_car_data
+
+        mock_driver_laps = MagicMock()
+        mock_driver_laps.empty = False
+        mock_driver_laps.pick_fastest.return_value = mock_fastest_lap
+
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_driver_laps
+
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+        mock_ax.get_ylim.return_value = (240, 320)
+
+        mock_fastf1.plotting.get_driver_color.return_value = "#0600EF"
+
+        # Use two teammates (VER and PER, both Red Bull)
+        generate_speed_trace_chart(
+            year=2024,
+            gp="Monaco",
+            session_type="Q",
+            drivers=["VER", "PER"],
+            workspace_dir=tmp_output_dir,
+        )
+
+        # Verify plot was called with different line styles for teammates
+        plot_calls = mock_ax.plot.call_args_list
+        assert len(plot_calls) == 2
+
+        first_linestyle = plot_calls[0][1].get("linestyle", "-")
+        second_linestyle = plot_calls[1][1].get("linestyle", "-")
+        assert first_linestyle == "-"  # solid for first teammate
+        assert second_linestyle == "--"  # dashed for second teammate
+
+
+class TestPlottingUtilities:
+    """Unit tests for plotting utility functions."""
+
+    def test_ensure_color_contrast_dark_color_is_lightened(self):
+        """Test that very dark colors are lightened."""
+        result = ensure_color_contrast("#0a0a0a")
+        assert result != "#0a0a0a"
+
+    def test_ensure_color_contrast_bright_color_unchanged(self):
+        """Test that bright colors are not modified."""
+        result = ensure_color_contrast("#ff0000")
+        assert result == "#ff0000"
+
+    def test_ensure_color_contrast_preserves_hue(self):
+        """Test that color adjustment preserves hue."""
+        import colorsys
+
+        dark_blue = "#000033"
+        result = ensure_color_contrast(dark_blue)
+        # Result should still be blue-ish
+        r, g, b = (int(result.lstrip("#")[i : i + 2], 16) / 255.0 for i in (0, 2, 4))
+        h, _, _ = colorsys.rgb_to_hls(r, g, b)
+        # Blue hue is around 0.66
+        assert 0.55 < h < 0.75
+
+    def test_ensure_color_contrast_handles_hash_prefix(self):
+        """Test that # prefix is handled correctly."""
+        with_hash = ensure_color_contrast("#ff0000")
+        without_hash = ensure_color_contrast("ff0000")
+        assert with_hash == without_hash
+
+    def test_get_driver_team_found(self, mock_fastf1_session):
+        """Test team lookup for a known driver."""
+        assert get_driver_team("VER", mock_fastf1_session) == "Red Bull Racing"
+        assert get_driver_team("HAM", mock_fastf1_session) == "Mercedes"
+
+    def test_get_driver_team_not_found(self, mock_fastf1_session):
+        """Test team lookup for an unknown driver."""
+        assert get_driver_team("UNKNOWN", mock_fastf1_session) is None
+
+    def test_get_driver_team_exception_handling(self):
+        """Test graceful degradation when session.results is unavailable."""
+        session = MagicMock()
+        session.results.__getitem__.side_effect = Exception("No results")
+        assert get_driver_team("VER", session) is None

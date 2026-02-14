@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock
 
+import pandas as pd
 import pytest
 
 
@@ -23,6 +24,21 @@ def mock_fastf1_session():
     session.date = MagicMock()
     session.date.date.return_value = "2024-05-25"
     session.total_laps = 78
+    session.results = pd.DataFrame(
+        {
+            "Abbreviation": ["VER", "PER", "HAM", "RUS", "LEC", "SAI", "NOR", "PIA"],
+            "TeamName": [
+                "Red Bull Racing",
+                "Red Bull Racing",
+                "Mercedes",
+                "Mercedes",
+                "Ferrari",
+                "Ferrari",
+                "McLaren",
+                "McLaren",
+            ],
+        }
+    )
     return session
 
 

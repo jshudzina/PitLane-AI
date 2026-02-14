@@ -10,9 +10,19 @@ import fastf1.plotting
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from pitlane_agent.utils.constants import MAX_SPEED_TRACE_DRIVERS, MIN_SPEED_TRACE_DRIVERS
+from pitlane_agent.utils.constants import (
+    MAX_SPEED_TRACE_DRIVERS,
+    MIN_SPEED_TRACE_DRIVERS,
+    TEAMMATE_LINE_STYLES,
+)
 from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
-from pitlane_agent.utils.plotting import get_driver_color_safe, save_figure, setup_plot_style
+from pitlane_agent.utils.plotting import (
+    ensure_color_contrast,
+    get_driver_color_safe,
+    get_driver_team,
+    save_figure,
+    setup_plot_style,
+)
 
 
 def generate_speed_trace_chart(
@@ -66,6 +76,13 @@ def generate_speed_trace_chart(
     stats = []
     all_telemetry = []
 
+    # Build team membership to detect teammates
+    team_drivers: dict[str, list[str]] = {}
+    for driver_abbr in drivers:
+        team = get_driver_team(driver_abbr, session)
+        if team:
+            team_drivers.setdefault(team, []).append(driver_abbr)
+
     # Plot each driver's speed trace
     for driver_abbr in drivers:
         # Get fastest lap for the driver
@@ -82,8 +99,17 @@ def generate_speed_trace_chart(
         if telemetry.empty:
             continue
 
-        # Get driver color from FastF1
+        # Get driver color from FastF1 and ensure contrast against dark background
         color = get_driver_color_safe(driver_abbr, session)
+        if color:
+            color = ensure_color_contrast(color)
+
+        # Determine line style based on teammate position
+        team = get_driver_team(driver_abbr, session)
+        teammate_index = 0
+        if team and team in team_drivers:
+            teammate_index = team_drivers[team].index(driver_abbr)
+        style = TEAMMATE_LINE_STYLES[min(teammate_index, len(TEAMMATE_LINE_STYLES) - 1)]
 
         # Plot speed trace
         ax.plot(
@@ -91,7 +117,8 @@ def generate_speed_trace_chart(
             telemetry["Speed"],
             label=driver_abbr,
             color=color,
-            linewidth=2,
+            linewidth=style["linewidth"],
+            linestyle=style["linestyle"],
             alpha=0.9,
         )
 
