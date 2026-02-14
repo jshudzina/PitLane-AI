@@ -17,6 +17,7 @@ from pitlane_agent.commands.fetch import (
     get_driver_standings,
     get_event_schedule,
     get_race_control_messages,
+    get_season_summary,
     get_session_info,
 )
 from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
@@ -464,6 +465,34 @@ def race_control(
             "total_messages": messages["total_messages"],
             "filtered_messages": messages["filtered_messages"],
             "filters_applied": messages["filters_applied"],
+        }
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@fetch.command("season-summary")
+@click.option("--workspace-id", required=True, help="Workspace ID")
+@click.option("--year", type=int, required=True, help="Championship year (e.g., 2024)")
+def season_summary(workspace_id: str, year: int):
+    """Fetch season summary with races ranked by wildness score."""
+    data_dir = _validate_standings_request(workspace_id, year)
+
+    try:
+        summary = get_season_summary(year)
+
+        # Write to workspace
+        output_file = data_dir / "season_summary.json"
+        with open(output_file, "w") as f:
+            json.dump(summary, f, indent=2)
+
+        # Return result
+        result = {
+            "data_file": str(output_file),
+            "year": year,
+            "total_races": summary["total_races"],
         }
         click.echo(json.dumps(result, indent=2))
 
