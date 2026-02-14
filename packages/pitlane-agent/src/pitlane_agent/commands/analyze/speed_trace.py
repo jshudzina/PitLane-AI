@@ -188,6 +188,7 @@ def generate_speed_trace_chart(
     ax.set_ylim(y_min - y_range * 0.05, y_max + y_range * 0.05)
 
     # Add corner annotations if requested
+    corners_drawn = False
     if annotate_corners:
         try:
             circuit_info = session.get_circuit_info()
@@ -205,6 +206,7 @@ def generate_speed_trace_chart(
                     size="x-small",
                     color="white",
                 )
+            corners_drawn = True
         except Exception:
             pass  # Graceful degradation — proceed without annotations
 
@@ -220,5 +222,5 @@ def generate_speed_trace_chart(
         "drivers_compared": [s["driver"] for s in stats],
         "statistics": stats,
         "speed_delta": speed_delta,
-        "corners_annotated": annotate_corners,
+        "corners_annotated": corners_drawn,
     }

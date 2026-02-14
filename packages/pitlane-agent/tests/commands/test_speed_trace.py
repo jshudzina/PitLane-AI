@@ -510,7 +510,7 @@ class TestSpeedTraceBusinessLogic:
             annotate_corners=True,
         )
 
-        assert result["corners_annotated"] is True
+        assert result["corners_annotated"] is False
         # No corner lines should be drawn
         mock_ax.axvline.assert_not_called()
 
