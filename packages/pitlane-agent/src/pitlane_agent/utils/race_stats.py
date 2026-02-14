@@ -35,6 +35,31 @@ class RaceSummaryStats(TypedDict):
     total_position_changes: int
     average_volatility: float
     mean_pit_stops: float
+    total_laps: int
+
+
+def get_circuit_length_km(session: Session) -> float | None:
+    """Compute circuit lap distance in kilometres from telemetry.
+
+    Uses the fastest lap's car data with distance channel to determine
+    the total circuit length. Returns None if telemetry is unavailable.
+
+    Args:
+        session: FastF1 session object with laps loaded
+
+    Returns:
+        Circuit length in km rounded to 3 decimal places, or None
+    """
+    try:
+        fastest = session.laps.pick_fastest()
+        if fastest is None:
+            return None
+        telemetry = fastest.get_car_data().add_distance()
+        if telemetry.empty or "Distance" not in telemetry.columns:
+            return None
+        return round(telemetry["Distance"].max() / 1000, 3)
+    except Exception:
+        return None
 
 
 def compute_driver_position_stats(driver_abbr: str, session: Session) -> DriverPositionStats | None:
@@ -117,10 +142,12 @@ def compute_race_summary_stats(session: Session) -> RaceSummaryStats | None:
     total_position_changes = sum(abs(s["net_change"]) for s in stats)
     avg_volatility = sum(s["volatility"] for s in stats) / len(stats)
     mean_pit_stops = sum(s["pit_stops"] for s in stats) / len(stats)
+    total_laps = max(s["total_laps"] for s in stats)
 
     return {
         "total_overtakes": total_overtakes,
         "total_position_changes": total_position_changes,
         "average_volatility": round(avg_volatility, 2),
         "mean_pit_stops": round(mean_pit_stops, 2),
+        "total_laps": total_laps,
     }

@@ -92,6 +92,7 @@ class TestComputeWildnessScore:
 class TestGetSeasonSummary:
     """Tests for get_season_summary."""
 
+    @patch("pitlane_agent.commands.fetch.season_summary.get_circuit_length_km")
     @patch("pitlane_agent.commands.fetch.season_summary.load_session")
     @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
     @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
@@ -102,8 +103,10 @@ class TestGetSeasonSummary:
         mock_setup_cache,
         mock_get_schedule,
         mock_load_session,
+        mock_get_circuit_length,
     ):
         """Test basic season summary with two races."""
+        mock_get_circuit_length.return_value = 5.412
         # Setup schedule with 2 conventional races
         schedule = pd.DataFrame(
             [
@@ -143,12 +146,14 @@ class TestGetSeasonSummary:
                 "total_position_changes": 10,
                 "average_volatility": 1.5,
                 "mean_pit_stops": 1.5,
+                "total_laps": 57,
             },
             {
                 "total_overtakes": 50,
                 "total_position_changes": 30,
                 "average_volatility": 3.0,
                 "mean_pit_stops": 2.0,
+                "total_laps": 50,
             },
         ]
 
@@ -162,11 +167,14 @@ class TestGetSeasonSummary:
         assert result["races"][1]["event_name"] == "Bahrain Grand Prix"
         # Wildness scores should be in descending order
         assert result["races"][0]["wildness_score"] >= result["races"][1]["wildness_score"]
-        # Season averages should be computed
-        assert result["season_averages"]["total_overtakes"] == 35
+        # Season averages should be per-lap normalized
+        # Race 1: 20/57=0.351, Race 2: 50/50=1.0 → avg = 0.675 → round = 0.68
+        assert result["season_averages"]["overtakes_per_lap"] == round((20 / 57 + 50 / 50) / 2, 2)
         assert result["season_averages"]["mean_pit_stops"] == 1.75
         # Podium should be extracted
         assert result["races"][0]["podium"] == ["VER", "NOR", "LEC"]
+        # Circuit length should be present
+        assert result["races"][0]["circuit_length_km"] == 5.412
         # All entries should be race sessions
         assert all(r["session_type"] == "R" for r in result["races"])
 
@@ -212,6 +220,7 @@ class TestGetSeasonSummary:
 
         assert result["total_races"] == 0
 
+    @patch("pitlane_agent.commands.fetch.season_summary.get_circuit_length_km")
     @patch("pitlane_agent.commands.fetch.season_summary.load_session")
     @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
     @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
@@ -222,6 +231,7 @@ class TestGetSeasonSummary:
         mock_setup_cache,
         mock_get_schedule,
         mock_load_session,
+        mock_get_circuit_length,
     ):
         """Test that testing events (round 0) are skipped."""
         schedule = pd.DataFrame(
@@ -259,6 +269,7 @@ class TestGetSeasonSummary:
             "total_position_changes": 15,
             "average_volatility": 2.0,
             "mean_pit_stops": 1.5,
+            "total_laps": 57,
         }
 
         result = get_season_summary(2024)
@@ -269,6 +280,7 @@ class TestGetSeasonSummary:
         # load_session should only be called once (for round 1, not round 0)
         mock_load_session.assert_called_once()
 
+    @patch("pitlane_agent.commands.fetch.season_summary.get_circuit_length_km")
     @patch("pitlane_agent.commands.fetch.season_summary.load_session")
     @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
     @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
@@ -279,6 +291,7 @@ class TestGetSeasonSummary:
         mock_setup_cache,
         mock_get_schedule,
         mock_load_session,
+        mock_get_circuit_length,
     ):
         """Test that a sprint weekend produces both R and S entries."""
         schedule = pd.DataFrame(
@@ -309,6 +322,7 @@ class TestGetSeasonSummary:
             "total_position_changes": 12,
             "average_volatility": 2.0,
             "mean_pit_stops": 1.0,
+            "total_laps": 56,
         }
 
         result = get_season_summary(2024)
@@ -321,6 +335,7 @@ class TestGetSeasonSummary:
         # load_session should be called twice (R and S)
         assert mock_load_session.call_count == 2
 
+    @patch("pitlane_agent.commands.fetch.season_summary.get_circuit_length_km")
     @patch("pitlane_agent.commands.fetch.season_summary.load_session")
     @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
     @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
@@ -331,6 +346,7 @@ class TestGetSeasonSummary:
         mock_setup_cache,
         mock_get_schedule,
         mock_load_session,
+        mock_get_circuit_length,
     ):
         """Test that sprint wildness is normalized against other sprints, not races."""
         schedule = pd.DataFrame(
@@ -362,12 +378,14 @@ class TestGetSeasonSummary:
             "total_position_changes": 30,
             "average_volatility": 3.0,
             "mean_pit_stops": 2.0,
+            "total_laps": 56,
         }
         sprint_stats = {
             "total_overtakes": 15,
             "total_position_changes": 8,
             "average_volatility": 1.5,
             "mean_pit_stops": 0.0,
+            "total_laps": 20,
         }
         # R is loaded first, then S
         mock_compute_stats.side_effect = [race_stats, sprint_stats]

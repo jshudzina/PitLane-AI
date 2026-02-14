@@ -20,7 +20,11 @@ from pitlane_agent.utils.constants import (
     TRACK_STATUS_VSC_DEPLOYED,
 )
 from pitlane_agent.utils.fastf1_helpers import load_session
-from pitlane_agent.utils.race_stats import RaceSummaryStats, compute_race_summary_stats
+from pitlane_agent.utils.race_stats import (
+    RaceSummaryStats,
+    compute_race_summary_stats,
+    get_circuit_length_km,
+)
 
 
 class DriverInfo(TypedDict):
@@ -81,6 +85,7 @@ class SessionInfo(TypedDict):
     session_name: str
     date: str | None
     total_laps: int | None
+    circuit_length_km: float | None
     race_conditions: RaceConditions | None
     weather: WeatherData | None
     race_summary: RaceSummaryStats | None
@@ -183,8 +188,6 @@ def get_session_info(year: int, gp: str, session_type: str) -> SessionInfo:
         Weather includes min/max/avg for air temperature, humidity, pressure, and wind speed.
     """
     # Load session with weather and messages data
-    # For race/sprint sessions, also load laps for race summary stats
-    needs_laps = session_type in ("R", "S")
     session = load_session(year, gp, session_type, weather=True, messages=True)
 
     # Get driver info
@@ -206,12 +209,14 @@ def get_session_info(year: int, gp: str, session_type: str) -> SessionInfo:
 
     # Compute race summary stats for race/sprint sessions
     race_summary = None
-    if needs_laps:
+    if session_type in ("R", "S"):
         race_summary = compute_race_summary_stats(session)
 
     total_laps = None
     with contextlib.suppress(DataNotLoadedError):
         total_laps = None if pd.isna(session.total_laps) else int(session.total_laps)
+
+    circuit_length_km = get_circuit_length_km(session)
 
     return {
         "year": year,
@@ -221,6 +226,7 @@ def get_session_info(year: int, gp: str, session_type: str) -> SessionInfo:
         "session_name": session.name,
         "date": str(session.date.date()) if pd.notna(session.date) else None,
         "total_laps": total_laps,
+        "circuit_length_km": circuit_length_km,
         "race_conditions": race_conditions,
         "weather": weather,
         "race_summary": race_summary,

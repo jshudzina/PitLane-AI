@@ -7,6 +7,7 @@ from fastf1.exceptions import DataNotLoadedError
 from pitlane_agent.utils.race_stats import (
     compute_driver_position_stats,
     compute_race_summary_stats,
+    get_circuit_length_km,
 )
 
 
@@ -44,6 +45,7 @@ def _make_session_with_laps(driver_laps_map: dict[str, dict]) -> MagicMock:
 
     session.laps = MagicMock()
     session.laps.pick_drivers = pick_drivers
+    session.laps.pick_fastest = MagicMock(return_value=None)
     session.laps.empty = len(all_rows) == 0
     session.drivers = list(range(len(drivers)))
 
@@ -174,6 +176,7 @@ class TestComputeRaceSummaryStats:
         assert result["total_position_changes"] == 3  # VER 0 + HAM 3
         assert result["mean_pit_stops"] == 1.0
         assert result["average_volatility"] > 0
+        assert result["total_laps"] == 5
 
     def test_empty_laps_returns_none(self):
         """Test that empty laps returns None."""
@@ -209,3 +212,50 @@ class TestComputeRaceSummaryStats:
         assert result is not None
         assert result["total_overtakes"] > 0
         assert result["mean_pit_stops"] == round((2 + 1 + 1) / 3, 2)
+        assert result["total_laps"] == 5
+
+
+class TestGetCircuitLengthKm:
+    """Tests for get_circuit_length_km."""
+
+    def test_returns_distance_from_fastest_lap(self):
+        """Test that circuit length is computed from fastest lap telemetry."""
+        session = MagicMock()
+        fastest_lap = MagicMock()
+        session.laps.pick_fastest.return_value = fastest_lap
+
+        telemetry = pd.DataFrame({"Distance": [0.0, 1500.0, 3000.0, 5303.0]})
+        fastest_lap.get_car_data.return_value.add_distance.return_value = telemetry
+
+        result = get_circuit_length_km(session)
+
+        assert result == 5.303
+
+    def test_returns_none_when_no_fastest_lap(self):
+        """Test that None is returned when pick_fastest returns None."""
+        session = MagicMock()
+        session.laps.pick_fastest.return_value = None
+
+        result = get_circuit_length_km(session)
+
+        assert result is None
+
+    def test_returns_none_on_exception(self):
+        """Test that None is returned when telemetry raises an exception."""
+        session = MagicMock()
+        session.laps.pick_fastest.side_effect = Exception("No data")
+
+        result = get_circuit_length_km(session)
+
+        assert result is None
+
+    def test_returns_none_when_telemetry_empty(self):
+        """Test that None is returned when telemetry DataFrame is empty."""
+        session = MagicMock()
+        fastest_lap = MagicMock()
+        session.laps.pick_fastest.return_value = fastest_lap
+        fastest_lap.get_car_data.return_value.add_distance.return_value = pd.DataFrame()
+
+        result = get_circuit_length_km(session)
+
+        assert result is None

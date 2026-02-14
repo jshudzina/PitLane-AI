@@ -20,7 +20,11 @@ from pitlane_agent.utils.constants import (
     TRACK_STATUS_VSC_DEPLOYED,
 )
 from pitlane_agent.utils.fastf1_helpers import load_session, setup_fastf1_cache
-from pitlane_agent.utils.race_stats import RaceSummaryStats, compute_race_summary_stats
+from pitlane_agent.utils.race_stats import (
+    RaceSummaryStats,
+    compute_race_summary_stats,
+    get_circuit_length_km,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +37,7 @@ class SeasonRaceSummary(TypedDict):
     country: str
     date: str | None
     session_type: str
+    circuit_length_km: float | None
     podium: list[str]
     race_summary: RaceSummaryStats
     num_safety_cars: int
@@ -41,13 +46,26 @@ class SeasonRaceSummary(TypedDict):
     wildness_score: float
 
 
+class SeasonAverages(TypedDict):
+    """Per-lap normalized season averages across all races.
+
+    Overtakes and position changes are expressed as per-lap rates
+    so that sprints and full races contribute equally.
+    """
+
+    overtakes_per_lap: float
+    position_changes_per_lap: float
+    average_volatility: float
+    mean_pit_stops: float
+
+
 class SeasonSummary(TypedDict):
     """Complete season summary with races ranked by wildness."""
 
     year: int
     total_races: int
     races: list[SeasonRaceSummary]
-    season_averages: RaceSummaryStats
+    season_averages: SeasonAverages
 
 
 def _count_track_interruptions(session) -> tuple[int, int, int]:
@@ -170,6 +188,7 @@ def get_season_summary(year: int) -> SeasonSummary:
                     "country": country,
                     "date": date_str,
                     "session_type": session_type,
+                    "circuit_length_km": get_circuit_length_km(session),
                     "podium": podium,
                     "race_summary": race_summary,
                     "num_safety_cars": safety_cars,
@@ -184,8 +203,8 @@ def get_season_summary(year: int) -> SeasonSummary:
             "total_races": 0,
             "races": [],
             "season_averages": {
-                "total_overtakes": 0,
-                "total_position_changes": 0,
+                "overtakes_per_lap": 0.0,
+                "position_changes_per_lap": 0.0,
                 "average_volatility": 0.0,
                 "mean_pit_stops": 0.0,
             },
@@ -222,11 +241,22 @@ def get_season_summary(year: int) -> SeasonSummary:
     # Sort by wildness score descending
     races.sort(key=lambda r: r["wildness_score"], reverse=True)
 
-    # Compute season averages
+    # Compute season averages normalized by race distance so sprints
+    # and full races contribute equally (per-lap rates).
     num_races = len(races)
-    season_averages: RaceSummaryStats = {
-        "total_overtakes": round(sum(r["race_summary"]["total_overtakes"] for r in races) / num_races),
-        "total_position_changes": round(sum(r["race_summary"]["total_position_changes"] for r in races) / num_races),
+    per_lap_overtakes = []
+    per_lap_pos_changes = []
+    for r in races:
+        laps = r["race_summary"]["total_laps"]
+        if laps > 0:
+            per_lap_overtakes.append(r["race_summary"]["total_overtakes"] / laps)
+            per_lap_pos_changes.append(r["race_summary"]["total_position_changes"] / laps)
+
+    season_averages: SeasonAverages = {
+        "overtakes_per_lap": round(sum(per_lap_overtakes) / len(per_lap_overtakes), 2) if per_lap_overtakes else 0.0,
+        "position_changes_per_lap": round(sum(per_lap_pos_changes) / len(per_lap_pos_changes), 2)
+        if per_lap_pos_changes
+        else 0.0,
         "average_volatility": round(sum(r["race_summary"]["average_volatility"] for r in races) / num_races, 2),
         "mean_pit_stops": round(sum(r["race_summary"]["mean_pit_stops"] for r in races) / num_races, 2),
     }

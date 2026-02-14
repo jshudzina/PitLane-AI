@@ -110,10 +110,10 @@ pitlane fetch season-summary --workspace-id $PITLANE_WORKSPACE_ID --year 2024
 - `total_races`: Number of races loaded
 - `races`: List sorted by `wildness_score` (descending), each containing:
   - `round`, `event_name`, `country`, `date`, `session_type` (`"R"` or `"S"`), `podium` (list of top 3 driver abbreviations)
-  - `race_summary`: `total_overtakes`, `total_position_changes`, `average_volatility`, `mean_pit_stops`
+  - `race_summary`: `total_overtakes`, `total_position_changes`, `average_volatility`, `mean_pit_stops`, `total_laps`
   - `num_safety_cars`, `num_virtual_safety_cars`, `num_red_flags`
   - `wildness_score`: 0–1 composite score
-- `season_averages`: Average `total_overtakes`, `total_position_changes`, `average_volatility`, `mean_pit_stops` across all races
+- `season_averages`: Per-lap normalized averages — `overtakes_per_lap`, `position_changes_per_lap`, `average_volatility`, `mean_pit_stops`
 
 **Example Questions:**
 - "Which was the craziest race of 2024?"

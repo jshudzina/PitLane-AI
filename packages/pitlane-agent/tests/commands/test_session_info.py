@@ -191,6 +191,7 @@ class TestExtractWeatherData:
 class TestSessionInfoBusinessLogic:
     """Unit tests for business logic functions."""
 
+    @patch("pitlane_agent.commands.fetch.session_info.get_circuit_length_km")
     @patch("pitlane_agent.commands.fetch.session_info._extract_weather_data")
     @patch("pitlane_agent.commands.fetch.session_info._extract_track_status")
     @patch("pitlane_agent.commands.fetch.session_info.load_session")
@@ -199,11 +200,13 @@ class TestSessionInfoBusinessLogic:
         mock_load_session,
         mock_extract_track_status,
         mock_extract_weather_data,
+        mock_get_circuit_length,
         mock_fastf1_session,
     ):
         """Test successful session info retrieval."""
         # Setup mocks
         mock_load_session.return_value = mock_fastf1_session
+        mock_get_circuit_length.return_value = 3.337
         mock_fastf1_session.results = MagicMock()
 
         # Create mock driver data
@@ -254,12 +257,16 @@ class TestSessionInfoBusinessLogic:
         assert result["weather"] is not None
         assert result["weather"]["air_temp"]["avg"] == 23.5
 
+        # Circuit length should be present
+        assert result["circuit_length_km"] == 3.337
+
         # Non-race sessions should not have race_summary
         assert result["race_summary"] is None
 
         # Verify FastF1 was called correctly
         mock_load_session.assert_called_once_with(2024, "Monaco", "Q", weather=True, messages=True)
 
+    @patch("pitlane_agent.commands.fetch.session_info.get_circuit_length_km")
     @patch("pitlane_agent.commands.fetch.session_info.compute_race_summary_stats")
     @patch("pitlane_agent.commands.fetch.session_info._extract_weather_data")
     @patch("pitlane_agent.commands.fetch.session_info._extract_track_status")
@@ -270,10 +277,12 @@ class TestSessionInfoBusinessLogic:
         mock_extract_track_status,
         mock_extract_weather_data,
         mock_compute_stats,
+        mock_get_circuit_length,
         mock_fastf1_session,
     ):
         """Test that race sessions include race_summary stats."""
         mock_load_session.return_value = mock_fastf1_session
+        mock_get_circuit_length.return_value = 3.337
         mock_fastf1_session.results = MagicMock()
 
         driver_data = pd.DataFrame(
@@ -296,6 +305,7 @@ class TestSessionInfoBusinessLogic:
             "total_position_changes": 20,
             "average_volatility": 2.5,
             "mean_pit_stops": 1.8,
+            "total_laps": 78,
         }
 
         result = get_session_info(2024, "Monaco", "R")
@@ -303,8 +313,10 @@ class TestSessionInfoBusinessLogic:
         assert result["race_summary"] is not None
         assert result["race_summary"]["total_overtakes"] == 42
         assert result["race_summary"]["mean_pit_stops"] == 1.8
+        assert result["race_summary"]["total_laps"] == 78
         mock_compute_stats.assert_called_once()
 
+    @patch("pitlane_agent.commands.fetch.session_info.get_circuit_length_km")
     @patch("pitlane_agent.commands.fetch.session_info._extract_weather_data")
     @patch("pitlane_agent.commands.fetch.session_info._extract_track_status")
     @patch("pitlane_agent.commands.fetch.session_info.load_session")
@@ -313,11 +325,13 @@ class TestSessionInfoBusinessLogic:
         mock_load_session,
         mock_extract_track_status,
         mock_extract_weather_data,
+        mock_get_circuit_length,
         mock_fastf1_session,
     ):
         """Test session info retrieval with NaN values in driver data."""
         # Setup mocks
         mock_load_session.return_value = mock_fastf1_session
+        mock_get_circuit_length.return_value = None
         mock_fastf1_session.results = MagicMock()
         mock_fastf1_session.total_laps = float("nan")
 
@@ -361,6 +375,7 @@ class TestSessionInfoBusinessLogic:
         assert result["race_conditions"] is None
         assert result["weather"] is None
 
+    @patch("pitlane_agent.commands.fetch.session_info.get_circuit_length_km")
     @patch("pitlane_agent.commands.fetch.session_info._extract_weather_data")
     @patch("pitlane_agent.commands.fetch.session_info._extract_track_status")
     @patch("pitlane_agent.commands.fetch.session_info.load_session")
@@ -369,6 +384,7 @@ class TestSessionInfoBusinessLogic:
         mock_load_session,
         mock_extract_track_status,
         mock_extract_weather_data,
+        mock_get_circuit_length,
         mock_fastf1_session,
     ):
         """Test session info retrieval when total_laps raises DataNotLoadedError."""
