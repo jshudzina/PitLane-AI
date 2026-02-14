@@ -92,13 +92,44 @@ The following standings analysis types are planned for future implementation:
 - "Visualize the top 10 standings progression"
 - "How has McLaren's position changed throughout the year?"
 
-### 3. Season Summary Visualization (Not Yet Implemented)
-**What it would do:**
-- Provide comprehensive overview of the entire season
-- Aggregate performance metrics for drivers and teams
-- Visualize points distribution and race wins
+### 3. Season Summary
+
+Rank all races in a season by a composite "wildness" score derived from overtakes, position volatility, safety cars, and red flags. Also provides season-wide averages.
+
+**Command:**
+```bash
+pitlane fetch season-summary --workspace-id $PITLANE_WORKSPACE_ID --year 2024
+```
+
+**Parameters:**
+- `--workspace-id`: Workspace ID (required)
+- `--year`: Championship year (required)
+
+**Returns:**
+- `year`: Championship year
+- `total_races`: Number of races loaded
+- `races`: List sorted by `wildness_score` (descending), each containing:
+  - `round`, `event_name`, `country`, `date`
+  - `race_summary`: `total_overtakes`, `total_position_changes`, `average_volatility`, `mean_pit_stops`
+  - `num_safety_cars`, `num_virtual_safety_cars`, `num_red_flags`
+  - `wildness_score`: 0–1 composite score
+- `season_averages`: Average `total_overtakes`, `total_position_changes`, `average_volatility`, `mean_pit_stops` across all races
 
 **Example Questions:**
+- "Which was the craziest race of 2024?"
+- "Rank the 2024 races by how wild they were"
 - "Give me a season summary for 2024"
-- "Show me overall performance statistics for this year"
-- "Compare drivers' full season results"
+- "Which race had the most overtakes this year?"
+- "What were the average pit stops per race in 2023?"
+
+**Note:** This command loads every race in the season, which can be slow on first run. Subsequent calls benefit from FastF1's cache.
+
+### 4. Season Summary Heatmap (Not Yet Implemented)
+**What it would do:**
+- Visualize points scored by each driver at each race in a heatmap
+- Show at a glance which drivers scored big at which rounds
+- Complement the season summary data with a visual breakdown
+
+**Example Questions:**
+- "Show me a heatmap of points scored across the season"
+- "Visualize each driver's points at every race in 2024"

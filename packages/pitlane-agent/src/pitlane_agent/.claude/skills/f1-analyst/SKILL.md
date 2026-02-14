@@ -47,12 +47,14 @@ Based on the user's question, read the appropriate reference file for detailed i
 **Read:** [references/strategy.md](references/strategy.md)
 
 ### Standings Analysis
-**When to use:** Questions about championship standings, season summaries, or title fight scenarios.
+**When to use:** Questions about championship standings, season summaries, race rankings, or title fight scenarios.
 
 **Examples:**
 - "Who can still win the championship?"
 - "Show me the standings progression"
 - "Give me a season summary"
+- "Which was the craziest race of 2024?"
+- "Rank the races by how wild they were"
 
 **Read:** [references/standings.md](references/standings.md)
 
@@ -86,13 +88,15 @@ Use a layered approach to gather context as needed:
 
 Fetch session info when you need context about:
 - Who participated (driver list with teams and finishing positions)
-- Session conditions (weather, track temperature)
+- Session conditions (weather, track temperature, rainfall)
 - High-level race disruptions (count of safety cars, VSCs, red flags)
+- Race summary stats (overtakes, position changes, volatility, pit stops) — Race/Sprint only
 
 **When to fetch:**
 - User asks about drivers, teams, or weather conditions
 - Analyzing race results and need driver list with finishing positions
 - Need to understand if disruptions affected the race (but not what specifically happened)
+- Want a quick statistical overview of race action (overtakes, volatility)
 - Starting fresh analysis and need to orient yourself
 
 **Command:**
@@ -102,13 +106,14 @@ pitlane fetch session-info --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --gp
 
 **Returns:**
 - Event metadata (name, country, date, total laps)
-- Driver list (numbers, abbreviations, names, teams, finishing positions)
 - Race conditions (counts: safety cars, VSCs, red flags)
-- Weather statistics (air/track temp, humidity, pressure, wind speed - all with min/max/avg)
+- Weather statistics (air/track temp, humidity, pressure, wind speed - all with min/max/avg; `rain_percentage`)
+- Race summary stats (Race/Sprint only): `total_overtakes`, `total_position_changes`, `average_volatility`, `mean_pit_stops`
+- Driver list (numbers, abbreviations, names, teams, finishing positions)
 
 **Workspace file:** `data/session_info.json`
 
-*Note: Race conditions and weather may be `null` if unavailable for the session.*
+*Note: Race conditions, weather, and race_summary may be `null` if unavailable for the session type.*
 
 ### 2. Race Control Messages (When Deeper Context Needed)
 
