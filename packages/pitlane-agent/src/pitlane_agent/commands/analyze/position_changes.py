@@ -8,7 +8,6 @@ from pathlib import Path
 
 import fastf1.plotting
 import matplotlib.pyplot as plt
-import numpy as np
 from fastf1.core import Session
 
 from pitlane_agent.utils.constants import (
@@ -24,6 +23,7 @@ from pitlane_agent.utils.constants import (
 from pitlane_agent.utils.fastf1_helpers import load_session
 from pitlane_agent.utils.filename import sanitize_filename
 from pitlane_agent.utils.plotting import get_driver_color_safe, save_figure, setup_plot_style
+from pitlane_agent.utils.race_stats import compute_driver_position_stats
 
 
 def _extract_driver_position_data(
@@ -41,17 +41,14 @@ def _extract_driver_position_data(
     Returns:
         Dictionary with driver statistics, or None if driver should be excluded
     """
-    driver_laps = session.laps.pick_drivers(driver_abbr)
-
-    if driver_laps.empty:
+    # Compute stats using shared utility
+    stats = compute_driver_position_stats(driver_abbr, session)
+    if stats is None:
         return None
 
-    # Get position for each lap (filter out NaN positions for DNS/DNF cases)
+    driver_laps = session.laps.pick_drivers(driver_abbr)
     position_data = driver_laps[["LapNumber", "Position"]].copy()
     position_data = position_data.dropna(subset=["Position"])
-
-    if position_data.empty:
-        return None
 
     # Get driver color from FastF1
     color = get_driver_color_safe(driver_abbr, session)
@@ -71,7 +68,6 @@ def _extract_driver_position_data(
     # Mark pit stops with vertical markers
     pit_laps = driver_laps[driver_laps["PitOutTime"].notna()]["LapNumber"].values
     for pit_lap in pit_laps:
-        # Find position at pit lap
         pit_position = position_data[position_data["LapNumber"] == pit_lap]["Position"].values
         if len(pit_position) > 0:
             ax.scatter(
@@ -85,36 +81,7 @@ def _extract_driver_position_data(
                 zorder=5,
             )
 
-    # Calculate statistics
-    positions = position_data["Position"].values
-    start_position = float(positions[0])
-    finish_position = float(positions[-1])
-    position_changes = np.diff(positions)
-
-    # Count overtakes (position improvements) - negative change means better position
-    overtakes = int(np.sum(position_changes < 0))
-    times_overtaken = int(np.sum(position_changes > 0))
-
-    # Calculate volatility (standard deviation of positions)
-    volatility = float(np.std(positions))
-
-    # Biggest gain and loss in a single lap
-    biggest_gain = int(abs(np.min(position_changes))) if len(position_changes) > 0 else 0
-    biggest_loss = int(abs(np.max(position_changes))) if len(position_changes) > 0 else 0
-
-    return {
-        "driver": driver_abbr,
-        "start_position": int(start_position),
-        "finish_position": int(finish_position),
-        "net_change": int(start_position - finish_position),  # positive = gained positions
-        "overtakes": overtakes,
-        "times_overtaken": times_overtaken,
-        "biggest_gain": biggest_gain,
-        "biggest_loss": biggest_loss,
-        "volatility": round(volatility, 2),
-        "total_laps": len(position_data),
-        "pit_stops": len(pit_laps),
-    }
+    return stats
 
 
 def _configure_position_plot(ax: plt.Axes, session: Session, year: int) -> None:
@@ -159,11 +126,13 @@ def _calculate_aggregate_statistics(stats: list[dict]) -> dict:
     total_overtakes = sum(s["overtakes"] for s in stats)
     total_position_changes = sum(abs(s["net_change"]) for s in stats)
     avg_volatility = sum(s["volatility"] for s in stats) / len(stats) if stats else 0
+    mean_pit_stops = sum(s["pit_stops"] for s in stats) / len(stats) if stats else 0
 
     return {
         "total_overtakes": total_overtakes,
         "total_position_changes": total_position_changes,
         "average_volatility": round(avg_volatility, 2),
+        "mean_pit_stops": round(mean_pit_stops, 2),
         "drivers": stats,
     }
 

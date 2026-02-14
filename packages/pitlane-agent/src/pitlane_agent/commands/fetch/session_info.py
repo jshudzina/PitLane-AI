@@ -20,6 +20,7 @@ from pitlane_agent.utils.constants import (
     TRACK_STATUS_VSC_DEPLOYED,
 )
 from pitlane_agent.utils.fastf1_helpers import load_session
+from pitlane_agent.utils.race_stats import RaceSummaryStats, compute_race_summary_stats
 
 
 class DriverInfo(TypedDict):
@@ -64,6 +65,7 @@ class WeatherData(TypedDict):
     humidity: WeatherStats
     pressure: WeatherStats
     wind_speed: WeatherStats
+    rain_percentage: float | None
 
 
 class SessionInfo(TypedDict):
@@ -79,9 +81,10 @@ class SessionInfo(TypedDict):
     session_name: str
     date: str | None
     total_laps: int | None
-    drivers: list[DriverInfo]
     race_conditions: RaceConditions | None
     weather: WeatherData | None
+    race_summary: RaceSummaryStats | None
+    drivers: list[DriverInfo]
 
 
 def _extract_track_status(session: Session) -> RaceConditions | None:
@@ -148,12 +151,19 @@ def _extract_weather_data(session: Session) -> WeatherData | None:
                 "avg": round(float(col_clean.mean()), 2),
             }
 
+        rain_percentage = None
+        if "Rainfall" in weather.columns:
+            rainfall_col = weather["Rainfall"].dropna()
+            if not rainfall_col.empty:
+                rain_percentage = round(float(rainfall_col.mean()) * 100, 2)
+
         return {
             "air_temp": get_stats("AirTemp"),
             "track_temp": get_stats("TrackTemp"),
             "humidity": get_stats("Humidity"),
             "pressure": get_stats("Pressure"),
             "wind_speed": get_stats("WindSpeed"),
+            "rain_percentage": rain_percentage,
         }
     except DataNotLoadedError:
         return None
@@ -173,6 +183,8 @@ def get_session_info(year: int, gp: str, session_type: str) -> SessionInfo:
         Weather includes min/max/avg for air temperature, humidity, pressure, and wind speed.
     """
     # Load session with weather and messages data
+    # For race/sprint sessions, also load laps for race summary stats
+    needs_laps = session_type in ("R", "S")
     session = load_session(year, gp, session_type, weather=True, messages=True)
 
     # Get driver info
@@ -192,6 +204,11 @@ def get_session_info(year: int, gp: str, session_type: str) -> SessionInfo:
     race_conditions = _extract_track_status(session)
     weather = _extract_weather_data(session)
 
+    # Compute race summary stats for race/sprint sessions
+    race_summary = None
+    if needs_laps:
+        race_summary = compute_race_summary_stats(session)
+
     total_laps = None
     with contextlib.suppress(DataNotLoadedError):
         total_laps = None if pd.isna(session.total_laps) else int(session.total_laps)
@@ -204,7 +221,8 @@ def get_session_info(year: int, gp: str, session_type: str) -> SessionInfo:
         "session_name": session.name,
         "date": str(session.date.date()) if pd.notna(session.date) else None,
         "total_laps": total_laps,
-        "drivers": drivers,
         "race_conditions": race_conditions,
         "weather": weather,
+        "race_summary": race_summary,
+        "drivers": drivers,
     }
