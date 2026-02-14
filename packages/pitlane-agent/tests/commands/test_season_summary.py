@@ -320,3 +320,65 @@ class TestGetSeasonSummary:
         assert all(r["event_name"] == "Chinese Grand Prix" for r in result["races"])
         # load_session should be called twice (R and S)
         assert mock_load_session.call_count == 2
+
+    @patch("pitlane_agent.commands.fetch.season_summary.load_session")
+    @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
+    @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats")
+    def test_sprint_wildness_normalized_separately(
+        self,
+        mock_compute_stats,
+        mock_setup_cache,
+        mock_get_schedule,
+        mock_load_session,
+    ):
+        """Test that sprint wildness is normalized against other sprints, not races."""
+        schedule = pd.DataFrame(
+            [
+                {
+                    "RoundNumber": 1,
+                    "EventName": "Chinese Grand Prix",
+                    "Country": "China",
+                    "EventDate": pd.Timestamp("2024-04-21"),
+                    "EventFormat": "sprint_qualifying",
+                },
+            ]
+        )
+        mock_get_schedule.return_value = schedule
+
+        mock_session = MagicMock()
+        mock_session.track_status = pd.DataFrame({"Status": ["1"]})
+        mock_session.results = pd.DataFrame(
+            {
+                "Position": [1.0, 2.0, 3.0],
+                "Abbreviation": ["VER", "NOR", "LEC"],
+            }
+        )
+        mock_load_session.return_value = mock_session
+
+        # Sprint has fewer overtakes/volatility than race (as expected)
+        race_stats = {
+            "total_overtakes": 60,
+            "total_position_changes": 30,
+            "average_volatility": 3.0,
+            "mean_pit_stops": 2.0,
+        }
+        sprint_stats = {
+            "total_overtakes": 15,
+            "total_position_changes": 8,
+            "average_volatility": 1.5,
+            "mean_pit_stops": 0.0,
+        }
+        # R is loaded first, then S
+        mock_compute_stats.side_effect = [race_stats, sprint_stats]
+
+        result = get_season_summary(2024)
+
+        race_entry = next(r for r in result["races"] if r["session_type"] == "R")
+        sprint_entry = next(r for r in result["races"] if r["session_type"] == "S")
+
+        # Both are the only entry of their type, so overtakes and volatility
+        # are each normalized to 1.0 within their group. With no safety cars
+        # or red flags both should score: 0.4*1 + 0.3*1 + 0.2*0 + 0.1*0 = 0.7
+        assert race_entry["wildness_score"] == 0.7
+        assert sprint_entry["wildness_score"] == 0.7

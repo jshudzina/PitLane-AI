@@ -191,19 +191,26 @@ def get_season_summary(year: int) -> SeasonSummary:
             },
         }
 
-    # Compute normalization values across all races
-    max_overtakes = max(r["race_summary"]["total_overtakes"] for r in raw_races)
-    max_volatility = max(r["race_summary"]["average_volatility"] for r in raw_races)
+    # Compute normalization values per session type so sprints (shorter,
+    # no mandatory pitstops) are compared against other sprints rather
+    # than full-length races.
+    max_overtakes_by_type: dict[str, int] = {}
+    max_volatility_by_type: dict[str, float] = {}
+    for stype in {r["session_type"] for r in raw_races}:
+        type_races = [r for r in raw_races if r["session_type"] == stype]
+        max_overtakes_by_type[stype] = max(r["race_summary"]["total_overtakes"] for r in type_races)
+        max_volatility_by_type[stype] = max(r["race_summary"]["average_volatility"] for r in type_races)
 
     # Compute wildness scores and build final race list
     races: list[SeasonRaceSummary] = []
     for race in raw_races:
+        stype = race["session_type"]
         wildness = _compute_wildness_score(
             race["race_summary"],
             race["num_safety_cars"],
             race["num_red_flags"],
-            max_overtakes,
-            max_volatility,
+            max_overtakes_by_type[stype],
+            max_volatility_by_type[stype],
         )
         races.append(
             {
