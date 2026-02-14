@@ -10,9 +10,19 @@ import fastf1.plotting
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from pitlane_agent.utils.constants import MAX_SPEED_TRACE_DRIVERS, MIN_SPEED_TRACE_DRIVERS
+from pitlane_agent.utils.constants import (
+    MAX_SPEED_TRACE_DRIVERS,
+    MIN_SPEED_TRACE_DRIVERS,
+    TEAMMATE_LINE_STYLES,
+)
 from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
-from pitlane_agent.utils.plotting import get_driver_color_safe, save_figure, setup_plot_style
+from pitlane_agent.utils.plotting import (
+    ensure_color_contrast,
+    get_driver_color_safe,
+    get_driver_team,
+    save_figure,
+    setup_plot_style,
+)
 
 
 def generate_speed_trace_chart(
@@ -21,6 +31,7 @@ def generate_speed_trace_chart(
     session_type: str,
     drivers: list[str],
     workspace_dir: Path,
+    annotate_corners: bool = False,
 ) -> dict:
     """Generate a speed trace comparison for fastest laps.
 
@@ -30,6 +41,7 @@ def generate_speed_trace_chart(
         session_type: Session identifier
         drivers: List of 2-5 driver abbreviations to compare
         workspace_dir: Workspace directory for outputs and cache
+        annotate_corners: Whether to add corner markers and labels to the chart
 
     Returns:
         Dictionary with chart metadata and speed statistics
@@ -64,6 +76,13 @@ def generate_speed_trace_chart(
     stats = []
     all_telemetry = []
 
+    # Build team membership to detect teammates
+    team_drivers: dict[str, list[str]] = {}
+    for driver_abbr in drivers:
+        team = get_driver_team(driver_abbr, session)
+        if team:
+            team_drivers.setdefault(team, []).append(driver_abbr)
+
     # Plot each driver's speed trace
     for driver_abbr in drivers:
         # Get fastest lap for the driver
@@ -80,8 +99,17 @@ def generate_speed_trace_chart(
         if telemetry.empty:
             continue
 
-        # Get driver color from FastF1
+        # Get driver color from FastF1 and ensure contrast against dark background
         color = get_driver_color_safe(driver_abbr, session)
+        if color:
+            color = ensure_color_contrast(color)
+
+        # Determine line style based on teammate position
+        team = get_driver_team(driver_abbr, session)
+        teammate_index = 0
+        if team and team in team_drivers:
+            teammate_index = team_drivers[team].index(driver_abbr)
+        style = TEAMMATE_LINE_STYLES[min(teammate_index, len(TEAMMATE_LINE_STYLES) - 1)]
 
         # Plot speed trace
         ax.plot(
@@ -89,7 +117,8 @@ def generate_speed_trace_chart(
             telemetry["Speed"],
             label=driver_abbr,
             color=color,
-            linewidth=2,
+            linewidth=style["linewidth"],
+            linestyle=style["linestyle"],
             alpha=0.9,
         )
 
@@ -158,6 +187,29 @@ def generate_speed_trace_chart(
     y_range = y_max - y_min
     ax.set_ylim(y_min - y_range * 0.05, y_max + y_range * 0.05)
 
+    # Add corner annotations if requested
+    corners_drawn = False
+    if annotate_corners:
+        try:
+            circuit_info = session.get_circuit_info()
+            for _, corner in circuit_info.corners.iterrows():
+                number = int(corner["Number"])
+                letter = str(corner["Letter"]) if pd.notna(corner["Letter"]) and corner["Letter"] else ""
+                label = f"{number}{letter}"
+                ax.axvline(x=corner["Distance"], color="grey", linestyle="--", linewidth=1, alpha=0.3)
+                ax.text(
+                    corner["Distance"],
+                    ax.get_ylim()[1],
+                    label,
+                    va="top",
+                    ha="center",
+                    size="x-small",
+                    color="white",
+                )
+            corners_drawn = True
+        except Exception:
+            pass  # Graceful degradation — proceed without annotations
+
     # Save figure
     save_figure(fig, output_path)
 
@@ -170,4 +222,5 @@ def generate_speed_trace_chart(
         "drivers_compared": [s["driver"] for s in stats],
         "statistics": stats,
         "speed_delta": speed_delta,
+        "corners_annotated": corners_drawn,
     }

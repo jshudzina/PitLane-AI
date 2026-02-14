@@ -51,6 +51,13 @@ PIT_MARKER_SIZE = 100
 ALPHA_VALUE = 0.8
 GRID_ALPHA = 0.3
 
+# Line styles for distinguishing teammates in multi-driver plots
+# First teammate: solid, Second teammate: dashed (slightly wider for equal visual weight)
+TEAMMATE_LINE_STYLES = [
+    {"linestyle": "-", "linewidth": 2},
+    {"linestyle": "--", "linewidth": 2.2},
+]
+
 # F1 Historical Constraints
 MIN_F1_YEAR = 1950
 FINAL_ROUND = "last"

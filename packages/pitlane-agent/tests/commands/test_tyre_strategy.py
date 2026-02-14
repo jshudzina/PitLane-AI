@@ -31,6 +31,7 @@ class TestTyreStrategyBusinessLogic:
         import pandas as pd
 
         mock_results = pd.DataFrame([{"Abbreviation": "VER", "Position": 1}, {"Abbreviation": "HAM", "Position": 2}])
+        mock_fastf1_session.results = MagicMock()
         mock_fastf1_session.results.sort_values.return_value = mock_results
 
         # Mock laps data

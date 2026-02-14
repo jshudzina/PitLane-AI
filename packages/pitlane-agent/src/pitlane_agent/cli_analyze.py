@@ -196,7 +196,13 @@ def tyre_strategy(workspace_id: str, year: int, gp: str, session: str):
     required=True,
     help="Driver abbreviations to compare (2-5 drivers: --drivers VER --drivers HAM)",
 )
-def speed_trace(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
+@click.option(
+    "--annotate-corners",
+    is_flag=True,
+    default=False,
+    help="Add corner markers and labels to the chart",
+)
+def speed_trace(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...], annotate_corners: bool):
     """Generate speed trace comparison for fastest laps of specified drivers."""
     # Verify workspace exists
     if not workspace_exists(workspace_id):
@@ -231,6 +237,7 @@ def speed_trace(workspace_id: str, year: int, gp: str, session: str, drivers: tu
             session_type=session,
             drivers=list(drivers),
             workspace_dir=workspace_path,
+            annotate_corners=annotate_corners,
         )
 
         # Add session info to result
