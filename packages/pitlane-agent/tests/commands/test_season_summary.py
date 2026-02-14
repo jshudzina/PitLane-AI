@@ -126,6 +126,12 @@ class TestGetSeasonSummary:
         # Mock session loading
         mock_session = MagicMock()
         mock_session.track_status = pd.DataFrame({"Status": ["1", "1"]})
+        mock_session.results = pd.DataFrame(
+            {
+                "Position": [1.0, 2.0, 3.0],
+                "Abbreviation": ["VER", "NOR", "LEC"],
+            }
+        )
         mock_load_session.return_value = mock_session
 
         # Mock race stats - make race 2 wilder
@@ -157,6 +163,8 @@ class TestGetSeasonSummary:
         # Season averages should be computed
         assert result["season_averages"]["total_overtakes"] == 35
         assert result["season_averages"]["mean_pit_stops"] == 1.75
+        # Podium should be extracted
+        assert result["races"][0]["podium"] == ["VER", "NOR", "LEC"]
 
     @patch("pitlane_agent.commands.fetch.season_summary.load_session")
     @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
@@ -231,6 +239,12 @@ class TestGetSeasonSummary:
 
         mock_session = MagicMock()
         mock_session.track_status = pd.DataFrame({"Status": ["1"]})
+        mock_session.results = pd.DataFrame(
+            {
+                "Position": [1.0, 2.0, 3.0],
+                "Abbreviation": ["VER", "NOR", "LEC"],
+            }
+        )
         mock_load_session.return_value = mock_session
 
         mock_compute_stats.return_value = {
