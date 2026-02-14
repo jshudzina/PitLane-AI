@@ -173,7 +173,7 @@ def generate_speed_trace_chart(
                     corner["Distance"],
                     ax.get_ylim()[1],
                     label,
-                    va="bottom",
+                    va="top",
                     ha="center",
                     size="x-small",
                     color="white",
