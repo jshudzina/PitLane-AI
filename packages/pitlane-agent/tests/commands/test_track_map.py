@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pandas as pd
 import pytest
 from pitlane_agent.commands.analyze.track_map import generate_track_map_chart
@@ -29,11 +30,15 @@ class TestTrackMapChart:
         return circuit_info
 
     def _make_mock_pos_data(self):
-        """Create mock position data."""
+        """Create mock position data with sufficient points for validation."""
+        # Generate 150 points to exceed MIN_TELEMETRY_POINTS_TRACK_MAP (100)
+        num_points = 150
+        # Create a simple oval track shape
+        t = np.linspace(0, 2 * np.pi, num_points)
         return pd.DataFrame(
             {
-                "X": [0.0, 100.0, 200.0, 300.0, 400.0],
-                "Y": [0.0, 50.0, 100.0, 50.0, 0.0],
+                "X": 1000 * np.cos(t),  # Oval X coordinates
+                "Y": 500 * np.sin(t),  # Oval Y coordinates
             }
         )
 
@@ -170,6 +175,26 @@ class TestTrackMapChart:
         mock_fastf1_session.laps.pick_fastest.return_value = mock_lap
 
         with pytest.raises(ValueError, match="No position data available"):
+            generate_track_map_chart(year=2024, gp="Monaco", session_type="Q", workspace_dir=tmp_output_dir)
+
+    @patch("pitlane_agent.commands.analyze.track_map.load_session")
+    def test_generate_track_map_chart_insufficient_pos_data(
+        self, mock_load_session, tmp_output_dir, mock_fastf1_session
+    ):
+        """Test error when position data has insufficient points for visualization."""
+        mock_load_session.return_value = mock_fastf1_session
+
+        # Create position data with only 50 points (less than MIN_TELEMETRY_POINTS_TRACK_MAP of 100)
+        mock_lap = MagicMock()
+        mock_lap.get_pos_data.return_value = pd.DataFrame(
+            {
+                "X": np.linspace(0, 1000, 50),
+                "Y": np.linspace(0, 500, 50),
+            }
+        )
+        mock_fastf1_session.laps.pick_fastest.return_value = mock_lap
+
+        with pytest.raises(ValueError, match="Insufficient position data for track map"):
             generate_track_map_chart(year=2024, gp="Monaco", session_type="Q", workspace_dir=tmp_output_dir)
 
     @patch("pitlane_agent.commands.analyze.track_map.load_session")

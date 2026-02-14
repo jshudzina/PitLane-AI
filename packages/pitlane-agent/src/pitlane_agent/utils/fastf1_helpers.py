@@ -7,7 +7,7 @@ and chart path construction used across all F1 data fetching and visualization c
 from pathlib import Path
 
 import fastf1
-from fastf1.core import Session
+from fastf1.core import Lap, Session, Telemetry
 
 from pitlane_agent.utils.fastf1_cache import get_fastf1_cache_dir
 from pitlane_agent.utils.filename import sanitize_filename
@@ -97,3 +97,39 @@ def build_chart_path(
         filename = f"{chart_type}_{year}_{gp_sanitized}_{session_type}.png"
 
     return workspace_dir / "charts" / filename
+
+
+def get_merged_telemetry(lap: Lap, required_channels: list[str] | None = None) -> Telemetry:
+    """Get merged telemetry with validation.
+
+    Uses FastF1's get_telemetry() which merges position and car data with proper
+    interpolation to handle different sampling rates between telemetry channels.
+
+    This prevents gaps in visualizations caused by misaligned timestamps when
+    manually merging get_pos_data() and get_car_data() with inner joins.
+
+    Args:
+        lap: FastF1 Lap object
+        required_channels: Optional list of required column names to validate
+
+    Returns:
+        DataFrame-like telemetry object with merged data (X, Y, Speed, nGear, etc.)
+
+    Raises:
+        ValueError: If telemetry is empty or required channels are missing
+
+    Example:
+        >>> telemetry = get_merged_telemetry(fastest_lap, required_channels=["X", "Y", "nGear"])
+        >>> print(telemetry[["X", "Y", "nGear"]].head())
+    """
+    telemetry = lap.get_telemetry()
+
+    if telemetry.empty:
+        raise ValueError("No telemetry data available for lap")
+
+    if required_channels:
+        missing = [col for col in required_channels if col not in telemetry.columns]
+        if missing:
+            raise ValueError(f"Missing required telemetry channels: {missing}")
+
+    return telemetry

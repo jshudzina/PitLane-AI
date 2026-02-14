@@ -14,12 +14,17 @@ from matplotlib.collections import LineCollection
 from pitlane_agent.utils.constants import (
     GEAR_COLORMAP,
     GEAR_SHIFTS_LINE_WIDTH,
+    MIN_TELEMETRY_POINTS_TRACK_MAP,
     TRACK_MAP_CORNER_LABEL_OFFSET,
     TRACK_MAP_CORNER_LINE_ALPHA,
     TRACK_MAP_CORNER_LINE_WIDTH,
     TRACK_MAP_CORNER_MARKER_SIZE,
 )
-from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
+from pitlane_agent.utils.fastf1_helpers import (
+    build_chart_path,
+    get_merged_telemetry,
+    load_session,
+)
 from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
 
@@ -129,24 +134,19 @@ def generate_gear_shifts_map_chart(
 
     fastest_lap = driver_laps.pick_fastest()
 
-    # Get position data (X, Y) and car data (nGear)
-    pos_data = fastest_lap.get_pos_data()
-    car_data = fastest_lap.get_car_data()
+    # Get merged telemetry with position (X, Y) and car data (nGear, Speed, etc.)
+    # Uses helper that validates required channels and handles FastF1's interpolation
+    try:
+        telemetry = get_merged_telemetry(fastest_lap, required_channels=["X", "Y", "nGear"])
+    except ValueError as e:
+        # Re-raise with clearer context about what failed
+        raise ValueError(f"Cannot generate gear shifts map for {driver_abbr} at {gp} {year}: {e}") from e
 
-    if pos_data.empty or car_data.empty:
-        raise ValueError(f"No telemetry data for {driver_abbr} at {gp} {year}")
-
-    if "nGear" not in car_data.columns:
-        raise ValueError(f"No gear telemetry for {driver_abbr} at {gp} {year}")
-
-    # Merge position and car data
-    telemetry = pos_data.merge(car_data, left_index=True, right_index=True, how="inner")
-
-    # Validate merged data has sufficient points
-    if len(telemetry) < 10:
+    # Validate sufficient data points for visualization
+    if len(telemetry) < MIN_TELEMETRY_POINTS_TRACK_MAP:
         raise ValueError(
-            f"Insufficient merged telemetry data for {driver_abbr} at {gp} {year} "
-            f"(only {len(telemetry)} points after merge)"
+            f"Insufficient telemetry data for {driver_abbr} at {gp} {year} "
+            f"(only {len(telemetry)} points, need at least {MIN_TELEMETRY_POINTS_TRACK_MAP})"
         )
 
     # Extract coordinates and gear

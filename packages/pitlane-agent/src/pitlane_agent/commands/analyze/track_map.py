@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from pitlane_agent.utils.constants import (
+    MIN_TELEMETRY_POINTS_TRACK_MAP,
     TRACK_MAP_CORNER_LABEL_OFFSET,
     TRACK_MAP_CORNER_LINE_ALPHA,
     TRACK_MAP_CORNER_LINE_WIDTH,
@@ -72,6 +73,13 @@ def generate_track_map_chart(
 
     if pos.empty:
         raise ValueError(f"No position data available for {gp} {year} {session_type}")
+
+    # Validate sufficient data points for smooth track visualization
+    if len(pos) < MIN_TELEMETRY_POINTS_TRACK_MAP:
+        raise ValueError(
+            f"Insufficient position data for track map at {gp} {year} {session_type} "
+            f"(only {len(pos)} points, need at least {MIN_TELEMETRY_POINTS_TRACK_MAP})"
+        )
 
     # Get circuit information (corners, rotation)
     circuit_info = session.get_circuit_info()

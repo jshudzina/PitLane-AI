@@ -73,6 +73,9 @@ CHAMPIONSHIP_ELIMINATED_COLOR = "#888888"  # Gray for eliminated competitors
 MAX_DRIVER_CODE_LENGTH = 3
 MIN_SPEED_TRACE_DRIVERS = 2
 MAX_SPEED_TRACE_DRIVERS = 5
+# Minimum telemetry points for track map visualizations (~14% of typical lap)
+# FastF1 typically provides ~700 points per lap; 100 ensures sufficient spatial resolution
+MIN_TELEMETRY_POINTS_TRACK_MAP = 100
 
 # Race Control Message Categories
 # Reference: https://docs.fastf1.dev/api_reference/legacy/f1_api.html#fastf1.api.race_control_messages
