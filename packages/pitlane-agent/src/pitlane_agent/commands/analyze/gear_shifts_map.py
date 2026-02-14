@@ -139,8 +139,8 @@ def generate_gear_shifts_map_chart(
     try:
         telemetry = get_merged_telemetry(fastest_lap, required_channels=["X", "Y", "nGear"])
     except ValueError as e:
-        # Re-raise with context-specific error message
-        raise ValueError(f"{e} for {driver_abbr} at {gp} {year}") from e
+        # Re-raise with clearer context about what failed
+        raise ValueError(f"Cannot generate gear shifts map for {driver_abbr} at {gp} {year}: {e}") from e
 
     # Validate sufficient data points for visualization
     if len(telemetry) < MIN_TELEMETRY_POINTS_TRACK_MAP:
