@@ -19,6 +19,7 @@ from pitlane_agent.commands.fetch import (
     get_driver_info,
     get_driver_standings,
     get_event_schedule,
+    get_season_summary,
     get_session_info,
 )
 from pitlane_agent.commands.workspace import (
@@ -45,6 +46,7 @@ __all__ = [
     "get_event_schedule",
     "get_driver_standings",
     "get_constructor_standings",
+    "get_season_summary",
     # Analyze commands
     "generate_lap_times_chart",
     "generate_lap_times_distribution_chart",
