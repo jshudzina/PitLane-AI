@@ -109,7 +109,7 @@ pitlane fetch season-summary --workspace-id $PITLANE_WORKSPACE_ID --year 2024
 - `year`: Championship year
 - `total_races`: Number of races loaded
 - `races`: List sorted by `wildness_score` (descending), each containing:
-  - `round`, `event_name`, `country`, `date`, `podium` (list of top 3 driver abbreviations)
+  - `round`, `event_name`, `country`, `date`, `session_type` (`"R"` or `"S"`), `podium` (list of top 3 driver abbreviations)
   - `race_summary`: `total_overtakes`, `total_position_changes`, `average_volatility`, `mean_pit_stops`
   - `num_safety_cars`, `num_virtual_safety_cars`, `num_red_flags`
   - `wildness_score`: 0–1 composite score

@@ -22,7 +22,8 @@ class TestSeasonSummaryIntegration:
         result = get_season_summary(2024)
 
         assert result["year"] == 2024
-        assert result["total_races"] >= 20  # 2024 had 24 races
+        # 2024 had 24 races + 6 sprints = 30 entries
+        assert result["total_races"] >= 28
 
         # Verify race structure
         for race in result["races"]:
@@ -30,6 +31,8 @@ class TestSeasonSummaryIntegration:
             assert "event_name" in race
             assert "country" in race
             assert "date" in race
+            assert "session_type" in race
+            assert race["session_type"] in ("R", "S")
             assert "podium" in race
             assert "race_summary" in race
             assert "wildness_score" in race
@@ -57,6 +60,10 @@ class TestSeasonSummaryIntegration:
         # Races should be sorted by wildness score descending
         scores = [r["wildness_score"] for r in result["races"]]
         assert scores == sorted(scores, reverse=True)
+
+        # Should include sprint entries (2024 had 6 sprint weekends)
+        sprint_entries = [r for r in result["races"] if r["session_type"] == "S"]
+        assert len(sprint_entries) >= 4  # Allow some tolerance for data issues
 
         # Season averages should be present and non-negative
         avgs = result["season_averages"]

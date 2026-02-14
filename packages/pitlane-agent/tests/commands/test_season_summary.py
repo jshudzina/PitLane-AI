@@ -104,7 +104,7 @@ class TestGetSeasonSummary:
         mock_load_session,
     ):
         """Test basic season summary with two races."""
-        # Setup schedule with 2 races
+        # Setup schedule with 2 conventional races
         schedule = pd.DataFrame(
             [
                 {
@@ -112,12 +112,14 @@ class TestGetSeasonSummary:
                     "EventName": "Bahrain Grand Prix",
                     "Country": "Bahrain",
                     "EventDate": pd.Timestamp("2024-03-02"),
+                    "EventFormat": "conventional",
                 },
                 {
                     "RoundNumber": 2,
                     "EventName": "Saudi Arabian Grand Prix",
                     "Country": "Saudi Arabia",
                     "EventDate": pd.Timestamp("2024-03-09"),
+                    "EventFormat": "conventional",
                 },
             ]
         )
@@ -165,6 +167,8 @@ class TestGetSeasonSummary:
         assert result["season_averages"]["mean_pit_stops"] == 1.75
         # Podium should be extracted
         assert result["races"][0]["podium"] == ["VER", "NOR", "LEC"]
+        # All entries should be race sessions
+        assert all(r["session_type"] == "R" for r in result["races"])
 
     @patch("pitlane_agent.commands.fetch.season_summary.load_session")
     @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
@@ -197,6 +201,7 @@ class TestGetSeasonSummary:
                     "EventName": "Bahrain Grand Prix",
                     "Country": "Bahrain",
                     "EventDate": pd.Timestamp("2024-03-02"),
+                    "EventFormat": "conventional",
                 },
             ]
         )
@@ -226,12 +231,14 @@ class TestGetSeasonSummary:
                     "EventName": "Pre-Season Testing",
                     "Country": "Bahrain",
                     "EventDate": pd.Timestamp("2024-02-20"),
+                    "EventFormat": "conventional",
                 },
                 {
                     "RoundNumber": 1,
                     "EventName": "Bahrain Grand Prix",
                     "Country": "Bahrain",
                     "EventDate": pd.Timestamp("2024-03-02"),
+                    "EventFormat": "conventional",
                 },
             ]
         )
@@ -258,5 +265,58 @@ class TestGetSeasonSummary:
 
         assert result["total_races"] == 1
         assert result["races"][0]["event_name"] == "Bahrain Grand Prix"
+        assert result["races"][0]["session_type"] == "R"
         # load_session should only be called once (for round 1, not round 0)
         mock_load_session.assert_called_once()
+
+    @patch("pitlane_agent.commands.fetch.season_summary.load_session")
+    @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
+    @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats")
+    def test_sprint_weekend_produces_two_entries(
+        self,
+        mock_compute_stats,
+        mock_setup_cache,
+        mock_get_schedule,
+        mock_load_session,
+    ):
+        """Test that a sprint weekend produces both R and S entries."""
+        schedule = pd.DataFrame(
+            [
+                {
+                    "RoundNumber": 1,
+                    "EventName": "Chinese Grand Prix",
+                    "Country": "China",
+                    "EventDate": pd.Timestamp("2024-04-21"),
+                    "EventFormat": "sprint_qualifying",
+                },
+            ]
+        )
+        mock_get_schedule.return_value = schedule
+
+        mock_session = MagicMock()
+        mock_session.track_status = pd.DataFrame({"Status": ["1"]})
+        mock_session.results = pd.DataFrame(
+            {
+                "Position": [1.0, 2.0, 3.0],
+                "Abbreviation": ["VER", "NOR", "LEC"],
+            }
+        )
+        mock_load_session.return_value = mock_session
+
+        mock_compute_stats.return_value = {
+            "total_overtakes": 25,
+            "total_position_changes": 12,
+            "average_volatility": 2.0,
+            "mean_pit_stops": 1.0,
+        }
+
+        result = get_season_summary(2024)
+
+        assert result["total_races"] == 2
+        session_types = {r["session_type"] for r in result["races"]}
+        assert session_types == {"R", "S"}
+        # Both entries should be for the same event
+        assert all(r["event_name"] == "Chinese Grand Prix" for r in result["races"])
+        # load_session should be called twice (R and S)
+        assert mock_load_session.call_count == 2

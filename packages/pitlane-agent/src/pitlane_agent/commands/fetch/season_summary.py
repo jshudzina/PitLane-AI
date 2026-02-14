@@ -32,6 +32,7 @@ class SeasonRaceSummary(TypedDict):
     event_name: str
     country: str
     date: str | None
+    session_type: str
     podium: list[str]
     race_summary: RaceSummaryStats
     num_safety_cars: int
@@ -117,7 +118,7 @@ def get_season_summary(year: int) -> SeasonSummary:
     setup_fastf1_cache()
     schedule = fastf1.get_event_schedule(year, include_testing=False)
 
-    # Collect raw data for all races first (need max values for normalization)
+    # Collect raw data for all sessions first (need max values for normalization)
     raw_races = []
 
     for _, event in schedule.iterrows():
@@ -129,45 +130,53 @@ def get_season_summary(year: int) -> SeasonSummary:
         country = event["Country"]
         event_date = event["EventDate"]
         date_str = event_date.isoformat()[:10] if pd.notna(event_date) else None
+        event_format = event.get("EventFormat", "conventional")
 
-        logger.info("Loading race %d: %s", round_number, event_name)
+        # Determine which sessions to load: always Race, plus Sprint for sprint weekends
+        session_types = ["R"]
+        if event_format in ("sprint", "sprint_shootout", "sprint_qualifying"):
+            session_types.append("S")
 
-        try:
-            session = load_session(year, event_name, "R", messages=True)
-        except Exception:
-            logger.warning("Could not load race %d: %s, skipping", round_number, event_name)
-            continue
+        for session_type in session_types:
+            logger.info("Loading %s %d: %s", session_type, round_number, event_name)
 
-        race_summary = compute_race_summary_stats(session)
-        if race_summary is None:
-            logger.warning("No laps data for race %d: %s, skipping", round_number, event_name)
-            continue
+            try:
+                session = load_session(year, event_name, session_type, messages=True)
+            except Exception:
+                logger.warning("Could not load %s %d: %s, skipping", session_type, round_number, event_name)
+                continue
 
-        safety_cars, vscs, red_flags = _count_track_interruptions(session)
+            race_summary = compute_race_summary_stats(session)
+            if race_summary is None:
+                logger.warning("No laps data for %s %d: %s, skipping", session_type, round_number, event_name)
+                continue
 
-        # Extract podium (top 3 finishers) from results
-        podium: list[str] = []
-        try:
-            results = session.results.sort_values("Position")
-            for _, driver in results.head(3).iterrows():
-                if pd.notna(driver["Position"]):
-                    podium.append(driver["Abbreviation"])
-        except Exception:
-            pass
+            safety_cars, vscs, red_flags = _count_track_interruptions(session)
 
-        raw_races.append(
-            {
-                "round": round_number,
-                "event_name": event_name,
-                "country": country,
-                "date": date_str,
-                "podium": podium,
-                "race_summary": race_summary,
-                "num_safety_cars": safety_cars,
-                "num_virtual_safety_cars": vscs,
-                "num_red_flags": red_flags,
-            }
-        )
+            # Extract podium (top 3 finishers) from results
+            podium: list[str] = []
+            try:
+                results = session.results.sort_values("Position")
+                for _, driver in results.head(3).iterrows():
+                    if pd.notna(driver["Position"]):
+                        podium.append(driver["Abbreviation"])
+            except Exception:
+                pass
+
+            raw_races.append(
+                {
+                    "round": round_number,
+                    "event_name": event_name,
+                    "country": country,
+                    "date": date_str,
+                    "session_type": session_type,
+                    "podium": podium,
+                    "race_summary": race_summary,
+                    "num_safety_cars": safety_cars,
+                    "num_virtual_safety_cars": vscs,
+                    "num_red_flags": red_flags,
+                }
+            )
 
     if not raw_races:
         return {
