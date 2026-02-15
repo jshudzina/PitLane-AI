@@ -16,6 +16,7 @@ from fastf1.core import Session
 from fastf1.exceptions import DataNotLoadedError
 
 from pitlane_agent.utils.constants import (
+    AVG_CIRCUIT_LENGTH_KM,
     TRACK_STATUS_RED_FLAG,
     TRACK_STATUS_SAFETY_CAR,
     TRACK_STATUS_VSC_DEPLOYED,
@@ -106,7 +107,7 @@ def _compute_wildness_score(
         num_safety_cars: Number of safety car deployments
         num_red_flags: Number of red flags
         race_distance_km: Completed race distance (total_laps * circuit_length_km,
-            or total_laps when circuit length is unavailable)
+            or total_laps * AVG_CIRCUIT_LENGTH_KM when circuit length is unavailable)
         max_overtakes_per_km: Maximum overtakes-per-km across comparable races
         max_volatility: Maximum average volatility across comparable races
 
@@ -220,14 +221,14 @@ def get_season_summary(year: int) -> SeasonSummary:
 
     # Compute race distance for each entry.  When circuit_length_km is
     # available we use total_laps * circuit_length_km; otherwise we fall
-    # back to total_laps alone (per-lap normalisation).  Note:
+    # back to total_laps * AVG_CIRCUIT_LENGTH_KM (~5 km).  Note:
     # circuit_length_km requires telemetry, which is not loaded here
-    # (telemetry=False) to keep the command fast, so the per-lap
+    # (telemetry=False) to keep the command fast, so the average-length
     # fallback is the current default path.
     for race in raw_races:
         laps = race["race_summary"]["total_laps"]
         circuit_km = race["circuit_length_km"]
-        race["race_distance_km"] = laps * circuit_km if circuit_km is not None else float(laps)
+        race["race_distance_km"] = laps * circuit_km if circuit_km is not None else laps * AVG_CIRCUIT_LENGTH_KM
 
     # Compute normalization maxima across all sessions.  Since overtakes
     # are already expressed as a per-distance density, sprints and full

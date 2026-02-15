@@ -14,6 +14,10 @@ TRACK_STATUS_RED_FLAG = "5"
 TRACK_STATUS_VSC_DEPLOYED = "6"
 TRACK_STATUS_VSC_ENDING = "7"
 
+# Average F1 circuit length in km, used as a fallback when telemetry-derived
+# circuit length is unavailable.
+AVG_CIRCUIT_LENGTH_KM = 5.0
+
 # Matplotlib Dark Theme Configuration
 # Used by visualization commands for consistent F1-style dark theme
 MATPLOTLIB_DARK_THEME = {
