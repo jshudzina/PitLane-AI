@@ -1,10 +1,11 @@
 """Unit tests for fastf1_helpers module."""
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
-from pitlane_agent.utils.fastf1_helpers import get_merged_telemetry
+from pitlane_agent.utils.fastf1_helpers import build_data_path, get_merged_telemetry
 
 
 class TestGetMergedTelemetry:
@@ -149,3 +150,57 @@ class TestGetMergedTelemetry:
         # Should succeed without validation
         assert not result.empty
         assert len(result) == 2
+
+
+class TestBuildDataPath:
+    """Unit tests for build_data_path function."""
+
+    def test_session_scoped(self):
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(workspace, "session_info", year=2024, gp="Monaco", session_type="R")
+        assert result == workspace / "data" / "session_info_2024_monaco_R.json"
+
+    def test_session_scoped_with_diacritics(self):
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(workspace, "race_control", year=2024, gp="São Paulo", session_type="Q")
+        assert result == workspace / "data" / "race_control_2024_sao_paulo_Q.json"
+
+    def test_year_round_scoped(self):
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(workspace, "driver_standings", year=2024, round_number=10)
+        assert result == workspace / "data" / "driver_standings_2024_round10.json"
+
+    def test_year_scoped(self):
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(workspace, "driver_standings", year=2024)
+        assert result == workspace / "data" / "driver_standings_2024.json"
+
+    def test_year_only(self):
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(workspace, "season_summary", year=2024)
+        assert result == workspace / "data" / "season_summary_2024.json"
+
+    def test_driver_with_season(self):
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(workspace, "driver_info", driver_code="VER", season=2024)
+        assert result == workspace / "data" / "driver_info_ver_2024.json"
+
+    def test_driver_without_season(self):
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(workspace, "driver_info", driver_code="HAM")
+        assert result == workspace / "data" / "driver_info_ham.json"
+
+    def test_no_params_fallback(self):
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(workspace, "driver_info")
+        assert result == workspace / "data" / "driver_info.json"
+
+    def test_schedule_with_round(self):
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(workspace, "schedule", year=2024, round_number=5)
+        assert result == workspace / "data" / "schedule_2024_round5.json"
+
+    def test_schedule_without_round(self):
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(workspace, "schedule", year=2024)
+        assert result == workspace / "data" / "schedule_2024.json"

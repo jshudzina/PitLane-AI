@@ -99,6 +99,56 @@ def build_chart_path(
     return workspace_dir / "charts" / filename
 
 
+def build_data_path(
+    workspace_dir: Path,
+    data_type: str,
+    year: int | None = None,
+    gp: str | None = None,
+    session_type: str | None = None,
+    round_number: int | None = None,
+    driver_code: str | None = None,
+    season: int | None = None,
+) -> Path:
+    """Construct standardized data output path.
+
+    Creates unique filenames for fetch command outputs to prevent overwrites
+    when fetching different sessions. Follows similar pattern to build_chart_path().
+
+    Args:
+        workspace_dir: Workspace base directory
+        data_type: Type of data (e.g., "session_info", "driver_standings")
+        year: Season year (for session-scoped or year-scoped data)
+        gp: Grand Prix name (for session-scoped data)
+        session_type: Session identifier (for session-scoped data)
+        round_number: Round number (for round-scoped standings)
+        driver_code: Driver code (for driver-scoped data)
+        season: Season year for driver data
+
+    Returns:
+        Path object for data output location (in workspace/data/ subdirectory)
+    """
+    parts = [data_type]
+
+    if year is not None and gp is not None and session_type is not None:
+        # Session-scoped: session_info, race_control
+        parts.extend([str(year), sanitize_filename(gp), session_type])
+    elif year is not None and round_number is not None:
+        # Year+round-scoped: standings at a specific round
+        parts.extend([str(year), f"round{round_number}"])
+    elif year is not None:
+        # Year-scoped: schedule, season_summary, final standings
+        parts.append(str(year))
+    elif driver_code is not None and season is not None:
+        # Driver+season-scoped
+        parts.extend([driver_code.lower(), str(season)])
+    elif driver_code is not None:
+        # Driver-scoped (all seasons)
+        parts.append(driver_code.lower())
+
+    filename = "_".join(parts) + ".json"
+    return workspace_dir / "data" / filename
+
+
 def get_merged_telemetry(lap: Lap, required_channels: list[str] | None = None) -> Telemetry:
     """Get merged telemetry with validation.
 

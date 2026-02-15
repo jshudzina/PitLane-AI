@@ -22,6 +22,7 @@ from pitlane_agent.commands.fetch import (
 )
 from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
 from pitlane_agent.utils.constants import MIN_F1_YEAR
+from pitlane_agent.utils.fastf1_helpers import build_data_path
 
 
 def _validate_standings_request(workspace_id: str, year: int) -> Path:
@@ -32,7 +33,7 @@ def _validate_standings_request(workspace_id: str, year: int) -> Path:
         year: Championship year
 
     Returns:
-        Path to workspace data directory
+        Path to workspace directory
 
     Raises:
         SystemExit: If validation fails
@@ -54,8 +55,7 @@ def _validate_standings_request(workspace_id: str, year: int) -> Path:
         )
         sys.exit(1)
 
-    workspace_path = get_workspace_path(workspace_id)
-    return workspace_path / "data"
+    return get_workspace_path(workspace_id)
 
 
 @click.group()
@@ -85,14 +85,13 @@ def session_info(workspace_id: str, year: int, gp: str, session: str):
         sys.exit(1)
 
     workspace_path = get_workspace_path(workspace_id)
-    data_dir = workspace_path / "data"
 
     try:
         # Fetch session info
         info = get_session_info(year, gp, session)
 
         # Write to workspace
-        output_file = data_dir / "session_info.json"
+        output_file = build_data_path(workspace_path, "session_info", year=year, gp=gp, session_type=session)
         with open(output_file, "w") as f:
             json.dump(info, f, indent=2)
 
@@ -163,7 +162,6 @@ def driver_info(
             sys.exit(1)
 
     workspace_path = get_workspace_path(workspace_id)
-    data_dir = workspace_path / "data"
 
     try:
         # Fetch driver info
@@ -175,7 +173,7 @@ def driver_info(
         )
 
         # Write to workspace
-        output_file = data_dir / "drivers.json"
+        output_file = build_data_path(workspace_path, "driver_info", driver_code=driver_code, season=season)
         with open(output_file, "w") as f:
             json.dump(info, f, indent=2)
 
@@ -244,7 +242,6 @@ def event_schedule(
         sys.exit(1)
 
     workspace_path = get_workspace_path(workspace_id)
-    data_dir = workspace_path / "data"
 
     try:
         # Fetch schedule
@@ -256,7 +253,7 @@ def event_schedule(
         )
 
         # Write to workspace
-        output_file = data_dir / "schedule.json"
+        output_file = build_data_path(workspace_path, "schedule", year=year, round_number=round_number)
         with open(output_file, "w") as f:
             json.dump(schedule, f, indent=2)
 
@@ -286,18 +283,14 @@ def event_schedule(
 def driver_standings(workspace_id: str, year: int, round_number: int | None):
     """Fetch driver championship standings and store in workspace."""
     # Validate request
-    data_dir = _validate_standings_request(workspace_id, year)
+    workspace_path = _validate_standings_request(workspace_id, year)
 
     try:
         # Fetch standings
         standings = get_driver_standings(year, round_number)
 
         # Write to workspace
-        output_file = data_dir / "driver_standings.json"
-
-        # Log if overwriting existing file
-        if output_file.exists():
-            click.echo(f"Overwriting existing file: {output_file}", err=True)
+        output_file = build_data_path(workspace_path, "driver_standings", year=year, round_number=round_number)
 
         with open(output_file, "w") as f:
             json.dump(standings, f, indent=2)
@@ -329,18 +322,14 @@ def driver_standings(workspace_id: str, year: int, round_number: int | None):
 def constructor_standings(workspace_id: str, year: int, round_number: int | None):
     """Fetch constructor championship standings and store in workspace."""
     # Validate request
-    data_dir = _validate_standings_request(workspace_id, year)
+    workspace_path = _validate_standings_request(workspace_id, year)
 
     try:
         # Fetch standings
         standings = get_constructor_standings(year, round_number)
 
         # Write to workspace
-        output_file = data_dir / "constructor_standings.json"
-
-        # Log if overwriting existing file
-        if output_file.exists():
-            click.echo(f"Overwriting existing file: {output_file}", err=True)
+        output_file = build_data_path(workspace_path, "constructor_standings", year=year, round_number=round_number)
 
         with open(output_file, "w") as f:
             json.dump(standings, f, indent=2)
@@ -434,7 +423,6 @@ def race_control(
         sys.exit(1)
 
     workspace_path = get_workspace_path(workspace_id)
-    data_dir = workspace_path / "data"
 
     try:
         # Fetch race control messages
@@ -452,7 +440,7 @@ def race_control(
         )
 
         # Write to workspace
-        output_file = data_dir / "race_control.json"
+        output_file = build_data_path(workspace_path, "race_control", year=year, gp=gp, session_type=session)
         with open(output_file, "w") as f:
             json.dump(messages, f, indent=2)
 
@@ -478,13 +466,13 @@ def race_control(
 @click.option("--year", type=int, required=True, help="Championship year (e.g., 2024)")
 def season_summary(workspace_id: str, year: int):
     """Fetch season summary with races ranked by wildness score."""
-    data_dir = _validate_standings_request(workspace_id, year)
+    workspace_path = _validate_standings_request(workspace_id, year)
 
     try:
         summary = get_season_summary(year)
 
         # Write to workspace
-        output_file = data_dir / "season_summary.json"
+        output_file = build_data_path(workspace_path, "season_summary", year=year)
         with open(output_file, "w") as f:
             json.dump(summary, f, indent=2)
 
