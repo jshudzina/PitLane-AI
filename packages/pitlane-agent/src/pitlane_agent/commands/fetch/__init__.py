@@ -9,6 +9,7 @@ from pitlane_agent.commands.fetch.driver_info import get_driver_info
 from pitlane_agent.commands.fetch.driver_standings import get_driver_standings
 from pitlane_agent.commands.fetch.event_schedule import get_event_schedule
 from pitlane_agent.commands.fetch.race_control import get_race_control_messages
+from pitlane_agent.commands.fetch.season_summary import get_season_summary
 from pitlane_agent.commands.fetch.session_info import get_session_info
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "get_driver_standings",
     "get_constructor_standings",
     "get_race_control_messages",
+    "get_season_summary",
 ]

@@ -1,0 +1,458 @@
+"""Tests for season_summary command."""
+
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+from pitlane_agent.commands.fetch.season_summary import (
+    _compute_wildness_score,
+    _count_track_interruptions,
+    get_season_summary,
+)
+
+
+class TestCountTrackInterruptions:
+    """Tests for _count_track_interruptions."""
+
+    def test_with_interruptions(self):
+        """Test counting various track interruptions."""
+        session = MagicMock()
+        session.track_status = pd.DataFrame(
+            {
+                "Status": ["1", "4", "4", "6", "7", "1"],
+            }
+        )
+
+        sc, vsc, rf = _count_track_interruptions(session)
+
+        assert sc == 2
+        assert vsc == 1
+        assert rf == 0
+
+    def test_no_data(self):
+        """Test with DataNotLoadedError."""
+        from fastf1.exceptions import DataNotLoadedError
+
+        session = MagicMock()
+        type(session).track_status = property(lambda self: (_ for _ in ()).throw(DataNotLoadedError("Not loaded")))
+
+        sc, vsc, rf = _count_track_interruptions(session)
+
+        assert sc == 0
+        assert vsc == 0
+        assert rf == 0
+
+
+class TestComputeWildnessScore:
+    """Tests for _compute_wildness_score."""
+
+    def test_maximum_wildness(self):
+        """Test that a race with max everything scores 1.0."""
+        stats = {
+            "total_overtakes": 100,
+            "total_position_changes": 50,
+            "average_volatility": 5.0,
+            "mean_pit_stops": 2.0,
+        }
+        # 100 overtakes / 300 km = 0.333 per km (the max)
+        score = _compute_wildness_score(
+            stats,
+            num_safety_cars=3,
+            num_red_flags=1,
+            race_distance_km=300.0,
+            max_overtakes_per_km=100 / 300.0,
+            max_volatility=5.0,
+        )
+
+        assert score == 1.0
+
+    def test_minimum_wildness(self):
+        """Test that a boring race scores low."""
+        stats = {
+            "total_overtakes": 0,
+            "total_position_changes": 0,
+            "average_volatility": 0.0,
+            "mean_pit_stops": 1.0,
+        }
+
+        score = _compute_wildness_score(
+            stats,
+            num_safety_cars=0,
+            num_red_flags=0,
+            race_distance_km=300.0,
+            max_overtakes_per_km=0.5,
+            max_volatility=5.0,
+        )
+
+        assert score == 0.0
+
+    def test_zero_max_values(self):
+        """Test handling of zero max values (no division by zero)."""
+        stats = {
+            "total_overtakes": 0,
+            "total_position_changes": 0,
+            "average_volatility": 0.0,
+            "mean_pit_stops": 0.0,
+        }
+
+        score = _compute_wildness_score(
+            stats,
+            num_safety_cars=0,
+            num_red_flags=0,
+            race_distance_km=0.0,
+            max_overtakes_per_km=0.0,
+            max_volatility=0.0,
+        )
+
+        assert score == 0.0
+
+    def test_short_race_scores_higher_than_full_race_with_same_overtakes(self):
+        """Test that a shortened race with same raw overtakes scores higher."""
+        stats = {
+            "total_overtakes": 40,
+            "total_position_changes": 20,
+            "average_volatility": 2.0,
+            "mean_pit_stops": 1.0,
+        }
+        # Short race: 40 overtakes in 150 km = 0.267/km
+        short_score = _compute_wildness_score(
+            stats,
+            num_safety_cars=0,
+            num_red_flags=0,
+            race_distance_km=150.0,
+            max_overtakes_per_km=40 / 150.0,
+            max_volatility=2.0,
+        )
+        # Full race: 40 overtakes in 300 km = 0.133/km
+        full_score = _compute_wildness_score(
+            stats,
+            num_safety_cars=0,
+            num_red_flags=0,
+            race_distance_km=300.0,
+            max_overtakes_per_km=40 / 150.0,
+            max_volatility=2.0,
+        )
+
+        assert short_score > full_score
+
+
+class TestGetSeasonSummary:
+    """Tests for get_season_summary."""
+
+    @patch("pitlane_agent.commands.fetch.season_summary.get_circuit_length_km")
+    @patch("pitlane_agent.commands.fetch.season_summary.load_session")
+    @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
+    @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats")
+    def test_basic_season_summary(
+        self,
+        mock_compute_stats,
+        mock_setup_cache,
+        mock_get_schedule,
+        mock_load_session,
+        mock_get_circuit_length,
+    ):
+        """Test basic season summary with two races."""
+        mock_get_circuit_length.return_value = 5.412
+        # Setup schedule with 2 conventional races
+        schedule = pd.DataFrame(
+            [
+                {
+                    "RoundNumber": 1,
+                    "EventName": "Bahrain Grand Prix",
+                    "Country": "Bahrain",
+                    "EventDate": pd.Timestamp("2024-03-02"),
+                    "EventFormat": "conventional",
+                },
+                {
+                    "RoundNumber": 2,
+                    "EventName": "Saudi Arabian Grand Prix",
+                    "Country": "Saudi Arabia",
+                    "EventDate": pd.Timestamp("2024-03-09"),
+                    "EventFormat": "conventional",
+                },
+            ]
+        )
+        mock_get_schedule.return_value = schedule
+
+        # Mock session loading
+        mock_session = MagicMock()
+        mock_session.track_status = pd.DataFrame({"Status": ["1", "1"]})
+        mock_session.results = pd.DataFrame(
+            {
+                "Position": [1.0, 2.0, 3.0],
+                "Abbreviation": ["VER", "NOR", "LEC"],
+            }
+        )
+        mock_load_session.return_value = mock_session
+
+        # Mock race stats - make race 2 wilder
+        mock_compute_stats.side_effect = [
+            {
+                "total_overtakes": 20,
+                "total_position_changes": 10,
+                "average_volatility": 1.5,
+                "mean_pit_stops": 1.5,
+                "total_laps": 57,
+            },
+            {
+                "total_overtakes": 50,
+                "total_position_changes": 30,
+                "average_volatility": 3.0,
+                "mean_pit_stops": 2.0,
+                "total_laps": 50,
+            },
+        ]
+
+        result = get_season_summary(2024)
+
+        assert result["year"] == 2024
+        assert result["total_races"] == 2
+        assert len(result["races"]) == 2
+        # Race 2 should be ranked first (wilder)
+        assert result["races"][0]["event_name"] == "Saudi Arabian Grand Prix"
+        assert result["races"][1]["event_name"] == "Bahrain Grand Prix"
+        # Wildness scores should be in descending order
+        assert result["races"][0]["wildness_score"] >= result["races"][1]["wildness_score"]
+        # Season averages should be per-lap normalized
+        # Race 1: 20/57=0.351, Race 2: 50/50=1.0 → avg = 0.675 → round = 0.68
+        assert result["season_averages"]["overtakes_per_lap"] == round((20 / 57 + 50 / 50) / 2, 2)
+        assert result["season_averages"]["mean_pit_stops"] == 1.75
+        # Podium should be extracted
+        assert result["races"][0]["podium"] == ["VER", "NOR", "LEC"]
+        # Circuit length should be present
+        assert result["races"][0]["circuit_length_km"] == 5.412
+        # All entries should be race sessions
+        assert all(r["session_type"] == "R" for r in result["races"])
+
+    @patch("pitlane_agent.commands.fetch.season_summary.load_session")
+    @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
+    def test_empty_season(self, mock_setup_cache, mock_get_schedule, mock_load_session):
+        """Test season with no races."""
+        mock_get_schedule.return_value = pd.DataFrame(
+            columns=[
+                "RoundNumber",
+                "EventName",
+                "Country",
+                "EventDate",
+            ]
+        )
+
+        result = get_season_summary(2024)
+
+        assert result["total_races"] == 0
+        assert result["races"] == []
+
+    @patch("pitlane_agent.commands.fetch.season_summary.load_session")
+    @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
+    def test_skips_failed_sessions(self, mock_setup_cache, mock_get_schedule, mock_load_session):
+        """Test that races that fail to load are skipped."""
+        schedule = pd.DataFrame(
+            [
+                {
+                    "RoundNumber": 1,
+                    "EventName": "Bahrain Grand Prix",
+                    "Country": "Bahrain",
+                    "EventDate": pd.Timestamp("2024-03-02"),
+                    "EventFormat": "conventional",
+                },
+            ]
+        )
+        mock_get_schedule.return_value = schedule
+        mock_load_session.side_effect = Exception("Session not found")
+
+        result = get_season_summary(2024)
+
+        assert result["total_races"] == 0
+
+    @patch("pitlane_agent.commands.fetch.season_summary.get_circuit_length_km")
+    @patch("pitlane_agent.commands.fetch.season_summary.load_session")
+    @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
+    @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats")
+    def test_skips_round_zero(
+        self,
+        mock_compute_stats,
+        mock_setup_cache,
+        mock_get_schedule,
+        mock_load_session,
+        mock_get_circuit_length,
+    ):
+        """Test that testing events (round 0) are skipped."""
+        mock_get_circuit_length.return_value = 5.412
+        schedule = pd.DataFrame(
+            [
+                {
+                    "RoundNumber": 0,
+                    "EventName": "Pre-Season Testing",
+                    "Country": "Bahrain",
+                    "EventDate": pd.Timestamp("2024-02-20"),
+                    "EventFormat": "conventional",
+                },
+                {
+                    "RoundNumber": 1,
+                    "EventName": "Bahrain Grand Prix",
+                    "Country": "Bahrain",
+                    "EventDate": pd.Timestamp("2024-03-02"),
+                    "EventFormat": "conventional",
+                },
+            ]
+        )
+        mock_get_schedule.return_value = schedule
+
+        mock_session = MagicMock()
+        mock_session.track_status = pd.DataFrame({"Status": ["1"]})
+        mock_session.results = pd.DataFrame(
+            {
+                "Position": [1.0, 2.0, 3.0],
+                "Abbreviation": ["VER", "NOR", "LEC"],
+            }
+        )
+        mock_load_session.return_value = mock_session
+
+        mock_compute_stats.return_value = {
+            "total_overtakes": 30,
+            "total_position_changes": 15,
+            "average_volatility": 2.0,
+            "mean_pit_stops": 1.5,
+            "total_laps": 57,
+        }
+
+        result = get_season_summary(2024)
+
+        assert result["total_races"] == 1
+        assert result["races"][0]["event_name"] == "Bahrain Grand Prix"
+        assert result["races"][0]["session_type"] == "R"
+        # load_session should only be called once (for round 1, not round 0)
+        mock_load_session.assert_called_once()
+
+    @patch("pitlane_agent.commands.fetch.season_summary.get_circuit_length_km")
+    @patch("pitlane_agent.commands.fetch.season_summary.load_session")
+    @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
+    @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats")
+    def test_sprint_weekend_produces_two_entries(
+        self,
+        mock_compute_stats,
+        mock_setup_cache,
+        mock_get_schedule,
+        mock_load_session,
+        mock_get_circuit_length,
+    ):
+        """Test that a sprint weekend produces both R and S entries."""
+        mock_get_circuit_length.return_value = 5.451
+        schedule = pd.DataFrame(
+            [
+                {
+                    "RoundNumber": 1,
+                    "EventName": "Chinese Grand Prix",
+                    "Country": "China",
+                    "EventDate": pd.Timestamp("2024-04-21"),
+                    "EventFormat": "sprint_qualifying",
+                },
+            ]
+        )
+        mock_get_schedule.return_value = schedule
+
+        mock_session = MagicMock()
+        mock_session.track_status = pd.DataFrame({"Status": ["1"]})
+        mock_session.results = pd.DataFrame(
+            {
+                "Position": [1.0, 2.0, 3.0],
+                "Abbreviation": ["VER", "NOR", "LEC"],
+            }
+        )
+        mock_load_session.return_value = mock_session
+
+        mock_compute_stats.return_value = {
+            "total_overtakes": 25,
+            "total_position_changes": 12,
+            "average_volatility": 2.0,
+            "mean_pit_stops": 1.0,
+            "total_laps": 56,
+        }
+
+        result = get_season_summary(2024)
+
+        assert result["total_races"] == 2
+        session_types = {r["session_type"] for r in result["races"]}
+        assert session_types == {"R", "S"}
+        # Both entries should be for the same event
+        assert all(r["event_name"] == "Chinese Grand Prix" for r in result["races"])
+        # load_session should be called twice (R and S)
+        assert mock_load_session.call_count == 2
+
+    @patch("pitlane_agent.commands.fetch.season_summary.get_circuit_length_km")
+    @patch("pitlane_agent.commands.fetch.season_summary.load_session")
+    @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
+    @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats")
+    def test_sprint_density_compared_against_race(
+        self,
+        mock_compute_stats,
+        mock_setup_cache,
+        mock_get_schedule,
+        mock_load_session,
+        mock_get_circuit_length,
+    ):
+        """Test that sprint and race wildness are normalized by overtake density.
+
+        With density-based normalization, sprints and races share a single
+        max.  A sprint with the same overtakes-per-lap as the race should
+        score equally on the overtakes component.
+        """
+        mock_get_circuit_length.return_value = 5.451
+        schedule = pd.DataFrame(
+            [
+                {
+                    "RoundNumber": 1,
+                    "EventName": "Chinese Grand Prix",
+                    "Country": "China",
+                    "EventDate": pd.Timestamp("2024-04-21"),
+                    "EventFormat": "sprint_qualifying",
+                },
+            ]
+        )
+        mock_get_schedule.return_value = schedule
+
+        mock_session = MagicMock()
+        mock_session.track_status = pd.DataFrame({"Status": ["1"]})
+        mock_session.results = pd.DataFrame(
+            {
+                "Position": [1.0, 2.0, 3.0],
+                "Abbreviation": ["VER", "NOR", "LEC"],
+            }
+        )
+        mock_load_session.return_value = mock_session
+
+        # Give the sprint the same overtakes-per-lap as the race so both
+        # should receive the same overtake density component.
+        # Race: 56 overtakes / 56 laps = 1.0/lap
+        # Sprint: 20 overtakes / 20 laps = 1.0/lap
+        race_stats = {
+            "total_overtakes": 56,
+            "total_position_changes": 30,
+            "average_volatility": 3.0,
+            "mean_pit_stops": 2.0,
+            "total_laps": 56,
+        }
+        sprint_stats = {
+            "total_overtakes": 20,
+            "total_position_changes": 8,
+            "average_volatility": 3.0,
+            "mean_pit_stops": 0.0,
+            "total_laps": 20,
+        }
+        # R is loaded first, then S
+        mock_compute_stats.side_effect = [race_stats, sprint_stats]
+
+        result = get_season_summary(2024)
+
+        race_entry = next(r for r in result["races"] if r["session_type"] == "R")
+        sprint_entry = next(r for r in result["races"] if r["session_type"] == "S")
+
+        # Both have the same overtakes/lap and same volatility, so both
+        # should score identically: 0.4*1 + 0.3*1 + 0.2*0 + 0.1*0 = 0.7
+        assert race_entry["wildness_score"] == 0.7
+        assert sprint_entry["wildness_score"] == 0.7
