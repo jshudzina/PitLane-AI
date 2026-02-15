@@ -169,8 +169,8 @@ def get_season_summary(year: int) -> SeasonSummary:
 
             try:
                 session = load_session(year, event_name, session_type, messages=True)
-            except Exception:
-                logger.warning("Could not load %s %d: %s, skipping", session_type, round_number, event_name)
+            except Exception as e:
+                logger.warning("Could not load %s %d: %s, skipping — %s", session_type, round_number, event_name, e)
                 continue
 
             race_summary = compute_race_summary_stats(session)
