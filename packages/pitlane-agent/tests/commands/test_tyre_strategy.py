@@ -90,8 +90,8 @@ class TestSanitizeFilename:
         assert sanitize_filename("Emilia-Romagna") == "emilia_romagna"
 
     def test_sanitize_name_with_special_chars(self):
-        """Test sanitization of name with special characters."""
-        assert sanitize_filename("São Paulo") == "são_paulo"
+        """Test sanitization of name with special characters (diacritics stripped)."""
+        assert sanitize_filename("São Paulo") == "sao_paulo"
 
     def test_sanitize_multiple_spaces(self):
         """Test sanitization of name with multiple consecutive spaces."""
