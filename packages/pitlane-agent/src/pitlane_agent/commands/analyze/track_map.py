@@ -21,7 +21,7 @@ from pitlane_agent.utils.constants import (
     TRACK_MAP_OUTLINE_WIDTH,
     TRACK_MAP_TITLE_FONT_SIZE,
 )
-from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
+from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session_or_testing
 from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
 
@@ -44,14 +44,18 @@ def generate_track_map_chart(
     gp: str,
     session_type: str,
     workspace_dir: Path,
+    test_number: int | None = None,
+    session_number: int | None = None,
 ) -> dict:
     """Generate a track map with numbered corner labels.
 
     Args:
         year: Season year
-        gp: Grand Prix name
-        session_type: Session identifier
+        gp: Grand Prix name (ignored for testing sessions)
+        session_type: Session identifier (ignored for testing sessions)
         workspace_dir: Workspace directory for outputs and cache
+        test_number: Testing event number (e.g., 1 or 2)
+        session_number: Session within testing event (e.g., 1, 2, or 3)
 
     Returns:
         Dictionary with chart metadata and corner statistics
@@ -60,10 +64,20 @@ def generate_track_map_chart(
         ValueError: If position data is unavailable for the session
     """
     # Build output path (no drivers for circuit-level chart)
-    output_path = build_chart_path(workspace_dir, "track_map", year, gp, session_type)
+    output_path = build_chart_path(
+        workspace_dir,
+        "track_map",
+        year,
+        gp,
+        session_type,
+        test_number=test_number,
+        session_number=session_number,
+    )
 
     # Load session with telemetry to ensure position data is available
-    session = load_session(year, gp, session_type, telemetry=True)
+    session = load_session_or_testing(
+        year, gp, session_type, test_number=test_number, session_number=session_number, telemetry=True
+    )
 
     # Get fastest lap for position data
     lap = session.laps.pick_fastest()

@@ -69,6 +69,16 @@ Based on the user's question, read the appropriate reference file for detailed i
 
 **Read:** [references/visualization.md](references/visualization.md)
 
+### Testing Session Analysis
+**When to use:** Questions about pre-season or in-season testing data, test day programmes, or testing lap times.
+
+**Examples:**
+- "How did Verstappen's long runs look in testing?"
+- "Compare the two Red Bull drivers' pace on day 2 of testing"
+- "What was Leclerc's best lap in the first test?"
+
+**Read:** [references/testing.md](references/testing.md)
+
 ### Telemetry Analysis
 **When to use:** Questions about speed traces, gear shifts, braking points, or detailed car data.
 
@@ -151,6 +161,12 @@ Returns JSON with driver codes, full names, nationalities, teams, and Wikipedia 
 - **S** = Sprint
 - **SQ** = Sprint Qualifying
 - **FP1, FP2, FP3** = Free Practice 1, 2, 3
+
+## Pre-Season Testing Sessions
+
+Testing sessions use `--test N --day N` instead of `--gp` and `--session` (mutually exclusive). Do NOT pass "Pre-Season Testing" as `--gp` — always use `--test`/`--day`.
+
+For detailed guidance on interpreting testing data, see the [Testing Session Analysis reference](references/testing.md).
 
 ## Security Note
 

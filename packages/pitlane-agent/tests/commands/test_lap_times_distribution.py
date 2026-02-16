@@ -16,7 +16,7 @@ class TestLapTimesDistributionBusinessLogic:
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_driver_color_mapping")
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
-    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session_or_testing")
     def test_generate_distribution_chart_success_with_drivers(
         self,
         mock_load_session,
@@ -90,7 +90,7 @@ class TestLapTimesDistributionBusinessLogic:
             assert "compounds_used" in stat
 
         # Verify FastF1 was called correctly
-        mock_load_session.assert_called_once_with(2024, "Monaco", "Q")
+        mock_load_session.assert_called_once_with(2024, "Monaco", "Q", test_number=None, session_number=None)
 
         # Verify seaborn plots were called
         mock_sns.violinplot.assert_called_once()
@@ -100,7 +100,7 @@ class TestLapTimesDistributionBusinessLogic:
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_driver_color_mapping")
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
-    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session_or_testing")
     def test_generate_distribution_chart_default_top10(
         self,
         mock_load_session,
@@ -172,7 +172,7 @@ class TestLapTimesDistributionBusinessLogic:
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_driver_color_mapping")
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
-    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session_or_testing")
     def test_generate_distribution_chart_many_drivers(
         self,
         mock_load_session,
@@ -226,7 +226,7 @@ class TestLapTimesDistributionBusinessLogic:
             tmp_output_dir / "charts" / "lap_times_distribution_2024_monaco_Q_6drivers.png"
         )
 
-    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session_or_testing")
     def test_generate_distribution_chart_error(self, mock_load_session, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
@@ -238,7 +238,7 @@ class TestLapTimesDistributionBusinessLogic:
                 year=2024, gp="InvalidGP", session_type="Q", drivers=["VER"], workspace_dir=tmp_output_dir
             )
 
-    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session_or_testing")
     def test_generate_distribution_chart_no_quick_laps(self, mock_load_session, tmp_output_dir, mock_fastf1_session):
         """Test error handling when no quick laps are found."""
         # Setup mocks
@@ -260,7 +260,7 @@ class TestLapTimesDistributionBusinessLogic:
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_driver_color_mapping")
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
-    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session_or_testing")
     def test_generate_distribution_chart_verifies_plot_calls(
         self,
         mock_load_session,
@@ -330,7 +330,7 @@ class TestLapTimesDistributionBusinessLogic:
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.fastf1.plotting.get_driver_color_mapping")
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.sns")
     @patch("pitlane_agent.commands.analyze.lap_times_distribution.plt")
-    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session")
+    @patch("pitlane_agent.commands.analyze.lap_times_distribution.load_session_or_testing")
     def test_generate_distribution_chart_with_excluded_drivers(
         self,
         mock_load_session,

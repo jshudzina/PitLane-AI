@@ -6,6 +6,7 @@ and compute season summary statistics.
 
 import pytest
 from pitlane_agent.commands.fetch.season_summary import get_season_summary
+from pitlane_agent.utils.constants import AVG_CIRCUIT_LENGTH_KM
 from pitlane_agent.utils.fastf1_helpers import load_session
 from pitlane_agent.utils.race_stats import get_circuit_length_km
 
@@ -64,8 +65,9 @@ class TestSeasonSummaryIntegration:
                 expected_distance = summary["total_laps"] * race["circuit_length_km"]
                 assert abs(race["race_distance_km"] - expected_distance) < 0.01
             else:
-                # Fallback: race_distance_km equals total_laps
-                assert race["race_distance_km"] == float(summary["total_laps"])
+                # Fallback: race_distance_km = total_laps * AVG_CIRCUIT_LENGTH_KM
+                expected_distance = summary["total_laps"] * AVG_CIRCUIT_LENGTH_KM
+                assert abs(race["race_distance_km"] - expected_distance) < 0.01
 
             assert race["race_distance_km"] > 0
 

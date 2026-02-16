@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from pitlane_agent.utils.constants import COMPOUND_COLORS
-from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
+from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session_or_testing
 from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
 
@@ -19,23 +19,35 @@ def generate_tyre_strategy_chart(
     gp: str,
     session_type: str,
     workspace_dir: Path,
+    test_number: int | None = None,
+    session_number: int | None = None,
 ) -> dict:
     """Generate a tyre strategy visualization.
 
     Args:
         year: Season year
-        gp: Grand Prix name
-        session_type: Session identifier (typically 'R' for race)
+        gp: Grand Prix name (ignored for testing sessions)
+        session_type: Session identifier (typically 'R' for race, ignored for testing)
         workspace_dir: Workspace directory for outputs and cache
+        test_number: Testing event number (e.g., 1 or 2)
+        session_number: Session within testing event (e.g., 1, 2, or 3)
 
     Returns:
         Dictionary with chart metadata and strategy info
     """
     # Build output path
-    output_path = build_chart_path(workspace_dir, "tyre_strategy", year, gp, session_type)
+    output_path = build_chart_path(
+        workspace_dir,
+        "tyre_strategy",
+        year,
+        gp,
+        session_type,
+        test_number=test_number,
+        session_number=session_number,
+    )
 
     # Load session with laps data
-    session = load_session(year, gp, session_type)
+    session = load_session_or_testing(year, gp, session_type, test_number=test_number, session_number=session_number)
 
     # Setup plotting
     setup_plot_style()

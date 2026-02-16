@@ -20,7 +20,7 @@ class TestPositionChangesBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     @patch("pitlane_agent.commands.analyze.position_changes.plt")
-    @patch("pitlane_agent.commands.analyze.position_changes.load_session")
+    @patch("pitlane_agent.commands.analyze.position_changes.load_session_or_testing")
     def test_generate_position_changes_chart_success(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -86,11 +86,11 @@ class TestPositionChangesBusinessLogic:
         assert result["chart_path"] == str(tmp_output_dir / "charts" / "position_changes_2024_monaco_R_all.png")
 
         # Verify FastF1 was called correctly
-        mock_load_session.assert_called_once_with(2024, "Monaco", "R")
+        mock_load_session.assert_called_once_with(2024, "Monaco", "R", test_number=None, session_number=None)
 
     @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     @patch("pitlane_agent.commands.analyze.position_changes.plt")
-    @patch("pitlane_agent.commands.analyze.position_changes.load_session")
+    @patch("pitlane_agent.commands.analyze.position_changes.load_session_or_testing")
     def test_generate_position_changes_chart_with_drivers_filter(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -127,7 +127,7 @@ class TestPositionChangesBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     @patch("pitlane_agent.commands.analyze.position_changes.plt")
-    @patch("pitlane_agent.commands.analyze.position_changes.load_session")
+    @patch("pitlane_agent.commands.analyze.position_changes.load_session_or_testing")
     def test_generate_position_changes_chart_with_top_n(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -170,7 +170,7 @@ class TestPositionChangesBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     @patch("pitlane_agent.commands.analyze.position_changes.plt")
-    @patch("pitlane_agent.commands.analyze.position_changes.load_session")
+    @patch("pitlane_agent.commands.analyze.position_changes.load_session_or_testing")
     def test_generate_position_changes_chart_with_pit_stops(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -213,7 +213,7 @@ class TestPositionChangesBusinessLogic:
         mock_ax.scatter.assert_called()
 
     @patch("pitlane_agent.commands.analyze.position_changes.plt")
-    @patch("pitlane_agent.commands.analyze.position_changes.load_session")
+    @patch("pitlane_agent.commands.analyze.position_changes.load_session_or_testing")
     def test_generate_position_changes_chart_no_position_data(
         self, mock_load_session, mock_plt, tmp_output_dir, mock_fastf1_session
     ):
@@ -245,7 +245,7 @@ class TestPositionChangesBusinessLogic:
         # Verify driver is excluded
         assert "VER" in result.get("excluded_drivers", [])
 
-    @patch("pitlane_agent.commands.analyze.position_changes.load_session")
+    @patch("pitlane_agent.commands.analyze.position_changes.load_session_or_testing")
     def test_generate_position_changes_chart_error(self, mock_load_session, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
@@ -264,7 +264,7 @@ class TestPositionChangesBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     @patch("pitlane_agent.commands.analyze.position_changes.plt")
-    @patch("pitlane_agent.commands.analyze.position_changes.load_session")
+    @patch("pitlane_agent.commands.analyze.position_changes.load_session_or_testing")
     def test_statistics_calculation(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -312,7 +312,7 @@ class TestPositionChangesBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
     @patch("pitlane_agent.commands.analyze.position_changes.plt")
-    @patch("pitlane_agent.commands.analyze.position_changes.load_session")
+    @patch("pitlane_agent.commands.analyze.position_changes.load_session_or_testing")
     def test_generate_position_changes_chart_many_drivers(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):

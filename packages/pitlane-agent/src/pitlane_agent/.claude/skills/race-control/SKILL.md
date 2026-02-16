@@ -184,3 +184,4 @@ pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --gp
 - Track limits violations filtered in high/medium detail (administrative, frequent)
 - "NO FURTHER INVESTIGATION" messages filtered in high/medium (incidents that didn't warrant penalties)
 - Detail levels are recommendations - use full detail if uncertain about what you're looking for
+- **Testing sessions**: Use `--test N --day N` instead of `--gp`/`--session` (e.g., `--test 1 --day 2`). Do NOT pass "Pre-Season Testing" as `--gp`.

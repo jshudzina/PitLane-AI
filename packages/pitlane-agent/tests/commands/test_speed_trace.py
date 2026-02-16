@@ -22,7 +22,7 @@ class TestSpeedTraceBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     @patch("pitlane_agent.commands.analyze.speed_trace.plt")
-    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session_or_testing")
     def test_generate_speed_trace_chart_success(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -85,7 +85,9 @@ class TestSpeedTraceBusinessLogic:
         assert len(result["drivers_compared"]) <= 2
 
         # Verify FastF1 was called correctly with telemetry=True
-        mock_load_session.assert_called_once_with(2024, "Monaco", "Q", telemetry=True)
+        mock_load_session.assert_called_once_with(
+            2024, "Monaco", "Q", test_number=None, session_number=None, telemetry=True
+        )
 
         # Verify telemetry methods were called
         assert mock_fastest_lap.get_car_data.called
@@ -93,7 +95,7 @@ class TestSpeedTraceBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     @patch("pitlane_agent.commands.analyze.speed_trace.plt")
-    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session_or_testing")
     def test_generate_speed_trace_chart_three_drivers(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -150,7 +152,7 @@ class TestSpeedTraceBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     @patch("pitlane_agent.commands.analyze.speed_trace.plt")
-    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session_or_testing")
     def test_generate_speed_trace_chart_five_drivers(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -231,7 +233,7 @@ class TestSpeedTraceBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     @patch("pitlane_agent.commands.analyze.speed_trace.plt")
-    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session_or_testing")
     def test_statistics_calculation(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -310,7 +312,7 @@ class TestSpeedTraceBusinessLogic:
         # Verify sanitize_filename works as expected
         assert expected_sanitized == "spanish_grand_prix"
 
-    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session_or_testing")
     def test_generate_speed_trace_chart_error(self, mock_load_session, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
@@ -328,7 +330,7 @@ class TestSpeedTraceBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     @patch("pitlane_agent.commands.analyze.speed_trace.plt")
-    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session_or_testing")
     def test_generate_speed_trace_chart_empty_laps(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -391,7 +393,7 @@ class TestSpeedTraceBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     @patch("pitlane_agent.commands.analyze.speed_trace.plt")
-    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session_or_testing")
     def test_generate_speed_trace_chart_with_corners(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -460,7 +462,7 @@ class TestSpeedTraceBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     @patch("pitlane_agent.commands.analyze.speed_trace.plt")
-    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session_or_testing")
     def test_generate_speed_trace_chart_corners_fallback(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -516,7 +518,7 @@ class TestSpeedTraceBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     @patch("pitlane_agent.commands.analyze.speed_trace.plt")
-    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session_or_testing")
     def test_generate_speed_trace_chart_without_corners_default(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):
@@ -567,7 +569,7 @@ class TestSpeedTraceBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.speed_trace.fastf1")
     @patch("pitlane_agent.commands.analyze.speed_trace.plt")
-    @patch("pitlane_agent.commands.analyze.speed_trace.load_session")
+    @patch("pitlane_agent.commands.analyze.speed_trace.load_session_or_testing")
     def test_teammates_get_different_line_styles(
         self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
     ):

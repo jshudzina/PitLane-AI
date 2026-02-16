@@ -10,7 +10,7 @@ import fastf1.plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
+from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session_or_testing
 from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
 
@@ -20,29 +20,51 @@ def generate_lap_times_distribution_chart(
     session_type: str,
     drivers: list[str] | None,
     workspace_dir: Path,
+    test_number: int | None = None,
+    session_number: int | None = None,
 ) -> dict:
     """Generate a lap times distribution plot using violin and swarm plots.
 
     Args:
         year: Season year
-        gp: Grand Prix name
-        session_type: Session identifier
+        gp: Grand Prix name (ignored for testing sessions)
+        session_type: Session identifier (ignored for testing sessions)
         drivers: List of driver abbreviations to include, or None for top 10 finishers
         workspace_dir: Workspace directory for outputs and cache
+        test_number: Testing event number (e.g., 1 or 2)
+        session_number: Session within testing event (e.g., 1, 2, or 3)
 
     Returns:
         Dictionary with chart metadata and statistics
     """
     # Build output path (handle None drivers case specially)
     if drivers is None:
-        output_path = build_chart_path(workspace_dir, "lap_times_distribution", year, gp, session_type, None)
+        output_path = build_chart_path(
+            workspace_dir,
+            "lap_times_distribution",
+            year,
+            gp,
+            session_type,
+            None,
+            test_number=test_number,
+            session_number=session_number,
+        )
         # Adjust filename for top10 indicator
         output_path = output_path.parent / output_path.name.replace(".png", "_top10.png")
     else:
-        output_path = build_chart_path(workspace_dir, "lap_times_distribution", year, gp, session_type, drivers)
+        output_path = build_chart_path(
+            workspace_dir,
+            "lap_times_distribution",
+            year,
+            gp,
+            session_type,
+            drivers,
+            test_number=test_number,
+            session_number=session_number,
+        )
 
     # Load session with laps data
-    session = load_session(year, gp, session_type)
+    session = load_session_or_testing(year, gp, session_type, test_number=test_number, session_number=session_number)
 
     # Determine which drivers to plot
     if drivers is None:

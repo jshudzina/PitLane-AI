@@ -20,7 +20,7 @@ class TestLapTimesBusinessLogic:
 
     @patch("fastf1.plotting.get_driver_color")
     @patch("pitlane_agent.commands.analyze.lap_times.plt")
-    @patch("pitlane_agent.commands.analyze.lap_times.load_session")
+    @patch("pitlane_agent.commands.analyze.lap_times.load_session_or_testing")
     def test_generate_lap_times_chart_success(
         self, mock_load_session, mock_plt, mock_get_driver_color, tmp_output_dir, mock_fastf1_session
     ):
@@ -66,9 +66,9 @@ class TestLapTimesBusinessLogic:
         assert len(result["drivers_plotted"]) <= 2
 
         # Verify load_session was called correctly
-        mock_load_session.assert_called_once_with(2024, "Monaco", "Q")
+        mock_load_session.assert_called_once_with(2024, "Monaco", "Q", test_number=None, session_number=None)
 
-    @patch("pitlane_agent.commands.analyze.lap_times.load_session")
+    @patch("pitlane_agent.commands.analyze.lap_times.load_session_or_testing")
     def test_generate_lap_times_chart_error(self, mock_load_session, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
@@ -86,7 +86,7 @@ class TestLapTimesBusinessLogic:
 
     @patch("fastf1.plotting.get_driver_color")
     @patch("pitlane_agent.commands.analyze.lap_times.plt")
-    @patch("pitlane_agent.commands.analyze.lap_times.load_session")
+    @patch("pitlane_agent.commands.analyze.lap_times.load_session_or_testing")
     def test_generate_lap_times_chart_many_drivers(
         self, mock_load_session, mock_plt, mock_get_driver_color, tmp_output_dir, mock_fastf1_session
     ):
