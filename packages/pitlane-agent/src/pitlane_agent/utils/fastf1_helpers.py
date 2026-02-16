@@ -4,8 +4,6 @@ This module provides shared utilities for FastF1 session loading, cache setup,
 and chart path construction used across all F1 data fetching and visualization commands.
 """
 
-import json
-import sys
 from pathlib import Path
 
 import click
@@ -148,22 +146,14 @@ def validate_session_or_test(
         Tuple of (has_gp, has_test) booleans.
 
     Raises:
-        SystemExit: If validation fails.
+        click.UsageError: If validation fails.
     """
     has_gp = gp is not None and session is not None
     has_test = test_number is not None and session_number is not None
     if not has_gp and not has_test:
-        click.echo(
-            json.dumps({"error": "Must provide either --gp and --session, or --test and --day"}),
-            err=True,
-        )
-        sys.exit(1)
+        raise click.UsageError("Must provide either --gp and --session, or --test and --day")
     if has_gp and has_test:
-        click.echo(
-            json.dumps({"error": "Cannot use --gp/--session with --test/--day"}),
-            err=True,
-        )
-        sys.exit(1)
+        raise click.UsageError("Cannot use --gp/--session with --test/--day")
     return has_gp, has_test
 
 

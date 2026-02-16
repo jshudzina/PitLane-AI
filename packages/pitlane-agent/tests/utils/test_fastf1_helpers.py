@@ -3,6 +3,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import click
 import pandas as pd
 import pytest
 from pitlane_agent.utils.fastf1_helpers import (
@@ -357,9 +358,9 @@ class TestValidateSessionOrTest:
         assert has_test is True
 
     def test_rejects_neither(self):
-        with pytest.raises(SystemExit):
+        with pytest.raises(click.UsageError, match="Must provide either"):
             validate_session_or_test(None, None, None, None)
 
     def test_rejects_both(self):
-        with pytest.raises(SystemExit):
+        with pytest.raises(click.UsageError, match="Cannot use"):
             validate_session_or_test("Monaco", "R", 1, 2)
