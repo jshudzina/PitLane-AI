@@ -21,7 +21,7 @@ from pitlane_agent.utils.constants import (
     TRACK_MAP_OUTLINE_WIDTH,
     TRACK_MAP_TITLE_FONT_SIZE,
 )
-from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session, load_testing_session
+from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session_or_testing
 from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
 
@@ -75,10 +75,9 @@ def generate_track_map_chart(
     )
 
     # Load session with telemetry to ensure position data is available
-    if test_number is not None and session_number is not None:
-        session = load_testing_session(year, test_number, session_number, telemetry=True)
-    else:
-        session = load_session(year, gp, session_type, telemetry=True)
+    session = load_session_or_testing(
+        year, gp, session_type, test_number=test_number, session_number=session_number, telemetry=True
+    )
 
     # Get fastest lap for position data
     lap = session.laps.pick_fastest()

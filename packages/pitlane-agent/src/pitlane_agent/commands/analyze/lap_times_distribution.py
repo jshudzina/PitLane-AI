@@ -10,7 +10,7 @@ import fastf1.plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session, load_testing_session
+from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session_or_testing
 from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
 
@@ -64,10 +64,7 @@ def generate_lap_times_distribution_chart(
         )
 
     # Load session with laps data
-    if test_number is not None and session_number is not None:
-        session = load_testing_session(year, test_number, session_number)
-    else:
-        session = load_session(year, gp, session_type)
+    session = load_session_or_testing(year, gp, session_type, test_number=test_number, session_number=session_number)
 
     # Determine which drivers to plot
     if drivers is None:

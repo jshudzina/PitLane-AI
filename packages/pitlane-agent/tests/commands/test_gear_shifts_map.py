@@ -43,7 +43,7 @@ class TestGearShiftsMapBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.gear_shifts_map.save_figure")
     @patch("pitlane_agent.commands.analyze.gear_shifts_map.setup_plot_style")
-    @patch("pitlane_agent.commands.analyze.gear_shifts_map.load_session")
+    @patch("pitlane_agent.commands.analyze.gear_shifts_map.load_session_or_testing")
     def test_generate_gear_shifts_map_single_driver(
         self, mock_load_session, mock_setup_plot_style, mock_save_figure, tmp_output_dir, mock_fastf1_session
     ):
@@ -111,7 +111,9 @@ class TestGearShiftsMapBusinessLogic:
         assert result["workspace"] == str(tmp_output_dir)
 
         # Verify session loaded with telemetry
-        mock_load_session.assert_called_once_with(2024, "Monaco", "Q", telemetry=True)
+        mock_load_session.assert_called_once_with(
+            2024, "Monaco", "Q", test_number=None, session_number=None, telemetry=True
+        )
 
         # Verify save_figure was called
         assert mock_save_figure.called
@@ -137,7 +139,7 @@ class TestGearShiftsMapBusinessLogic:
             )
 
     @patch("pitlane_agent.commands.analyze.gear_shifts_map.setup_plot_style")
-    @patch("pitlane_agent.commands.analyze.gear_shifts_map.load_session")
+    @patch("pitlane_agent.commands.analyze.gear_shifts_map.load_session_or_testing")
     def test_generate_gear_shifts_map_missing_gear_data(
         self, mock_load_session, mock_setup_plot_style, tmp_output_dir, mock_fastf1_session
     ):
@@ -190,7 +192,7 @@ class TestGearShiftsMapBusinessLogic:
             )
 
     @patch("pitlane_agent.commands.analyze.gear_shifts_map.setup_plot_style")
-    @patch("pitlane_agent.commands.analyze.gear_shifts_map.load_session")
+    @patch("pitlane_agent.commands.analyze.gear_shifts_map.load_session_or_testing")
     def test_generate_gear_shifts_map_empty_telemetry(
         self, mock_load_session, mock_setup_plot_style, tmp_output_dir, mock_fastf1_session
     ):
@@ -237,7 +239,7 @@ class TestGearShiftsMapBusinessLogic:
             )
 
     @patch("pitlane_agent.commands.analyze.gear_shifts_map.setup_plot_style")
-    @patch("pitlane_agent.commands.analyze.gear_shifts_map.load_session")
+    @patch("pitlane_agent.commands.analyze.gear_shifts_map.load_session_or_testing")
     def test_generate_gear_shifts_map_empty_driver_laps(
         self, mock_load_session, mock_setup_plot_style, tmp_output_dir, mock_fastf1_session
     ):
@@ -277,7 +279,7 @@ class TestGearShiftsMapBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.gear_shifts_map.save_figure")
     @patch("pitlane_agent.commands.analyze.gear_shifts_map.setup_plot_style")
-    @patch("pitlane_agent.commands.analyze.gear_shifts_map.load_session")
+    @patch("pitlane_agent.commands.analyze.gear_shifts_map.load_session_or_testing")
     def test_chart_path_format(
         self, mock_load_session, mock_setup_plot_style, mock_save_figure, tmp_output_dir, mock_fastf1_session
     ):
@@ -340,7 +342,7 @@ class TestGearShiftsMapBusinessLogic:
 
     @patch("pitlane_agent.commands.analyze.gear_shifts_map.save_figure")
     @patch("pitlane_agent.commands.analyze.gear_shifts_map.setup_plot_style")
-    @patch("pitlane_agent.commands.analyze.gear_shifts_map.load_session")
+    @patch("pitlane_agent.commands.analyze.gear_shifts_map.load_session_or_testing")
     def test_return_dict_structure(
         self, mock_load_session, mock_setup_plot_style, mock_save_figure, tmp_output_dir, mock_fastf1_session
     ):

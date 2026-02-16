@@ -20,6 +20,7 @@ from pitlane_agent.commands.analyze import (
     generate_tyre_strategy_chart,
 )
 from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
+from pitlane_agent.utils.fastf1_helpers import validate_session_or_test
 
 
 def validate_mutually_exclusive(ctx, param, value):
@@ -37,37 +38,6 @@ def validate_mutually_exclusive(ctx, param, value):
         raise click.BadParameter("Cannot specify both --drivers and --top-n options", ctx=ctx, param=param)
 
     return value
-
-
-def _validate_session_or_test(
-    gp: str | None,
-    session: str | None,
-    test_number: int | None,
-    session_number: int | None,
-) -> tuple[bool, bool]:
-    """Validate that either --gp/--session or --test/--day is provided, not both.
-
-    Returns:
-        Tuple of (has_gp, has_test) booleans.
-
-    Raises:
-        SystemExit: If validation fails.
-    """
-    has_gp = gp is not None and session is not None
-    has_test = test_number is not None and session_number is not None
-    if not has_gp and not has_test:
-        click.echo(
-            json.dumps({"error": "Must provide either --gp and --session, or --test and --day"}),
-            err=True,
-        )
-        sys.exit(1)
-    if has_gp and has_test:
-        click.echo(
-            json.dumps({"error": "Cannot use --gp/--session with --test/--day"}),
-            err=True,
-        )
-        sys.exit(1)
-    return has_gp, has_test
 
 
 @click.group()
@@ -99,7 +69,7 @@ def lap_times(
     drivers: tuple[str, ...],
 ):
     """Generate lap times chart for specified drivers."""
-    _validate_session_or_test(gp, session, test_number, session_number)
+    validate_session_or_test(gp, session, test_number, session_number)
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -148,7 +118,7 @@ def lap_times_distribution(
     drivers: tuple[str, ...],
 ):
     """Generate lap times distribution chart showing statistical spread."""
-    _validate_session_or_test(gp, session, test_number, session_number)
+    validate_session_or_test(gp, session, test_number, session_number)
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -179,7 +149,12 @@ def lap_times_distribution(
 @click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
-@click.option("--session", type=str, default=None, help="Session type (default: R for Race)")
+@click.option(
+    "--session",
+    type=str,
+    default=None,
+    help="Session type: R, Q, FP1, FP2, FP3, S, SQ (defaults to R when --gp is used)",
+)
 @click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
 @click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
 def tyre_strategy(
@@ -191,10 +166,10 @@ def tyre_strategy(
     session_number: int | None,
 ):
     """Generate tyre strategy visualization for a race."""
-    # For tyre_strategy, default session to "R" if gp is provided but session is not
+    # Default session to "R" when only --gp is provided (backwards compat)
     if gp is not None and session is None and test_number is None:
         session = "R"
-    _validate_session_or_test(gp, session, test_number, session_number)
+    validate_session_or_test(gp, session, test_number, session_number)
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -249,7 +224,7 @@ def speed_trace(
     annotate_corners: bool,
 ):
     """Generate speed trace comparison for fastest laps of specified drivers."""
-    _validate_session_or_test(gp, session, test_number, session_number)
+    validate_session_or_test(gp, session, test_number, session_number)
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -315,7 +290,7 @@ def position_changes(
     top_n: int | None,
 ):
     """Generate position changes chart showing driver positions throughout the race."""
-    _validate_session_or_test(gp, session, test_number, session_number)
+    validate_session_or_test(gp, session, test_number, session_number)
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -359,7 +334,7 @@ def track_map(
     session_number: int | None,
 ):
     """Generate track map with numbered corner labels."""
-    _validate_session_or_test(gp, session, test_number, session_number)
+    validate_session_or_test(gp, session, test_number, session_number)
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -407,7 +382,7 @@ def gear_shifts_map(
     drivers: tuple[str, ...],
 ):
     """Generate gear shift visualization on track map."""
-    _validate_session_or_test(gp, session, test_number, session_number)
+    validate_session_or_test(gp, session, test_number, session_number)
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)

@@ -15,7 +15,7 @@ from pitlane_agent.utils.constants import (
     MIN_SPEED_TRACE_DRIVERS,
     TEAMMATE_LINE_STYLES,
 )
-from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session, load_testing_session
+from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session_or_testing
 from pitlane_agent.utils.plotting import (
     ensure_color_contrast,
     get_driver_color_safe,
@@ -76,10 +76,9 @@ def generate_speed_trace_chart(
     )
 
     # Load session WITH telemetry data
-    if test_number is not None and session_number is not None:
-        session = load_testing_session(year, test_number, session_number, telemetry=True)
-    else:
-        session = load_session(year, gp, session_type, telemetry=True)
+    session = load_session_or_testing(
+        year, gp, session_type, test_number=test_number, session_number=session_number, telemetry=True
+    )
 
     # Setup plotting
     setup_plot_style()

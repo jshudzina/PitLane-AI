@@ -43,7 +43,7 @@ class TestTrackMapChart:
         )
 
     @patch("pitlane_agent.commands.analyze.track_map.plt")
-    @patch("pitlane_agent.commands.analyze.track_map.load_session")
+    @patch("pitlane_agent.commands.analyze.track_map.load_session_or_testing")
     def test_generate_track_map_chart_success(self, mock_load_session, mock_plt, tmp_output_dir, mock_fastf1_session):
         """Test successful track map chart generation."""
         # Setup mocks
@@ -85,7 +85,9 @@ class TestTrackMapChart:
         assert result["workspace"] == str(tmp_output_dir)
 
         # Verify session loaded without telemetry
-        mock_load_session.assert_called_once_with(2024, "Monaco", "Q", telemetry=True)
+        mock_load_session.assert_called_once_with(
+            2024, "Monaco", "Q", test_number=None, session_number=None, telemetry=True
+        )
 
         # Verify position data and circuit info were accessed
         mock_lap.get_pos_data.assert_called_once()
@@ -97,7 +99,7 @@ class TestTrackMapChart:
         mock_ax.set_aspect.assert_called_once_with("equal")
 
     @patch("pitlane_agent.commands.analyze.track_map.plt")
-    @patch("pitlane_agent.commands.analyze.track_map.load_session")
+    @patch("pitlane_agent.commands.analyze.track_map.load_session_or_testing")
     def test_generate_track_map_chart_with_corner_letters(
         self, mock_load_session, mock_plt, tmp_output_dir, mock_fastf1_session
     ):
@@ -130,7 +132,7 @@ class TestTrackMapChart:
         assert result["corner_details"][1] == {"number": 9, "letter": "b"}
 
     @patch("pitlane_agent.commands.analyze.track_map.plt")
-    @patch("pitlane_agent.commands.analyze.track_map.load_session")
+    @patch("pitlane_agent.commands.analyze.track_map.load_session_or_testing")
     def test_generate_track_map_chart_no_corners(
         self, mock_load_session, mock_plt, tmp_output_dir, mock_fastf1_session
     ):
@@ -163,7 +165,7 @@ class TestTrackMapChart:
         assert result["corner_details"] == []
 
     @patch("pitlane_agent.commands.analyze.track_map.plt")
-    @patch("pitlane_agent.commands.analyze.track_map.load_session")
+    @patch("pitlane_agent.commands.analyze.track_map.load_session_or_testing")
     def test_generate_track_map_chart_no_pos_data(
         self, mock_load_session, mock_plt, tmp_output_dir, mock_fastf1_session
     ):
@@ -177,7 +179,7 @@ class TestTrackMapChart:
         with pytest.raises(ValueError, match="No position data available"):
             generate_track_map_chart(year=2024, gp="Monaco", session_type="Q", workspace_dir=tmp_output_dir)
 
-    @patch("pitlane_agent.commands.analyze.track_map.load_session")
+    @patch("pitlane_agent.commands.analyze.track_map.load_session_or_testing")
     def test_generate_track_map_chart_insufficient_pos_data(
         self, mock_load_session, tmp_output_dir, mock_fastf1_session
     ):
@@ -197,7 +199,7 @@ class TestTrackMapChart:
         with pytest.raises(ValueError, match="Insufficient position data for track map"):
             generate_track_map_chart(year=2024, gp="Monaco", session_type="Q", workspace_dir=tmp_output_dir)
 
-    @patch("pitlane_agent.commands.analyze.track_map.load_session")
+    @patch("pitlane_agent.commands.analyze.track_map.load_session_or_testing")
     def test_generate_track_map_chart_no_laps(self, mock_load_session, tmp_output_dir, mock_fastf1_session):
         """Test error when no laps are available (pick_fastest returns None)."""
         mock_load_session.return_value = mock_fastf1_session
@@ -206,7 +208,7 @@ class TestTrackMapChart:
         with pytest.raises(ValueError, match="No laps available"):
             generate_track_map_chart(year=2024, gp="Monaco", session_type="Q", workspace_dir=tmp_output_dir)
 
-    @patch("pitlane_agent.commands.analyze.track_map.load_session")
+    @patch("pitlane_agent.commands.analyze.track_map.load_session_or_testing")
     def test_generate_track_map_chart_session_error(self, mock_load_session, tmp_output_dir):
         """Test error handling when session loading fails."""
         mock_load_session.side_effect = Exception("Session not found")

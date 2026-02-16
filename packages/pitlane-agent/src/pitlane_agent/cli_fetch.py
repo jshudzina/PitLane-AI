@@ -22,7 +22,7 @@ from pitlane_agent.commands.fetch import (
 )
 from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
 from pitlane_agent.utils.constants import MIN_F1_YEAR
-from pitlane_agent.utils.fastf1_helpers import build_data_path
+from pitlane_agent.utils.fastf1_helpers import build_data_path, validate_session_or_test
 
 
 def _validate_standings_request(workspace_id: str, year: int) -> Path:
@@ -87,21 +87,7 @@ def session_info(
     session_number: int | None,
 ):
     """Fetch session information and store in workspace."""
-    # Validate mutually exclusive options
-    has_gp = gp is not None and session is not None
-    has_test = test_number is not None and session_number is not None
-    if not has_gp and not has_test:
-        click.echo(
-            json.dumps({"error": "Must provide either --gp and --session, or --test and --day"}),
-            err=True,
-        )
-        sys.exit(1)
-    if has_gp and has_test:
-        click.echo(
-            json.dumps({"error": "Cannot use --gp/--session with --test/--day"}),
-            err=True,
-        )
-        sys.exit(1)
+    validate_session_or_test(gp, session, test_number, session_number)
 
     # Verify workspace exists
     if not workspace_exists(workspace_id):
@@ -461,21 +447,7 @@ def race_control(
     sector: int | None,
 ):
     """Fetch race control messages and store in workspace."""
-    # Validate mutually exclusive options
-    has_gp = gp is not None and session is not None
-    has_test = test_number is not None and session_number is not None
-    if not has_gp and not has_test:
-        click.echo(
-            json.dumps({"error": "Must provide either --gp and --session, or --test and --day"}),
-            err=True,
-        )
-        sys.exit(1)
-    if has_gp and has_test:
-        click.echo(
-            json.dumps({"error": "Cannot use --gp/--session with --test/--day"}),
-            err=True,
-        )
-        sys.exit(1)
+    validate_session_or_test(gp, session, test_number, session_number)
 
     # Verify workspace exists
     if not workspace_exists(workspace_id):

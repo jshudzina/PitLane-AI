@@ -20,7 +20,7 @@ from pitlane_agent.utils.constants import (
     MARKER_SIZE,
     PIT_MARKER_SIZE,
 )
-from pitlane_agent.utils.fastf1_helpers import load_session, load_testing_session
+from pitlane_agent.utils.fastf1_helpers import load_session_or_testing
 from pitlane_agent.utils.filename import sanitize_filename
 from pitlane_agent.utils.plotting import get_driver_color_safe, save_figure, setup_plot_style
 from pitlane_agent.utils.race_stats import compute_driver_position_stats
@@ -180,10 +180,7 @@ def generate_position_changes_chart(
     output_path = workspace_dir / "charts" / filename
 
     # Load session with laps data
-    if test_number is not None and session_number is not None:
-        session = load_testing_session(year, test_number, session_number)
-    else:
-        session = load_session(year, gp, session_type)
+    session = load_session_or_testing(year, gp, session_type, test_number=test_number, session_number=session_number)
 
     # Determine which drivers to plot
     if drivers is not None:

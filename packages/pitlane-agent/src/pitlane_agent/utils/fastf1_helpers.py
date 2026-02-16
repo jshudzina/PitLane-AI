@@ -4,8 +4,11 @@ This module provides shared utilities for FastF1 session loading, cache setup,
 and chart path construction used across all F1 data fetching and visualization commands.
 """
 
+import json
+import sys
 from pathlib import Path
 
+import click
 import fastf1
 from fastf1.core import Lap, Session, Telemetry
 
@@ -96,6 +99,72 @@ def load_testing_session(
     session.load(telemetry=telemetry, weather=weather, messages=messages)
 
     return session
+
+
+def load_session_or_testing(
+    year: int,
+    gp: str | None,
+    session_type: str | None,
+    test_number: int | None = None,
+    session_number: int | None = None,
+    telemetry: bool = False,
+    weather: bool = False,
+    messages: bool = False,
+) -> Session:
+    """Load either a regular GP session or a testing session.
+
+    Dispatches to load_testing_session when test_number/session_number are
+    provided, otherwise falls back to load_session.
+
+    Args:
+        year: Season year
+        gp: Grand Prix name (for regular sessions)
+        session_type: Session identifier (for regular sessions)
+        test_number: Testing event number (for testing sessions)
+        session_number: Session within testing event (for testing sessions)
+        telemetry: Whether to load telemetry data
+        weather: Whether to load weather data
+        messages: Whether to load messages data
+
+    Returns:
+        Loaded FastF1 session object
+    """
+    if test_number is not None and session_number is not None:
+        return load_testing_session(
+            year, test_number, session_number, telemetry=telemetry, weather=weather, messages=messages
+        )
+    return load_session(year, gp, session_type, telemetry=telemetry, weather=weather, messages=messages)
+
+
+def validate_session_or_test(
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+) -> tuple[bool, bool]:
+    """Validate that either --gp/--session or --test/--day is provided, not both.
+
+    Returns:
+        Tuple of (has_gp, has_test) booleans.
+
+    Raises:
+        SystemExit: If validation fails.
+    """
+    has_gp = gp is not None and session is not None
+    has_test = test_number is not None and session_number is not None
+    if not has_gp and not has_test:
+        click.echo(
+            json.dumps({"error": "Must provide either --gp and --session, or --test and --day"}),
+            err=True,
+        )
+        sys.exit(1)
+    if has_gp and has_test:
+        click.echo(
+            json.dumps({"error": "Cannot use --gp/--session with --test/--day"}),
+            err=True,
+        )
+        sys.exit(1)
+    return has_gp, has_test
 
 
 def build_chart_path(

@@ -9,7 +9,9 @@ from pitlane_agent.utils.fastf1_helpers import (
     build_chart_path,
     build_data_path,
     get_merged_telemetry,
+    load_session_or_testing,
     load_testing_session,
+    validate_session_or_test,
 )
 
 
@@ -311,3 +313,53 @@ class TestLoadTestingSession:
         load_testing_session(2026, 2, 3, messages=True)
 
         mock_session.load.assert_called_once_with(telemetry=False, weather=False, messages=True)
+
+
+class TestLoadSessionOrTesting:
+    """Unit tests for load_session_or_testing dispatch helper."""
+
+    @patch("pitlane_agent.utils.fastf1_helpers.setup_fastf1_cache")
+    @patch("pitlane_agent.utils.fastf1_helpers.fastf1")
+    def test_dispatches_to_testing_when_test_params_provided(self, mock_fastf1, mock_cache):
+        mock_session = MagicMock()
+        mock_fastf1.get_testing_session.return_value = mock_session
+
+        result = load_session_or_testing(2026, None, None, test_number=1, session_number=2, telemetry=True)
+
+        mock_fastf1.get_testing_session.assert_called_once_with(2026, 1, 2)
+        mock_fastf1.get_session.assert_not_called()
+        assert result == mock_session
+
+    @patch("pitlane_agent.utils.fastf1_helpers.setup_fastf1_cache")
+    @patch("pitlane_agent.utils.fastf1_helpers.fastf1")
+    def test_dispatches_to_regular_when_gp_params_provided(self, mock_fastf1, mock_cache):
+        mock_session = MagicMock()
+        mock_fastf1.get_session.return_value = mock_session
+
+        result = load_session_or_testing(2024, "Monaco", "Q", telemetry=True)
+
+        mock_fastf1.get_session.assert_called_once_with(2024, "Monaco", "Q")
+        mock_fastf1.get_testing_session.assert_not_called()
+        assert result == mock_session
+
+
+class TestValidateSessionOrTest:
+    """Unit tests for validate_session_or_test."""
+
+    def test_valid_gp_session(self):
+        has_gp, has_test = validate_session_or_test("Monaco", "R", None, None)
+        assert has_gp is True
+        assert has_test is False
+
+    def test_valid_testing_session(self):
+        has_gp, has_test = validate_session_or_test(None, None, 1, 2)
+        assert has_gp is False
+        assert has_test is True
+
+    def test_rejects_neither(self):
+        with pytest.raises(SystemExit):
+            validate_session_or_test(None, None, None, None)
+
+    def test_rejects_both(self):
+        with pytest.raises(SystemExit):
+            validate_session_or_test("Monaco", "R", 1, 2)

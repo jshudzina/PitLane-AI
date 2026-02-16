@@ -19,7 +19,7 @@ class TestTyreStrategyBusinessLogic:
         setup_plot_style()
 
     @patch("pitlane_agent.commands.analyze.tyre_strategy.plt")
-    @patch("pitlane_agent.commands.analyze.tyre_strategy.load_session")
+    @patch("pitlane_agent.commands.analyze.tyre_strategy.load_session_or_testing")
     def test_generate_tyre_strategy_chart_success(
         self, mock_load_session, mock_plt, tmp_output_dir, mock_fastf1_session
     ):
@@ -61,9 +61,9 @@ class TestTyreStrategyBusinessLogic:
         assert result["workspace"] == str(tmp_output_dir)
 
         # Verify FastF1 was called correctly
-        mock_load_session.assert_called_once_with(2024, "Monaco", "R")
+        mock_load_session.assert_called_once_with(2024, "Monaco", "R", test_number=None, session_number=None)
 
-    @patch("pitlane_agent.commands.analyze.tyre_strategy.load_session")
+    @patch("pitlane_agent.commands.analyze.tyre_strategy.load_session_or_testing")
     def test_generate_tyre_strategy_chart_error(self, mock_load_session, tmp_output_dir):
         """Test error handling in chart generation."""
         # Setup mock to raise error
