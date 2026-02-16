@@ -19,7 +19,7 @@ from pitlane_agent.utils.constants import (
     TRACK_STATUS_SAFETY_CAR,
     TRACK_STATUS_VSC_DEPLOYED,
 )
-from pitlane_agent.utils.fastf1_helpers import load_session
+from pitlane_agent.utils.fastf1_helpers import load_session, load_testing_session
 from pitlane_agent.utils.race_stats import (
     RaceSummaryStats,
     compute_race_summary_stats,
@@ -174,13 +174,24 @@ def _extract_weather_data(session: Session) -> WeatherData | None:
         return None
 
 
-def get_session_info(year: int, gp: str, session_type: str) -> SessionInfo:
+def get_session_info(
+    year: int,
+    gp: str | None = None,
+    session_type: str | None = None,
+    test_number: int | None = None,
+    session_number: int | None = None,
+) -> SessionInfo:
     """Load session info from FastF1 and return as dict.
+
+    For regular GP sessions, provide gp and session_type.
+    For testing sessions, provide test_number and session_number.
 
     Args:
         year: Season year (e.g., 2024)
         gp: Grand Prix name (e.g., "Monaco", "Silverstone")
         session_type: Session identifier (R, Q, FP1, FP2, FP3, S, SQ)
+        test_number: Testing event number (e.g., 1 or 2)
+        session_number: Session within testing event (e.g., 1, 2, or 3)
 
     Returns:
         Dictionary with session metadata, driver info, race conditions, and weather statistics.
@@ -188,7 +199,11 @@ def get_session_info(year: int, gp: str, session_type: str) -> SessionInfo:
         Weather includes min/max/avg for air temperature, humidity, pressure, and wind speed.
     """
     # Load session with weather and messages data
-    session = load_session(year, gp, session_type, weather=True, messages=True)
+    if test_number is not None and session_number is not None:
+        session = load_testing_session(year, test_number, session_number, weather=True, messages=True)
+        session_type = session.name  # e.g., "Practice 1"
+    else:
+        session = load_session(year, gp, session_type, weather=True, messages=True)
 
     # Get driver info
     drivers = []

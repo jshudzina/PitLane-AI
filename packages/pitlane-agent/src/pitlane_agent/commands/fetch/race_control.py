@@ -19,7 +19,7 @@ from pitlane_agent.utils.constants import (
     MESSAGE_CATEGORY_DRS,
     MESSAGE_CATEGORY_SAFETY_CAR,
 )
-from pitlane_agent.utils.fastf1_helpers import load_session
+from pitlane_agent.utils.fastf1_helpers import load_session, load_testing_session
 
 
 class RaceControlMessage(TypedDict):
@@ -304,8 +304,8 @@ def _filter_by_sector(
 
 def get_race_control_messages(
     year: int,
-    gp: str,
-    session_type: str,
+    gp: str | None = None,
+    session_type: str | None = None,
     detail: str = "high",
     category: str | None = None,
     flag_type: str | None = None,
@@ -313,8 +313,13 @@ def get_race_control_messages(
     lap_start: int | None = None,
     lap_end: int | None = None,
     sector: int | None = None,
+    test_number: int | None = None,
+    session_number: int | None = None,
 ) -> RaceControlData:
     """Load race control messages from FastF1 with optional filtering.
+
+    For regular GP sessions, provide gp and session_type.
+    For testing sessions, provide test_number and session_number.
 
     Args:
         year: Season year (e.g., 2024)
@@ -327,12 +332,18 @@ def get_race_control_messages(
         lap_start: Filter from lap number (inclusive) or None
         lap_end: Filter to lap number (inclusive) or None
         sector: Filter by track sector or None
+        test_number: Testing event number (e.g., 1 or 2)
+        session_number: Session within testing event (e.g., 1, 2, or 3)
 
     Returns:
         Dictionary with race control messages and metadata
     """
     # Load session with messages data
-    session = load_session(year, gp, session_type, messages=True)
+    if test_number is not None and session_number is not None:
+        session = load_testing_session(year, test_number, session_number, messages=True)
+        session_type = session.name
+    else:
+        session = load_session(year, gp, session_type, messages=True)
 
     # Get race control messages DataFrame
     try:

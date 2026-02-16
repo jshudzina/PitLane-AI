@@ -60,3 +60,78 @@ class TestCLIGroup:
 
         assert result.exit_code != 0
         assert "Error" in result.output or "No such command" in result.output
+
+
+class TestTestingSessionCLI:
+    """Tests for --test/--day CLI options."""
+
+    def test_session_info_help_shows_test_options(self):
+        """Test that session-info help shows --test and --day options."""
+        runner = CliRunner()
+        result = runner.invoke(pitlane, ["fetch", "session-info", "--help"])
+
+        assert result.exit_code == 0
+        assert "--test" in result.output
+        assert "--day" in result.output
+
+    def test_session_info_requires_gp_or_test(self):
+        """Test that session-info fails when neither --gp/--session nor --test/--day is provided."""
+        runner = CliRunner()
+        result = runner.invoke(
+            pitlane,
+            [
+                "fetch",
+                "session-info",
+                "--workspace-id",
+                "test-ws",
+                "--year",
+                "2026",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "Must provide either --gp and --session, or --test and --day" in result.output
+
+    def test_session_info_rejects_both_gp_and_test(self):
+        """Test that session-info fails when both --gp/--session and --test/--day are provided."""
+        runner = CliRunner()
+        result = runner.invoke(
+            pitlane,
+            [
+                "fetch",
+                "session-info",
+                "--workspace-id",
+                "test-ws",
+                "--year",
+                "2026",
+                "--gp",
+                "Monaco",
+                "--session",
+                "R",
+                "--test",
+                "1",
+                "--day",
+                "2",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "Cannot use --gp/--session with --test/--day" in result.output
+
+    def test_analyze_lap_times_help_shows_test_options(self):
+        """Test that analyze lap-times help shows --test and --day options."""
+        runner = CliRunner()
+        result = runner.invoke(pitlane, ["analyze", "lap-times", "--help"])
+
+        assert result.exit_code == 0
+        assert "--test" in result.output
+        assert "--day" in result.output
+
+    def test_race_control_help_shows_test_options(self):
+        """Test that race-control help shows --test and --day options."""
+        runner = CliRunner()
+        result = runner.invoke(pitlane, ["fetch", "race-control", "--help"])
+
+        assert result.exit_code == 0
+        assert "--test" in result.output
+        assert "--day" in result.output

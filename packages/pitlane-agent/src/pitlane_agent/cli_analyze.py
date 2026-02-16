@@ -39,6 +39,37 @@ def validate_mutually_exclusive(ctx, param, value):
     return value
 
 
+def _validate_session_or_test(
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+) -> tuple[bool, bool]:
+    """Validate that either --gp/--session or --test/--day is provided, not both.
+
+    Returns:
+        Tuple of (has_gp, has_test) booleans.
+
+    Raises:
+        SystemExit: If validation fails.
+    """
+    has_gp = gp is not None and session is not None
+    has_test = test_number is not None and session_number is not None
+    if not has_gp and not has_test:
+        click.echo(
+            json.dumps({"error": "Must provide either --gp and --session, or --test and --day"}),
+            err=True,
+        )
+        sys.exit(1)
+    if has_gp and has_test:
+        click.echo(
+            json.dumps({"error": "Cannot use --gp/--session with --test/--day"}),
+            err=True,
+        )
+        sys.exit(1)
+    return has_gp, has_test
+
+
 @click.group()
 def analyze():
     """Generate analysis and visualizations."""
@@ -48,44 +79,45 @@ def analyze():
 @analyze.command()
 @click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
-@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
-@click.option(
-    "--session",
-    type=str,
-    required=True,
-    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
-)
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
+@click.option("--session", type=str, default=None, help="Session type: R, Q, FP1, FP2, FP3, S, SQ")
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
 @click.option(
     "--drivers",
     multiple=True,
     required=True,
     help="Driver abbreviation (can be specified multiple times: --drivers VER --drivers HAM)",
 )
-def lap_times(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
+def lap_times(
+    workspace_id: str,
+    year: int,
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+    drivers: tuple[str, ...],
+):
     """Generate lap times chart for specified drivers."""
-    # Verify workspace exists
+    _validate_session_or_test(gp, session, test_number, session_number)
+
     if not workspace_exists(workspace_id):
-        click.echo(
-            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
-            err=True,
-        )
+        click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
         sys.exit(1)
 
     workspace_path = get_workspace_path(workspace_id)
 
     try:
-        # Generate chart (refactored function expects workspace_dir parameter)
         result = generate_lap_times_chart(
             year=year,
             gp=gp,
             session_type=session,
             drivers=list(drivers),
             workspace_dir=workspace_path,
+            test_number=test_number,
+            session_number=session_number,
         )
-
-        # Add session info to result
         result["workspace_id"] = workspace_id
-
         click.echo(json.dumps(result, indent=2))
 
     except Exception as e:
@@ -96,47 +128,46 @@ def lap_times(workspace_id: str, year: int, gp: str, session: str, drivers: tupl
 @analyze.command("lap-times-distribution")
 @click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
-@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
-@click.option(
-    "--session",
-    type=str,
-    required=True,
-    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
-)
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
+@click.option("--session", type=str, default=None, help="Session type: R, Q, FP1, FP2, FP3, S, SQ")
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
 @click.option(
     "--drivers",
     multiple=True,
     required=False,
     help="Driver abbreviations (optional; defaults to top 10 finishers)",
 )
-def lap_times_distribution(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
+def lap_times_distribution(
+    workspace_id: str,
+    year: int,
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+    drivers: tuple[str, ...],
+):
     """Generate lap times distribution chart showing statistical spread."""
-    # Verify workspace exists
+    _validate_session_or_test(gp, session, test_number, session_number)
+
     if not workspace_exists(workspace_id):
-        click.echo(
-            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
-            err=True,
-        )
+        click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
         sys.exit(1)
 
     workspace_path = get_workspace_path(workspace_id)
 
     try:
-        # Convert empty drivers tuple to None for default behavior
         drivers_list = list(drivers) if drivers else None
-
-        # Generate chart
         result = generate_lap_times_distribution_chart(
             year=year,
             gp=gp,
             session_type=session,
             drivers=drivers_list,
             workspace_dir=workspace_path,
+            test_number=test_number,
+            session_number=session_number,
         )
-
-        # Add session info to result
         result["workspace_id"] = workspace_id
-
         click.echo(json.dumps(result, indent=2))
 
     except Exception as e:
@@ -147,32 +178,40 @@ def lap_times_distribution(workspace_id: str, year: int, gp: str, session: str, 
 @analyze.command()
 @click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
-@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
-@click.option("--session", type=str, default="R", help="Session type (default: R for Race)")
-def tyre_strategy(workspace_id: str, year: int, gp: str, session: str):
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
+@click.option("--session", type=str, default=None, help="Session type (default: R for Race)")
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
+def tyre_strategy(
+    workspace_id: str,
+    year: int,
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+):
     """Generate tyre strategy visualization for a race."""
-    # Verify workspace exists
+    # For tyre_strategy, default session to "R" if gp is provided but session is not
+    if gp is not None and session is None and test_number is None:
+        session = "R"
+    _validate_session_or_test(gp, session, test_number, session_number)
+
     if not workspace_exists(workspace_id):
-        click.echo(
-            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
-            err=True,
-        )
+        click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
         sys.exit(1)
 
     workspace_path = get_workspace_path(workspace_id)
 
     try:
-        # Generate chart (refactored function expects workspace_dir parameter)
         result = generate_tyre_strategy_chart(
             year=year,
             gp=gp,
             session_type=session,
             workspace_dir=workspace_path,
+            test_number=test_number,
+            session_number=session_number,
         )
-
-        # Add session info to result
         result["workspace_id"] = workspace_id
-
         click.echo(json.dumps(result, indent=2))
 
     except Exception as e:
@@ -183,13 +222,10 @@ def tyre_strategy(workspace_id: str, year: int, gp: str, session: str):
 @analyze.command("speed-trace")
 @click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
-@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
-@click.option(
-    "--session",
-    type=str,
-    required=True,
-    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
-)
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
+@click.option("--session", type=str, default=None, help="Session type: R, Q, FP1, FP2, FP3, S, SQ")
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
 @click.option(
     "--drivers",
     multiple=True,
@@ -202,35 +238,33 @@ def tyre_strategy(workspace_id: str, year: int, gp: str, session: str):
     default=False,
     help="Add corner markers and labels to the chart",
 )
-def speed_trace(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...], annotate_corners: bool):
+def speed_trace(
+    workspace_id: str,
+    year: int,
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+    drivers: tuple[str, ...],
+    annotate_corners: bool,
+):
     """Generate speed trace comparison for fastest laps of specified drivers."""
-    # Verify workspace exists
+    _validate_session_or_test(gp, session, test_number, session_number)
+
     if not workspace_exists(workspace_id):
-        click.echo(
-            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
-            err=True,
-        )
+        click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
         sys.exit(1)
 
-    # Validate driver count (2-5 drivers)
     if len(drivers) < 2:
-        click.echo(
-            json.dumps({"error": "Speed trace requires at least 2 drivers for comparison"}),
-            err=True,
-        )
+        click.echo(json.dumps({"error": "Speed trace requires at least 2 drivers for comparison"}), err=True)
         sys.exit(1)
-
     if len(drivers) > 5:
-        click.echo(
-            json.dumps({"error": "Speed trace supports maximum 5 drivers for readability"}),
-            err=True,
-        )
+        click.echo(json.dumps({"error": "Speed trace supports maximum 5 drivers for readability"}), err=True)
         sys.exit(1)
 
     workspace_path = get_workspace_path(workspace_id)
 
     try:
-        # Generate chart
         result = generate_speed_trace_chart(
             year=year,
             gp=gp,
@@ -238,11 +272,10 @@ def speed_trace(workspace_id: str, year: int, gp: str, session: str, drivers: tu
             drivers=list(drivers),
             workspace_dir=workspace_path,
             annotate_corners=annotate_corners,
+            test_number=test_number,
+            session_number=session_number,
         )
-
-        # Add session info to result
         result["workspace_id"] = workspace_id
-
         click.echo(json.dumps(result, indent=2))
 
     except Exception as e:
@@ -253,13 +286,10 @@ def speed_trace(workspace_id: str, year: int, gp: str, session: str, drivers: tu
 @analyze.command("position-changes")
 @click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
-@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
-@click.option(
-    "--session",
-    type=str,
-    required=True,
-    help="Session type: R (Race), S (Sprint), SQ (Sprint Qualifying)",
-)
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
+@click.option("--session", type=str, default=None, help="Session type: R (Race), S (Sprint), SQ")
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
 @click.option(
     "--drivers",
     multiple=True,
@@ -274,23 +304,27 @@ def speed_trace(workspace_id: str, year: int, gp: str, session: str, drivers: tu
     callback=validate_mutually_exclusive,
     help="Show only top N finishers (optional, e.g., --top-n 10). Mutually exclusive with --drivers.",
 )
-def position_changes(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...], top_n: int | None):
+def position_changes(
+    workspace_id: str,
+    year: int,
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+    drivers: tuple[str, ...],
+    top_n: int | None,
+):
     """Generate position changes chart showing driver positions throughout the race."""
-    # Verify workspace exists
+    _validate_session_or_test(gp, session, test_number, session_number)
+
     if not workspace_exists(workspace_id):
-        click.echo(
-            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
-            err=True,
-        )
+        click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
         sys.exit(1)
 
     workspace_path = get_workspace_path(workspace_id)
 
     try:
-        # Convert empty drivers tuple to None for default behavior
         drivers_list = list(drivers) if drivers else None
-
-        # Generate chart
         result = generate_position_changes_chart(
             year=year,
             gp=gp,
@@ -298,11 +332,10 @@ def position_changes(workspace_id: str, year: int, gp: str, session: str, driver
             drivers=drivers_list,
             top_n=top_n,
             workspace_dir=workspace_path,
+            test_number=test_number,
+            session_number=session_number,
         )
-
-        # Add session info to result
         result["workspace_id"] = workspace_id
-
         click.echo(json.dumps(result, indent=2))
 
     except Exception as e:
@@ -313,37 +346,37 @@ def position_changes(workspace_id: str, year: int, gp: str, session: str, driver
 @analyze.command("track-map")
 @click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
-@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
-@click.option(
-    "--session",
-    type=str,
-    required=True,
-    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
-)
-def track_map(workspace_id: str, year: int, gp: str, session: str):
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
+@click.option("--session", type=str, default=None, help="Session type: R, Q, FP1, FP2, FP3, S, SQ")
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
+def track_map(
+    workspace_id: str,
+    year: int,
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+):
     """Generate track map with numbered corner labels."""
-    # Verify workspace exists
+    _validate_session_or_test(gp, session, test_number, session_number)
+
     if not workspace_exists(workspace_id):
-        click.echo(
-            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
-            err=True,
-        )
+        click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
         sys.exit(1)
 
     workspace_path = get_workspace_path(workspace_id)
 
     try:
-        # Generate chart
         result = generate_track_map_chart(
             year=year,
             gp=gp,
             session_type=session,
             workspace_dir=workspace_path,
+            test_number=test_number,
+            session_number=session_number,
         )
-
-        # Add session info to result
         result["workspace_id"] = workspace_id
-
         click.echo(json.dumps(result, indent=2))
 
     except Exception as e:
@@ -354,26 +387,30 @@ def track_map(workspace_id: str, year: int, gp: str, session: str):
 @analyze.command("gear-shifts-map")
 @click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
-@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
-@click.option(
-    "--session",
-    type=str,
-    required=True,
-    help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
-)
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
+@click.option("--session", type=str, default=None, help="Session type: R, Q, FP1, FP2, FP3, S, SQ")
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
 @click.option(
     "--drivers",
     multiple=True,
     required=True,
     help="Driver abbreviation (exactly 1 driver, e.g., VER)",
 )
-def gear_shifts_map(workspace_id: str, year: int, gp: str, session: str, drivers: tuple[str, ...]):
+def gear_shifts_map(
+    workspace_id: str,
+    year: int,
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+    drivers: tuple[str, ...],
+):
     """Generate gear shift visualization on track map."""
+    _validate_session_or_test(gp, session, test_number, session_number)
+
     if not workspace_exists(workspace_id):
-        click.echo(
-            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
-            err=True,
-        )
+        click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
         sys.exit(1)
 
     workspace_path = get_workspace_path(workspace_id)
@@ -385,8 +422,9 @@ def gear_shifts_map(workspace_id: str, year: int, gp: str, session: str, drivers
             session_type=session,
             drivers=list(drivers),
             workspace_dir=workspace_path,
+            test_number=test_number,
+            session_number=session_number,
         )
-
         result["workspace_id"] = workspace_id
         click.echo(json.dumps(result, indent=2))
 

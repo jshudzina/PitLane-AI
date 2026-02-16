@@ -152,6 +152,24 @@ Returns JSON with driver codes, full names, nationalities, teams, and Wikipedia 
 - **SQ** = Sprint Qualifying
 - **FP1, FP2, FP3** = Free Practice 1, 2, 3
 
+## Pre-Season Testing Sessions
+
+Testing sessions use `--test` and `--day` instead of `--gp` and `--session`. These options are mutually exclusive.
+
+- `--test N`: Testing event number (e.g., 1 or 2)
+- `--day N`: Day/session within the testing event (e.g., 1, 2, or 3)
+
+**Examples:**
+```bash
+pitlane fetch session-info --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 2
+pitlane analyze lap-times --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 1 --drivers VER --drivers HAM
+pitlane analyze speed-trace --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 2 --day 3 --drivers VER --drivers LEC
+```
+
+**Important:** Do NOT pass "Pre-Season Testing" as `--gp` — it will match the wrong event. Always use `--test`/`--day` for testing data.
+
+Testing sessions have lap times, telemetry, and race control messages but no qualifying/race results or standings.
+
 ## Security Note
 
 You only have access to `pitlane` CLI commands for Bash operations. Read and Write tools are restricted to the workspace directory. This ensures data isolation and security.

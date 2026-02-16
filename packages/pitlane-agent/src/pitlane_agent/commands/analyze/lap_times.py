@@ -9,7 +9,7 @@ from pathlib import Path
 import fastf1.plotting
 import matplotlib.pyplot as plt
 
-from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
+from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session, load_testing_session
 from pitlane_agent.utils.plotting import get_driver_color_safe, save_figure, setup_plot_style
 
 
@@ -19,24 +19,40 @@ def generate_lap_times_chart(
     session_type: str,
     drivers: list[str],
     workspace_dir: Path,
+    test_number: int | None = None,
+    session_number: int | None = None,
 ) -> dict:
     """Generate a lap times scatter plot.
 
     Args:
         year: Season year
-        gp: Grand Prix name
-        session_type: Session identifier
+        gp: Grand Prix name (ignored for testing sessions)
+        session_type: Session identifier (ignored for testing sessions)
         drivers: List of driver abbreviations to include
         workspace_dir: Workspace directory for outputs and cache
+        test_number: Testing event number (e.g., 1 or 2)
+        session_number: Session within testing event (e.g., 1, 2, or 3)
 
     Returns:
         Dictionary with chart metadata and statistics
     """
     # Build output path
-    output_path = build_chart_path(workspace_dir, "lap_times", year, gp, session_type, drivers)
+    output_path = build_chart_path(
+        workspace_dir,
+        "lap_times",
+        year,
+        gp,
+        session_type,
+        drivers,
+        test_number=test_number,
+        session_number=session_number,
+    )
 
     # Load session with laps data
-    session = load_session(year, gp, session_type)
+    if test_number is not None and session_number is not None:
+        session = load_testing_session(year, test_number, session_number)
+    else:
+        session = load_session(year, gp, session_type)
 
     # Setup plotting
     setup_plot_style()

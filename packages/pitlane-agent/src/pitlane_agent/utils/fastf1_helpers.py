@@ -62,6 +62,42 @@ def load_session(
     return session
 
 
+def load_testing_session(
+    year: int,
+    test_number: int,
+    session_number: int,
+    telemetry: bool = False,
+    weather: bool = False,
+    messages: bool = False,
+) -> Session:
+    """Load FastF1 testing session with standard configuration.
+
+    Testing sessions require a separate API from regular GP sessions.
+    FastF1's get_session() cannot load testing events — it will fuzzy-match
+    to an incorrect GP or reject round 0.
+
+    Args:
+        year: Season year (e.g., 2026)
+        test_number: Testing event number (e.g., 1 or 2)
+        session_number: Session within testing event (e.g., 1, 2, or 3)
+        telemetry: Whether to load telemetry data (default: False)
+        weather: Whether to load weather data (default: False)
+        messages: Whether to load messages data (default: False)
+
+    Returns:
+        Loaded FastF1 session object
+
+    Raises:
+        Exception: If session loading fails
+    """
+    setup_fastf1_cache()
+
+    session = fastf1.get_testing_session(year, test_number, session_number)
+    session.load(telemetry=telemetry, weather=weather, messages=messages)
+
+    return session
+
+
 def build_chart_path(
     workspace_dir: Path,
     chart_type: str,
@@ -69,6 +105,8 @@ def build_chart_path(
     gp: str,
     session_type: str,
     drivers: list[str] | None = None,
+    test_number: int | None = None,
+    session_number: int | None = None,
 ) -> Path:
     """Construct standardized chart output path.
 
@@ -79,22 +117,29 @@ def build_chart_path(
         workspace_dir: Workspace base directory
         chart_type: Type of chart (e.g., "lap_times", "tyre_strategy")
         year: Season year
-        gp: Grand Prix name
-        session_type: Session identifier
+        gp: Grand Prix name (ignored for testing sessions)
+        session_type: Session identifier (ignored for testing sessions)
         drivers: Optional list of driver abbreviations (for driver-specific charts)
+        test_number: Testing event number (for testing sessions)
+        session_number: Session within testing event (for testing sessions)
 
     Returns:
         Path object for chart output location
     """
-    gp_sanitized = sanitize_filename(gp)
+    # Build session identifier portion of filename
+    if test_number is not None and session_number is not None:
+        session_id = f"{year}_test{test_number}_day{session_number}"
+    else:
+        gp_sanitized = sanitize_filename(gp)
+        session_id = f"{year}_{gp_sanitized}_{session_type}"
 
     # Format driver list for filename
     if drivers:
         # Prevent excessive filename length with many drivers
         drivers_str = f"{len(drivers)}drivers" if len(drivers) > 5 else "_".join(sorted(drivers))
-        filename = f"{chart_type}_{year}_{gp_sanitized}_{session_type}_{drivers_str}.png"
+        filename = f"{chart_type}_{session_id}_{drivers_str}.png"
     else:
-        filename = f"{chart_type}_{year}_{gp_sanitized}_{session_type}.png"
+        filename = f"{chart_type}_{session_id}.png"
 
     return workspace_dir / "charts" / filename
 
@@ -108,6 +153,8 @@ def build_data_path(
     round_number: int | None = None,
     driver_code: str | None = None,
     season: int | None = None,
+    test_number: int | None = None,
+    session_number: int | None = None,
 ) -> Path:
     """Construct standardized data output path.
 
@@ -123,13 +170,18 @@ def build_data_path(
         round_number: Round number (for round-scoped standings)
         driver_code: Driver code (for driver-scoped data)
         season: Season year for driver data
+        test_number: Testing event number (for testing sessions)
+        session_number: Session within testing event (for testing sessions)
 
     Returns:
         Path object for data output location (in workspace/data/ subdirectory)
     """
     parts = [data_type]
 
-    if year is not None and gp is not None and session_type is not None:
+    if year is not None and test_number is not None and session_number is not None:
+        # Testing session-scoped
+        parts.extend([str(year), f"test{test_number}", f"day{session_number}"])
+    elif year is not None and gp is not None and session_type is not None:
         # Session-scoped: session_info, race_control
         parts.extend([str(year), sanitize_filename(gp), session_type])
     elif year is not None and round_number is not None:

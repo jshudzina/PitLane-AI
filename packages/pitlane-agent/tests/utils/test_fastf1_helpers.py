@@ -1,11 +1,16 @@
 """Unit tests for fastf1_helpers module."""
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-from pitlane_agent.utils.fastf1_helpers import build_data_path, get_merged_telemetry
+from pitlane_agent.utils.fastf1_helpers import (
+    build_chart_path,
+    build_data_path,
+    get_merged_telemetry,
+    load_testing_session,
+)
 
 
 class TestGetMergedTelemetry:
@@ -204,3 +209,105 @@ class TestBuildDataPath:
         workspace = Path("/tmp/workspace")
         result = build_data_path(workspace, "schedule", year=2024)
         assert result == workspace / "data" / "schedule_2024.json"
+
+    def test_testing_session_scoped(self):
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(
+            workspace,
+            "session_info",
+            year=2026,
+            test_number=1,
+            session_number=2,
+        )
+        assert result == workspace / "data" / "session_info_2026_test1_day2.json"
+
+    def test_testing_session_race_control(self):
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(
+            workspace,
+            "race_control",
+            year=2026,
+            test_number=2,
+            session_number=3,
+        )
+        assert result == workspace / "data" / "race_control_2026_test2_day3.json"
+
+    def test_testing_takes_priority_over_gp(self):
+        """When both test_number and gp are provided, testing takes priority."""
+        workspace = Path("/tmp/workspace")
+        result = build_data_path(
+            workspace,
+            "session_info",
+            year=2026,
+            gp="Monaco",
+            session_type="R",
+            test_number=1,
+            session_number=1,
+        )
+        assert "test1" in str(result)
+        assert "monaco" not in str(result)
+
+
+class TestBuildChartPath:
+    """Unit tests for build_chart_path with testing sessions."""
+
+    def test_regular_session(self):
+        workspace = Path("/tmp/workspace")
+        result = build_chart_path(workspace, "lap_times", 2024, "Monaco", "Q", ["VER", "HAM"])
+        assert result == workspace / "charts" / "lap_times_2024_monaco_Q_HAM_VER.png"
+
+    def test_testing_session(self):
+        workspace = Path("/tmp/workspace")
+        result = build_chart_path(
+            workspace,
+            "lap_times",
+            2026,
+            "",
+            "",
+            ["VER", "HAM"],
+            test_number=1,
+            session_number=2,
+        )
+        assert result == workspace / "charts" / "lap_times_2026_test1_day2_HAM_VER.png"
+
+    def test_testing_session_no_drivers(self):
+        workspace = Path("/tmp/workspace")
+        result = build_chart_path(
+            workspace,
+            "track_map",
+            2026,
+            "",
+            "",
+            test_number=2,
+            session_number=1,
+        )
+        assert result == workspace / "charts" / "track_map_2026_test2_day1.png"
+
+
+class TestLoadTestingSession:
+    """Unit tests for load_testing_session function."""
+
+    @patch("pitlane_agent.utils.fastf1_helpers.setup_fastf1_cache")
+    @patch("pitlane_agent.utils.fastf1_helpers.fastf1")
+    def test_load_testing_session_calls_correct_api(self, mock_fastf1, mock_cache):
+        """Verify load_testing_session uses get_testing_session, not get_session."""
+        mock_session = MagicMock()
+        mock_fastf1.get_testing_session.return_value = mock_session
+
+        result = load_testing_session(2026, 1, 2, telemetry=True)
+
+        mock_fastf1.get_testing_session.assert_called_once_with(2026, 1, 2)
+        mock_session.load.assert_called_once_with(telemetry=True, weather=False, messages=False)
+        assert result == mock_session
+        mock_cache.assert_called_once()
+
+    @patch("pitlane_agent.utils.fastf1_helpers.setup_fastf1_cache")
+    @patch("pitlane_agent.utils.fastf1_helpers.fastf1")
+    def test_load_testing_session_with_messages(self, mock_fastf1, mock_cache):
+        """Verify messages flag is passed through."""
+        mock_session = MagicMock()
+        mock_fastf1.get_testing_session.return_value = mock_session
+
+        load_testing_session(2026, 2, 3, messages=True)
+
+        mock_session.load.assert_called_once_with(telemetry=False, weather=False, messages=True)

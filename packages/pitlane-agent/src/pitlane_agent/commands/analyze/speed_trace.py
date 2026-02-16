@@ -15,7 +15,7 @@ from pitlane_agent.utils.constants import (
     MIN_SPEED_TRACE_DRIVERS,
     TEAMMATE_LINE_STYLES,
 )
-from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session
+from pitlane_agent.utils.fastf1_helpers import build_chart_path, load_session, load_testing_session
 from pitlane_agent.utils.plotting import (
     ensure_color_contrast,
     get_driver_color_safe,
@@ -32,16 +32,20 @@ def generate_speed_trace_chart(
     drivers: list[str],
     workspace_dir: Path,
     annotate_corners: bool = False,
+    test_number: int | None = None,
+    session_number: int | None = None,
 ) -> dict:
     """Generate a speed trace comparison for fastest laps.
 
     Args:
         year: Season year
-        gp: Grand Prix name
-        session_type: Session identifier
+        gp: Grand Prix name (ignored for testing sessions)
+        session_type: Session identifier (ignored for testing sessions)
         drivers: List of 2-5 driver abbreviations to compare
         workspace_dir: Workspace directory for outputs and cache
         annotate_corners: Whether to add corner markers and labels to the chart
+        test_number: Testing event number (e.g., 1 or 2)
+        session_number: Session within testing event (e.g., 1, 2, or 3)
 
     Returns:
         Dictionary with chart metadata and speed statistics
@@ -60,10 +64,22 @@ def generate_speed_trace_chart(
         )
 
     # Build output path
-    output_path = build_chart_path(workspace_dir, "speed_trace", year, gp, session_type, drivers)
+    output_path = build_chart_path(
+        workspace_dir,
+        "speed_trace",
+        year,
+        gp,
+        session_type,
+        drivers,
+        test_number=test_number,
+        session_number=session_number,
+    )
 
     # Load session WITH telemetry data
-    session = load_session(year, gp, session_type, telemetry=True)
+    if test_number is not None and session_number is not None:
+        session = load_testing_session(year, test_number, session_number, telemetry=True)
+    else:
+        session = load_session(year, gp, session_type, telemetry=True)
 
     # Setup plotting
     setup_plot_style()

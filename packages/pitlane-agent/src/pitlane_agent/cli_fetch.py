@@ -67,15 +67,42 @@ def fetch():
 @fetch.command()
 @click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
-@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option(
     "--session",
     type=str,
-    required=True,
+    default=None,
     help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
 )
-def session_info(workspace_id: str, year: int, gp: str, session: str):
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option(
+    "--day", "session_number", type=int, default=None, help="Day/session within testing event (e.g., 1, 2, 3)"
+)
+def session_info(
+    workspace_id: str,
+    year: int,
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+):
     """Fetch session information and store in workspace."""
+    # Validate mutually exclusive options
+    has_gp = gp is not None and session is not None
+    has_test = test_number is not None and session_number is not None
+    if not has_gp and not has_test:
+        click.echo(
+            json.dumps({"error": "Must provide either --gp and --session, or --test and --day"}),
+            err=True,
+        )
+        sys.exit(1)
+    if has_gp and has_test:
+        click.echo(
+            json.dumps({"error": "Cannot use --gp/--session with --test/--day"}),
+            err=True,
+        )
+        sys.exit(1)
+
     # Verify workspace exists
     if not workspace_exists(workspace_id):
         click.echo(
@@ -88,10 +115,24 @@ def session_info(workspace_id: str, year: int, gp: str, session: str):
 
     try:
         # Fetch session info
-        info = get_session_info(year, gp, session)
+        info = get_session_info(
+            year,
+            gp=gp,
+            session_type=session,
+            test_number=test_number,
+            session_number=session_number,
+        )
 
         # Write to workspace
-        output_file = build_data_path(workspace_path, "session_info", year=year, gp=gp, session_type=session)
+        output_file = build_data_path(
+            workspace_path,
+            "session_info",
+            year=year,
+            gp=gp,
+            session_type=session,
+            test_number=test_number,
+            session_number=session_number,
+        )
         with open(output_file, "w") as f:
             json.dump(info, f, indent=2)
 
@@ -351,12 +392,16 @@ def constructor_standings(workspace_id: str, year: int, round_number: int | None
 @fetch.command("race-control")
 @click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
-@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option(
     "--session",
     type=str,
-    required=True,
+    default=None,
     help="Session type: R (Race), Q (Qualifying), FP1, FP2, FP3, S (Sprint), SQ",
+)
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option(
+    "--day", "session_number", type=int, default=None, help="Day/session within testing event (e.g., 1, 2, 3)"
 )
 @click.option(
     "--detail",
@@ -403,8 +448,10 @@ def constructor_standings(workspace_id: str, year: int, round_number: int | None
 def race_control(
     workspace_id: str,
     year: int,
-    gp: str,
-    session: str,
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
     detail: str,
     category: str | None,
     flag_type: str | None,
@@ -414,6 +461,22 @@ def race_control(
     sector: int | None,
 ):
     """Fetch race control messages and store in workspace."""
+    # Validate mutually exclusive options
+    has_gp = gp is not None and session is not None
+    has_test = test_number is not None and session_number is not None
+    if not has_gp and not has_test:
+        click.echo(
+            json.dumps({"error": "Must provide either --gp and --session, or --test and --day"}),
+            err=True,
+        )
+        sys.exit(1)
+    if has_gp and has_test:
+        click.echo(
+            json.dumps({"error": "Cannot use --gp/--session with --test/--day"}),
+            err=True,
+        )
+        sys.exit(1)
+
     # Verify workspace exists
     if not workspace_exists(workspace_id):
         click.echo(
@@ -437,10 +500,20 @@ def race_control(
             lap_start=lap_start,
             lap_end=lap_end,
             sector=sector,
+            test_number=test_number,
+            session_number=session_number,
         )
 
         # Write to workspace
-        output_file = build_data_path(workspace_path, "race_control", year=year, gp=gp, session_type=session)
+        output_file = build_data_path(
+            workspace_path,
+            "race_control",
+            year=year,
+            gp=gp,
+            session_type=session,
+            test_number=test_number,
+            session_number=session_number,
+        )
         with open(output_file, "w") as f:
             json.dump(messages, f, indent=2)
 

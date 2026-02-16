@@ -20,7 +20,7 @@ from pitlane_agent.utils.constants import (
     MARKER_SIZE,
     PIT_MARKER_SIZE,
 )
-from pitlane_agent.utils.fastf1_helpers import load_session
+from pitlane_agent.utils.fastf1_helpers import load_session, load_testing_session
 from pitlane_agent.utils.filename import sanitize_filename
 from pitlane_agent.utils.plotting import get_driver_color_safe, save_figure, setup_plot_style
 from pitlane_agent.utils.race_stats import compute_driver_position_stats
@@ -144,22 +144,29 @@ def generate_position_changes_chart(
     drivers: list[str] | None = None,
     top_n: int | None = None,
     workspace_dir: Path | None = None,
+    test_number: int | None = None,
+    session_number: int | None = None,
 ) -> dict:
     """Generate a position changes visualization.
 
     Args:
         year: Season year
-        gp: Grand Prix name
-        session_type: Session identifier (typically 'R' for race)
+        gp: Grand Prix name (ignored for testing sessions)
+        session_type: Session identifier (typically 'R' for race, ignored for testing)
         drivers: Optional list of driver abbreviations to filter
         top_n: Optional number of top finishing drivers to show
         workspace_dir: Workspace directory for outputs and cache
+        test_number: Testing event number (e.g., 1 or 2)
+        session_number: Session within testing event (e.g., 1, 2, or 3)
 
     Returns:
         Dictionary with chart metadata and position change statistics
     """
     # Determine paths from workspace
-    gp_sanitized = sanitize_filename(gp)
+    if test_number is not None and session_number is not None:
+        session_id = f"test{test_number}_day{session_number}"
+    else:
+        session_id = f"{sanitize_filename(gp)}_{session_type}"
 
     # Handle filename based on driver selection
     if drivers is not None:
@@ -169,11 +176,14 @@ def generate_position_changes_chart(
     else:
         drivers_str = "all"
 
-    filename = f"position_changes_{year}_{gp_sanitized}_{session_type}_{drivers_str}.png"
+    filename = f"position_changes_{year}_{session_id}_{drivers_str}.png"
     output_path = workspace_dir / "charts" / filename
 
     # Load session with laps data
-    session = load_session(year, gp, session_type)
+    if test_number is not None and session_number is not None:
+        session = load_testing_session(year, test_number, session_number)
+    else:
+        session = load_session(year, gp, session_type)
 
     # Determine which drivers to plot
     if drivers is not None:

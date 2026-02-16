@@ -182,4 +182,4 @@ The script returns events with these fields:
 - **Time Accuracy**: Exact session times are only available from 2018 onwards
 - **Time Zones**: Always provide both local and UTC times when available
 - **Event Names**: Use official event names when referencing specific races
-- **Testing Sessions**: Pre-season testing has RoundNumber of 0
+- **Testing Sessions**: Pre-season testing has RoundNumber of 0 and EventFormat of "testing". To access testing session data (lap times, telemetry), use `--test` and `--day` options in fetch/analyze commands instead of `--gp` and `--session`. Do NOT pass "Pre-Season Testing" as a GP name — FastF1 will match it to the wrong event.
