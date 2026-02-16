@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-02-16
+
+### Bug Fixes
+
+- Resolve fastf1 3.8 deprecation warnings ([#84](https://github.com/jshudzina/PitLane-AI/pull/84)) ([#85](https://github.com/jshudzina/PitLane-AI/pull/85))
+
+- Replace inner merge with FastF1's get_telemetry() to eliminate track map gaps ([#92](https://github.com/jshudzina/PitLane-AI/pull/92))
+
+- Unique fetch filenames per session and strip diacritics from filenames ([#94](https://github.com/jshudzina/PitLane-AI/pull/94)) ([#101](https://github.com/jshudzina/PitLane-AI/pull/101))
+
+
+### Documentation
+
+- Add race-control skill and clarify workspace vs session terminology ([#86](https://github.com/jshudzina/PitLane-AI/pull/86))
+
+
+### Features
+
+- Add corners to the track map ([#49](https://github.com/jshudzina/PitLane-AI/pull/49)) ([#88](https://github.com/jshudzina/PitLane-AI/pull/88))
+
+- Add gear shift visualization on track map ([#90](https://github.com/jshudzina/PitLane-AI/pull/90))
+
+- Improve speed trace readability with line styles and color contrast ([#56](https://github.com/jshudzina/PitLane-AI/pull/56)) ([#93](https://github.com/jshudzina/PitLane-AI/pull/93))
+
+- Add race stats and season summary command ([#95](https://github.com/jshudzina/PitLane-AI/pull/95))
+
+- Add F1 pre-season testing session support ([#102](https://github.com/jshudzina/PitLane-AI/pull/102))
+
+
+### Miscellaneous Tasks
+
+- Update fastf1 dependency to >=3.8 ([#83](https://github.com/jshudzina/PitLane-AI/pull/83))
+
+
+### Performance
+
+- Optimize race control message filtering ([#87](https://github.com/jshudzina/PitLane-AI/pull/87))
+
+
+### Refactoring
+
+- Extract track map visualization constants ([#89](https://github.com/jshudzina/PitLane-AI/pull/89))
+
 ## [0.3.0] - 2026-02-11
 
 ### Refactoring
