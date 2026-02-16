@@ -69,6 +69,16 @@ Based on the user's question, read the appropriate reference file for detailed i
 
 **Read:** [references/visualization.md](references/visualization.md)
 
+### Testing Session Analysis
+**When to use:** Questions about pre-season or in-season testing data, test day programmes, or testing lap times.
+
+**Examples:**
+- "How did Verstappen's long runs look in testing?"
+- "Compare the two Red Bull drivers' pace on day 2 of testing"
+- "What was Leclerc's best lap in the first test?"
+
+**Read:** [references/testing.md](references/testing.md)
+
 ### Telemetry Analysis
 **When to use:** Questions about speed traces, gear shifts, braking points, or detailed car data.
 
@@ -154,21 +164,9 @@ Returns JSON with driver codes, full names, nationalities, teams, and Wikipedia 
 
 ## Pre-Season Testing Sessions
 
-Testing sessions use `--test` and `--day` instead of `--gp` and `--session`. These options are mutually exclusive.
+Testing sessions use `--test N --day N` instead of `--gp` and `--session` (mutually exclusive). Do NOT pass "Pre-Season Testing" as `--gp` — always use `--test`/`--day`.
 
-- `--test N`: Testing event number (e.g., 1 or 2)
-- `--day N`: Day/session within the testing event (e.g., 1, 2, or 3)
-
-**Examples:**
-```bash
-pitlane fetch session-info --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 2
-pitlane analyze lap-times --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 1 --drivers VER --drivers HAM
-pitlane analyze speed-trace --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 2 --day 3 --drivers VER --drivers LEC
-```
-
-**Important:** Do NOT pass "Pre-Season Testing" as `--gp` — it will match the wrong event. Always use `--test`/`--day` for testing data.
-
-Testing sessions have lap times, telemetry, and race control messages but no qualifying/race results or standings.
+For detailed guidance on interpreting testing data, see the [Testing Session Analysis reference](references/testing.md).
 
 ## Security Note
 
