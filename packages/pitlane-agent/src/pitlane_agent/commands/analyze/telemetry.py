@@ -330,6 +330,11 @@ def generate_telemetry_chart(
             }
         )
 
+    # Fix RPM axis to use round tick intervals (row 2 = yaxis2)
+    fig.update_yaxes(dtick=2000, row=2, col=1)
+    # Fix Gear axis to integer ticks (row 3 = yaxis3)
+    fig.update_yaxes(dtick=1, row=3, col=1)
+
     # Style X axes — only label the bottom one
     fig.update_xaxes(gridcolor=PLOTLY_DARK_THEME["gridcolor"])
     fig.update_xaxes(title_text="Distance (m)", row=5, col=1)
