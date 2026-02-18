@@ -190,6 +190,9 @@ def generate_telemetry_chart(
         if tel.empty:
             continue
 
+        # Brake is boolean in FastF1 — cast to int for plotting and delta math
+        tel["Brake"] = tel["Brake"].astype(int)
+
         color = get_driver_color_safe(driver_abbr, session)
         color = ensure_color_contrast(color) if color else "#ffffff"
 
