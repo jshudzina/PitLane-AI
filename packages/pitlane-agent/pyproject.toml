@@ -24,6 +24,7 @@ dependencies = [
     "fastf1>=3.8",
     "matplotlib>=3.8",
     "numpy>=1.24",
+    "plotly>=5.20",
     "opentelemetry-api>=1.24.0",
     "opentelemetry-sdk>=1.24.0",
     "seaborn>=0.13.0",

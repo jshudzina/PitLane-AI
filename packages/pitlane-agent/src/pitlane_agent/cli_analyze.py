@@ -16,6 +16,7 @@ from pitlane_agent.commands.analyze import (
     generate_lap_times_distribution_chart,
     generate_position_changes_chart,
     generate_speed_trace_chart,
+    generate_telemetry_chart,
     generate_track_map_chart,
     generate_tyre_strategy_chart,
 )
@@ -241,6 +242,70 @@ def speed_trace(
 
     try:
         result = generate_speed_trace_chart(
+            year=year,
+            gp=gp,
+            session_type=session,
+            drivers=list(drivers),
+            workspace_dir=workspace_path,
+            annotate_corners=annotate_corners,
+            test_number=test_number,
+            session_number=session_number,
+        )
+        result["workspace_id"] = workspace_id
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@analyze.command("telemetry")
+@click.option("--workspace-id", required=True, help="Workspace ID")
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
+@click.option("--session", type=str, default=None, help="Session type: R, Q, FP1, FP2, FP3, S, SQ")
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
+@click.option(
+    "--drivers",
+    multiple=True,
+    required=True,
+    help="Driver abbreviations to compare (2-5 drivers: --drivers VER --drivers HAM)",
+)
+@click.option(
+    "--annotate-corners",
+    is_flag=True,
+    default=False,
+    help="Add corner markers and labels to the chart",
+)
+def telemetry(
+    workspace_id: str,
+    year: int,
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+    drivers: tuple[str, ...],
+    annotate_corners: bool,
+):
+    """Generate interactive telemetry chart (speed, RPM, gear, throttle, brake) for fastest laps."""
+    validate_session_or_test(gp, session, test_number, session_number)
+
+    if not workspace_exists(workspace_id):
+        click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
+        sys.exit(1)
+
+    if len(drivers) < 2:
+        click.echo(json.dumps({"error": "Telemetry requires at least 2 drivers for comparison"}), err=True)
+        sys.exit(1)
+    if len(drivers) > 5:
+        click.echo(json.dumps({"error": "Telemetry supports maximum 5 drivers for readability"}), err=True)
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(workspace_id)
+
+    try:
+        result = generate_telemetry_chart(
             year=year,
             gp=gp,
             session_type=session,

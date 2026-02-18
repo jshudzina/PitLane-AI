@@ -166,6 +166,7 @@ def build_chart_path(
     drivers: list[str] | None = None,
     test_number: int | None = None,
     session_number: int | None = None,
+    extension: str = "png",
 ) -> Path:
     """Construct standardized chart output path.
 
@@ -181,6 +182,7 @@ def build_chart_path(
         drivers: Optional list of driver abbreviations (for driver-specific charts)
         test_number: Testing event number (for testing sessions)
         session_number: Session within testing event (for testing sessions)
+        extension: File extension for output (default: "png")
 
     Returns:
         Path object for chart output location
@@ -196,9 +198,9 @@ def build_chart_path(
     if drivers:
         # Prevent excessive filename length with many drivers
         drivers_str = f"{len(drivers)}drivers" if len(drivers) > 5 else "_".join(sorted(drivers))
-        filename = f"{chart_type}_{session_id}_{drivers_str}.png"
+        filename = f"{chart_type}_{session_id}_{drivers_str}.{extension}"
     else:
-        filename = f"{chart_type}_{session_id}.png"
+        filename = f"{chart_type}_{session_id}.{extension}"
 
     return workspace_dir / "charts" / filename
 

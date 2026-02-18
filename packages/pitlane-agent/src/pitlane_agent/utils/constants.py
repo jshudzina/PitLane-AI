@@ -119,3 +119,21 @@ MIN_GEAR_SHIFTS_MAP_DRIVERS = 1  # Minimum drivers for gear shifts map
 MAX_GEAR_SHIFTS_MAP_DRIVERS = 1  # Maximum drivers for gear shifts map (single driver only)
 GEAR_COLORMAP = "Paired"  # Matplotlib colormap for gears 1-8
 GEAR_SHIFTS_LINE_WIDTH = 4  # Width of gear-colored track segments
+
+# Telemetry Chart Constants
+MIN_TELEMETRY_DRIVERS = 2
+MAX_TELEMETRY_DRIVERS = 5
+
+# Plotly Dark Theme — matches MATPLOTLIB_DARK_THEME palette
+PLOTLY_DARK_THEME = {
+    "paper_bgcolor": "#1e1e1e",
+    "plot_bgcolor": "#2d2d2d",
+    "font_color": "#ffffff",
+    "gridcolor": "#444444",
+    "zerolinecolor": "#555555",
+    "corner_line_color": "rgba(170,170,170,0.35)",
+    "corner_label_color": "rgba(200,200,200,0.7)",
+}
+
+# Subplot row heights ratio for telemetry (Speed, RPM, Gear, Throttle, Brake)
+TELEMETRY_ROW_HEIGHTS = [0.25, 0.25, 0.18, 0.18, 0.14]
