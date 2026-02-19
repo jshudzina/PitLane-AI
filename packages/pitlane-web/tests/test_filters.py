@@ -222,12 +222,12 @@ class TestHtmlChartsToIframes:
         result = html_charts_to_iframes(text)
         assert 'title="Monaco Telemetry"' in result
 
-    def test_sets_iframe_dimensions(self, test_session_id):
-        """Test that iframe has correct width and height attributes."""
+    def test_iframe_dimensions_handled_by_css(self, test_session_id):
+        """Test that iframe relies on CSS for sizing (no inline width/height attributes)."""
         text = f"![Chart](/charts/{test_session_id}/telemetry.html)"
         result = html_charts_to_iframes(text)
-        assert 'width="100%"' in result
-        assert 'height="700"' in result
+        assert 'width="' not in result
+        assert 'height="' not in result
 
     def test_iframe_has_sandbox_attribute(self, test_session_id):
         """Test that iframes include sandbox attribute for security."""
