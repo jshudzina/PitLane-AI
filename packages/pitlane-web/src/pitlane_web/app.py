@@ -277,8 +277,8 @@ async def serve_chart(
         logger.error(f"Error resolving chart path: {e}")
         raise HTTPException(status_code=404, detail="File not found") from None
 
-    # 6. Validate file type (only images)
-    allowed_extensions = {".png", ".jpg", ".jpeg", ".svg", ".webp"}
+    # 6. Validate file type (images and interactive charts)
+    allowed_extensions = {".png", ".jpg", ".jpeg", ".svg", ".webp", ".html"}
     if chart_path.suffix.lower() not in allowed_extensions:
         logger.warning(f"Invalid file type requested: {chart_path.suffix}")
         raise HTTPException(status_code=400, detail="Invalid file type")
@@ -295,6 +295,7 @@ async def serve_chart(
         ".jpeg": "image/jpeg",
         ".svg": "image/svg+xml",
         ".webp": "image/webp",
+        ".html": "text/html",
     }
     media_type = media_type_map.get(chart_path.suffix.lower(), "image/png")
 
