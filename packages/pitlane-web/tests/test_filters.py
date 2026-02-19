@@ -229,6 +229,18 @@ class TestHtmlChartsToIframes:
         assert 'width="100%"' in result
         assert 'height="700"' in result
 
+    def test_iframe_has_sandbox_attribute(self, test_session_id):
+        """Test that iframes include sandbox attribute for security."""
+        text = f"![Chart](/charts/{test_session_id}/telemetry.html)"
+        result = html_charts_to_iframes(text)
+        assert 'sandbox="allow-scripts allow-same-origin"' in result
+
+    def test_img_tag_iframe_has_sandbox_attribute(self, test_session_id):
+        """Test that img-tag-converted iframes also include sandbox attribute."""
+        text = f'<img alt="Chart" src="/charts/{test_session_id}/telemetry.html" />'
+        result = html_charts_to_iframes(text)
+        assert 'sandbox="allow-scripts allow-same-origin"' in result
+
 
 class TestMdToHtml:
     """Tests for markdown to HTML conversion."""
