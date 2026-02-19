@@ -7,6 +7,7 @@ Usage:
     pitlane analyze telemetry --workspace-id <id> --year 2024 --gp Monaco --session Q --drivers VER --drivers HAM
 """
 
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -298,7 +299,7 @@ def generate_telemetry_chart(
                 )
             corners_drawn = True
         except Exception:
-            pass
+            logging.getLogger(__name__).warning("Failed to draw corner annotations", exc_info=True)
 
     # Apply dark theme
     fig.update_layout(
