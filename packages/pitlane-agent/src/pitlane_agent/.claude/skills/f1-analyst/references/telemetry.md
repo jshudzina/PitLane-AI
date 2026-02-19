@@ -103,6 +103,65 @@ pitlane analyze gear-shifts-map \
 - Some circuits may have limited corner data
 - Gear data may be unavailable for some older sessions
 
+### 3. Multi-Channel Telemetry Comparison
+
+Compare all five telemetry channels (Speed, RPM, Gear, Throttle, Brake) between drivers in a single interactive chart with synchronized subplots.
+
+**Command:**
+```bash
+pitlane analyze telemetry \
+  --workspace-id $PITLANE_WORKSPACE_ID \
+  --year 2024 \
+  --gp Monaco \
+  --session Q \
+  --drivers VER --drivers HAM \
+  --annotate-corners
+```
+
+**What it does:**
+- Loads telemetry data for specified drivers' fastest laps
+- Creates 5 synchronized subplots: Speed (km/h), RPM, Gear, Throttle (%), Brake
+- Interactive Plotly HTML chart with hover tooltips showing per-driver deltas
+- Teammate differentiation: solid vs dashed lines for drivers on the same team
+- Returns JSON with chart path, per-driver statistics, and delta analysis
+- Chart is saved as HTML to workspace charts directory
+
+**Parameters:**
+- `--year`: Season year (e.g., 2024)
+- `--gp`: Grand Prix name (e.g., "Monaco", "Silverstone")
+- `--session`: Session type (R=Race, Q=Qualifying, FP1, FP2, FP3, S=Sprint, SQ)
+- `--drivers`: 2-5 driver abbreviations to compare (specify multiple times)
+- `--annotate-corners`: (optional flag) Add vertical corner markers to all subplots
+- `--test N --day N`: For pre-season testing sessions (mutually exclusive with --gp/--session)
+
+**Example Questions:**
+- "Show me a full telemetry comparison between Verstappen and Hamilton at Monaco"
+- "Compare all telemetry channels for the top 3 qualifiers at Silverstone"
+- "Where is Norris losing time to Verstappen in braking and throttle application?"
+- "Show me the complete telemetry overlay including RPM and gear shifts"
+- "Full telemetry comparison with corner annotations at Spa"
+- "Compare telemetry for the Red Bull drivers in pre-season testing day 2"
+
+**Returned Statistics (per driver):**
+- `max_speed`: Maximum speed reached (km/h)
+- `avg_speed`: Average speed across the lap (km/h)
+- `max_rpm`: Maximum RPM reached
+- `fastest_lap_time`: Lap time in HH:MM:SS format
+- `fastest_lap_number`: Which lap number was analyzed
+
+**Chart Interpretation:**
+- 5 vertically stacked subplots sharing the same X-axis (distance in meters)
+- Hover over any subplot to see all drivers' values and deltas at that distance
+- Each driver colored by team color; teammates distinguished by solid vs dashed lines
+- Zooming/panning one subplot synchronizes all subplots
+- Corner annotations (when enabled) appear as vertical dashed lines across all subplots
+
+**Limitations:**
+- Requires telemetry data to be available (typically 2018 onwards)
+- Compares fastest laps only (not arbitrary lap selection)
+- Minimum 2 drivers, maximum 5 drivers for chart readability
+- Brake data is boolean (on/off), not brake pressure
+
 ## Analysis Workflow
 
 ### Step 1: Identify Session and Drivers
@@ -111,8 +170,11 @@ Extract from user's question:
 - Session type (qualifying usually best for pure speed comparison)
 - Specific drivers or comparison request (e.g., "top 3", "pole vs P2")
 
-### Step 2: Generate Speed Trace
-Run `pitlane analyze speed-trace` with appropriate parameters.
+### Step 2: Generate Visualization
+Choose the appropriate command:
+- `pitlane analyze speed-trace` for speed-only comparison (PNG)
+- `pitlane analyze gear-shifts-map` for gear usage on track map (PNG)
+- `pitlane analyze telemetry` for full multi-channel comparison (interactive HTML)
 
 ### Step 3: Analyze Results
 The command returns JSON with:
@@ -140,13 +202,19 @@ Identify where drivers gain/lose time based on speed traces:
 - **Speed delta location**: Where maximum difference occurs (straight, corner, exit)
 
 #### Visualization
-**YOU MUST include the chart using markdown image syntax:**
+**YOU MUST include the chart in the response.** Use the full workspace path returned by the command. The web app will automatically rewrite workspace paths to web-relative URLs.
+
+**For PNG charts (speed-trace, gear-shifts-map):** Use markdown image syntax:
 
 ```markdown
 ![Speed Trace Comparison at Spanish GP 2024](/Users/user/.pitlane/workspaces/{workspace_id}/charts/speed_trace_2024_spanish_grand_prix_Q_HAM_LEC_VER.png)
 ```
 
-Use the full workspace path returned by the command. The web app will automatically rewrite this to a web-relative URL.
+**For HTML charts (telemetry):** Also use markdown image syntax — the web app automatically converts `.html` references to interactive iframes:
+
+```markdown
+![Telemetry Comparison at Monaco 2024](/Users/user/.pitlane/workspaces/{workspace_id}/charts/telemetry_2024_monaco_Q_HAM_VER.html)
+```
 
 **Chart interpretation guide:**
 - X-axis shows distance from start line in meters
@@ -185,21 +253,6 @@ Verstappen's pole lap at Spanish GP 2024 qualifying showed superior straight-lin
 - Verstappen's low-drag setup favors overtaking but may increase tire degradation in high-speed corners
 - Hamilton's higher downforce provides tire preservation and wet weather advantage
 - DRS effectiveness will be crucial for Verstappen to maintain/extend lead
-
-## Future Telemetry Analysis Types
-
-The following telemetry analysis types are planned for future implementation:
-
-### 3. Speed Visualization on Track Map
-**What it would do:**
-- Map speed data spatially across the circuit layout
-- Color-code track sections by speed
-- Visualize fastest and slowest parts of the lap
-
-**Example Questions:**
-- "Show me a speed heatmap of the lap"
-- "Where are the high-speed sections at Silverstone?"
-- "Visualize cornering speeds around Monaco"
 
 ## Telemetry Data Available in FastF1
 

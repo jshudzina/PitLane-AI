@@ -230,6 +230,22 @@ class TestServeChartRoute:
         assert response.status_code == 200
         assert response.headers["content-type"] == "image/png"
 
+    def test_serves_html_chart_with_correct_media_type(self, app_client, test_session_id, tmp_workspace, monkeypatch):
+        """Test that HTML chart (interactive telemetry) is served with correct media type."""
+        html_file = tmp_workspace / "charts" / "telemetry_2024_monaco_Q_HAM_VER.html"
+        html_file.write_text("<html><body><div>Plotly chart</div></body></html>")
+
+        monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=True))
+        monkeypatch.setattr("pitlane_web.app.get_workspace_path", MagicMock(return_value=tmp_workspace))
+
+        response = app_client.get(
+            f"/charts/{test_session_id}/telemetry_2024_monaco_Q_HAM_VER.html",
+            cookies={SESSION_COOKIE_NAME: test_session_id},
+        )
+
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+
     def test_serves_jpg_chart(self, app_client, test_session_id, tmp_workspace, monkeypatch):
         """Test that JPG chart is served with correct media type."""
         # Create JPG file

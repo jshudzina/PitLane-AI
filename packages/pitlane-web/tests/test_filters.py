@@ -3,7 +3,7 @@
 import uuid
 from pathlib import Path
 
-from pitlane_web.filters import md_to_html, register_filters, rewrite_workspace_paths
+from pitlane_web.filters import html_charts_to_iframes, md_to_html, register_filters, rewrite_workspace_paths
 
 
 class TestRewriteWorkspacePaths:
@@ -177,6 +177,59 @@ class TestRewriteWorkspacePaths:
         assert f"/charts/{test_session_id}/lap_times.png'" in result
 
 
+class TestHtmlChartsToIframes:
+    """Tests for HTML chart to iframe conversion."""
+
+    def test_converts_markdown_image_html_to_iframe(self, test_session_id):
+        """Test that ![label](path.html) becomes an iframe."""
+        text = f"![Telemetry Comparison](/charts/{test_session_id}/telemetry.html)"
+        result = html_charts_to_iframes(text)
+        assert "<iframe" in result
+        assert f'src="/charts/{test_session_id}/telemetry.html"' in result
+        assert "![" not in result
+
+    def test_leaves_png_images_unchanged(self, test_session_id):
+        """Test that PNG image references are not converted."""
+        text = f"![Speed Trace](/charts/{test_session_id}/speed_trace.png)"
+        result = html_charts_to_iframes(text)
+        assert "![Speed Trace]" in result
+        assert "<iframe" not in result
+
+    def test_converts_img_tag_html_to_iframe(self, test_session_id):
+        """Test that <img src="path.html"> becomes an iframe."""
+        text = f'<img alt="Telemetry" src="/charts/{test_session_id}/telemetry.html" />'
+        result = html_charts_to_iframes(text)
+        assert "<iframe" in result
+        assert "<img" not in result
+
+    def test_handles_mixed_content(self, test_session_id):
+        """Test mixed HTML and PNG references."""
+        text = f"![Speed](/charts/{test_session_id}/speed.png)\n![Telemetry](/charts/{test_session_id}/telemetry.html)"
+        result = html_charts_to_iframes(text)
+        assert "![Speed]" in result  # PNG unchanged
+        assert "<iframe" in result  # HTML converted
+        assert 'telemetry.html"' in result
+
+    def test_no_op_when_no_html_references(self):
+        """Test that text without HTML chart references is unchanged."""
+        text = "Just plain text with no chart references"
+        result = html_charts_to_iframes(text)
+        assert result == text
+
+    def test_preserves_alt_text_as_title(self, test_session_id):
+        """Test that markdown alt text becomes iframe title attribute."""
+        text = f"![Monaco Telemetry](/charts/{test_session_id}/telemetry.html)"
+        result = html_charts_to_iframes(text)
+        assert 'title="Monaco Telemetry"' in result
+
+    def test_sets_iframe_dimensions(self, test_session_id):
+        """Test that iframe has correct width and height attributes."""
+        text = f"![Chart](/charts/{test_session_id}/telemetry.html)"
+        result = html_charts_to_iframes(text)
+        assert 'width="100%"' in result
+        assert 'height="700"' in result
+
+
 class TestMdToHtml:
     """Tests for markdown to HTML conversion."""
 
@@ -281,7 +334,8 @@ class TestRegisterFilters:
         """Test that all filters are registered together."""
         register_filters(mock_templates)
 
-        assert len(mock_templates.env.filters) == 3
+        assert len(mock_templates.env.filters) == 4
         assert "markdown" in mock_templates.env.filters
         assert "rewrite_paths" in mock_templates.env.filters
+        assert "html_charts_to_iframes" in mock_templates.env.filters
         assert "timeago" in mock_templates.env.filters

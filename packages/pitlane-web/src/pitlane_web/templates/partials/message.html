@@ -73,6 +73,15 @@
         margin: 1rem 0;
     }
 
+    .message-content iframe {
+        width: 100%;
+        height: 700px;
+        border: none;
+        border-radius: 8px;
+        margin: 1rem 0;
+        background: #1a1a1a;
+    }
+
     .message-content table {
         width: 100%;
         border-collapse: collapse;
@@ -101,6 +110,6 @@
         <strong>Q:</strong> {{ question }}
     </div>
     <div class="message-content">
-        {{ content | rewrite_paths(session_id) | markdown | safe }}
+        {{ content | rewrite_paths(session_id) | html_charts_to_iframes | markdown | safe }}
     </div>
 </article>

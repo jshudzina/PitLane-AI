@@ -58,6 +58,44 @@ def rewrite_workspace_paths(text: str, session_id: str) -> str:
     return result
 
 
+def html_charts_to_iframes(text: str) -> str:
+    """Convert .html chart references from markdown image syntax to iframe tags.
+
+    Transforms:
+      ![label](/charts/{session-id}/chart.html)
+      → <iframe src="/charts/{session-id}/chart.html" ...></iframe>
+
+    Also converts img tags with .html src (in case markdown ran first):
+      <img ... src="/charts/{session-id}/chart.html" ... />
+      → <iframe src="/charts/{session-id}/chart.html" ...></iframe>
+
+    Non-.html references (e.g. .png) are left unchanged.
+
+    Args:
+        text: Text potentially containing HTML chart references
+
+    Returns:
+        Text with .html chart references converted to iframes
+    """
+    # Markdown image syntax: ![alt](/charts/session/file.html)
+    md_pattern = r"!\[([^\]]*)\]\((/charts/[^\s\)]+\.html)\)"
+    text = re.sub(
+        md_pattern,
+        r'<iframe src="\2" title="\1" width="100%" height="700" style="border:none; border-radius:8px;"></iframe>',
+        text,
+    )
+
+    # HTML img tags: <img ... src="/charts/.../file.html" ... />
+    img_pattern = r'<img[^>]*src="(/charts/[^"]+\.html)"[^>]*/?\s*>'
+    text = re.sub(
+        img_pattern,
+        r'<iframe src="\1" width="100%" height="700" style="border:none; border-radius:8px;"></iframe>',
+        text,
+    )
+
+    return text
+
+
 def md_to_html(text: str) -> str:
     """Convert markdown to HTML.
 
@@ -119,7 +157,14 @@ def register_filters(templates: Jinja2Templates) -> None:
     """
     templates.env.filters["markdown"] = md_to_html
     templates.env.filters["rewrite_paths"] = rewrite_workspace_paths
+    templates.env.filters["html_charts_to_iframes"] = html_charts_to_iframes
     templates.env.filters["timeago"] = timeago
 
 
-__all__ = ["rewrite_workspace_paths", "md_to_html", "timeago", "register_filters"]
+__all__ = [
+    "rewrite_workspace_paths",
+    "html_charts_to_iframes",
+    "md_to_html",
+    "timeago",
+    "register_filters",
+]
