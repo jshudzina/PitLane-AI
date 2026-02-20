@@ -215,16 +215,12 @@ class TestDetectSuperClippingZones:
         assert zones == []
 
     def test_no_zones_in_clean_telemetry(self):
-        """Constant-speed full-throttle with constant RPM could match,
-        but the baseline helper uses constant values everywhere which
-        means the whole lap is a plateau — this tests that very long
-        constant stretches are still detected (they are valid zones)."""
+        """Constant-speed full-throttle telemetry should NOT flag as
+        clipping — there is no preceding acceleration phase."""
         df = _make_telemetry()
         zones = detect_super_clipping_zones(df)
-        # With constant speed, RPM, and throttle=100 across the whole
-        # lap the detector will flag one large zone.  That's expected
-        # behaviour — the detector doesn't know circuit context.
-        assert len(zones) >= 1
+
+        assert zones == []
 
 
 # ---------------------------------------------------------------------------
@@ -234,13 +230,14 @@ class TestDetectSuperClippingZones:
 
 class TestAnalyzeTelemetry:
     def test_combined_analysis(self):
-        df = _make_telemetry()
+        df = _make_telemetry(throttle=50.0)
         # Inject one lift-and-coast zone
         df = _inject_lift_coast(df, 50, 100)
-        # Inject one super-clipping zone (need accelerating baseline first)
-        df.loc[300:500, "Speed"] = 330.0
-        df.loc[300:500, "RPM"] = 11500.0
-        df.loc[300:500, "Throttle"] = 100.0
+        # Inject one super-clipping zone with preceding acceleration ramp
+        df.loc[280:349, "Speed"] = np.linspace(250, 330, 70)
+        df.loc[280:349, "RPM"] = np.linspace(9000, 11500, 70)
+        df.loc[280:349, "Throttle"] = 100.0
+        df = _inject_super_clip(df, 350, 420, speed=330.0, rpm=11500.0)
 
         result = analyze_telemetry(df)
 

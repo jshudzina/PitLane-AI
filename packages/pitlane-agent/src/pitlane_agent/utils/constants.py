@@ -149,3 +149,5 @@ SUPER_CLIP_THROTTLE_THRESHOLD = 95.0  # min throttle % for "full throttle"
 SUPER_CLIP_SPEED_TOLERANCE = 5.0  # km/h — max rolling std for speed plateau
 SUPER_CLIP_RPM_STUTTER_THRESHOLD = 500.0  # max RPM increase per sample
 SUPER_CLIP_MIN_GEAR = 6  # clipping only occurs in high gears
+SUPER_CLIP_ACCEL_LOOKBACK = 10  # samples to look back for preceding acceleration
+SUPER_CLIP_MIN_SPEED_GAIN = 10.0  # km/h — minimum speed rise in lookback window

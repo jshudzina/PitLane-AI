@@ -21,8 +21,10 @@ from pitlane_agent.utils.constants import (
     LIFT_COAST_BRAKE_THRESHOLD,
     LIFT_COAST_MIN_DURATION,
     LIFT_COAST_THROTTLE_THRESHOLD,
+    SUPER_CLIP_ACCEL_LOOKBACK,
     SUPER_CLIP_MIN_DURATION,
     SUPER_CLIP_MIN_GEAR,
+    SUPER_CLIP_MIN_SPEED_GAIN,
     SUPER_CLIP_RPM_STUTTER_THRESHOLD,
     SUPER_CLIP_SPEED_TOLERANCE,
     SUPER_CLIP_THROTTLE_THRESHOLD,
@@ -155,12 +157,16 @@ def detect_super_clipping_zones(
     speed_tolerance: float = SUPER_CLIP_SPEED_TOLERANCE,
     rpm_stutter_threshold: float = SUPER_CLIP_RPM_STUTTER_THRESHOLD,
     min_gear: int = SUPER_CLIP_MIN_GEAR,
+    accel_lookback: int = SUPER_CLIP_ACCEL_LOOKBACK,
+    min_speed_gain: float = SUPER_CLIP_MIN_SPEED_GAIN,
 ) -> list[SuperClippingZone]:
     """Detect super-clipping zones in *telemetry*.
 
     A zone is a contiguous region where throttle is pinned at 100 %,
     speed plateaus (low rolling standard deviation), and RPM stops
-    climbing — all in a high gear.
+    climbing — all in a high gear.  The zone must be preceded by a
+    rising-speed phase (acceleration) to distinguish genuine MGU-K
+    depletion from steady-state cruising.
 
     Args:
         telemetry: DataFrame with columns Distance, Speed, Throttle,
@@ -173,6 +179,10 @@ def detect_super_clipping_zones(
             lower or negative values indicate the engine is no longer
             accelerating.
         min_gear: Minimum gear for a valid clipping zone.
+        accel_lookback: Number of samples before the zone start to
+            check for preceding acceleration.
+        min_speed_gain: Minimum speed increase (km/h) in the lookback
+            window required to confirm a preceding acceleration phase.
 
     Returns:
         List of :class:`SuperClippingZone` dicts ordered by distance.
@@ -190,6 +200,8 @@ def detect_super_clipping_zones(
     )
     groups = (clipping != clipping.shift()).cumsum()
 
+    speeds = telemetry["Speed"].values
+
     zones: list[SuperClippingZone] = []
     for _, group in telemetry[clipping].groupby(groups):
         if len(group) < 2:
@@ -201,6 +213,16 @@ def detect_super_clipping_zones(
 
         duration = (group["Time"].iloc[-1] - group["Time"].iloc[0]).total_seconds()
         if duration < min_duration:
+            continue
+
+        # Require preceding acceleration: speed must have risen by at
+        # least *min_speed_gain* in the *accel_lookback* samples before
+        # the zone starts.  Without this, constant-speed straights and
+        # steady-state cruising produce false positives.
+        zone_start_idx = group.index[0]
+        lookback_start = max(0, zone_start_idx - accel_lookback)
+        speed_gain = speeds[zone_start_idx] - speeds[lookback_start]
+        if speed_gain < min_speed_gain:
             continue
 
         zones.append(
