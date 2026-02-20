@@ -29,6 +29,7 @@ def _make_telemetry_df(speed_vals, rpm_vals=None, distance_vals=None):
             "nGear": [7.0] * n,
             "Throttle": [100.0] * n,
             "Brake": [0] * n,
+            "Time": pd.to_timedelta([float(i) for i in range(n)], unit="s"),
         }
     )
 

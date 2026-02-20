@@ -28,6 +28,7 @@ from pitlane_agent.utils.plotting import (
     get_driver_color_safe,
     get_driver_team,
 )
+from pitlane_agent.utils.telemetry_analysis import analyze_telemetry
 
 
 # Telemetry channels mapped to subplot rows and display labels
@@ -222,6 +223,9 @@ def generate_telemetry_chart(
             }
         )
 
+        # Telemetry technique analysis (lift-and-coast, super clipping)
+        analysis = analyze_telemetry(tel)
+
         stats.append(
             {
                 "driver": driver_abbr,
@@ -235,6 +239,12 @@ def generate_telemetry_chart(
                 "sector_3_time": _format_sector_time(fastest_lap["Sector3Time"]),
                 "speed_trap": float(fastest_lap["SpeedST"]) if pd.notna(fastest_lap["SpeedST"]) else None,
                 "speed_fl": float(fastest_lap["SpeedFL"]) if pd.notna(fastest_lap["SpeedFL"]) else None,
+                "lift_coast_count": analysis["lift_coast_count"],
+                "lift_coast_duration": analysis["total_lift_coast_duration"],
+                "lift_coast_zones": analysis["lift_and_coast_zones"],
+                "clipping_count": analysis["clipping_count"],
+                "clipping_duration": analysis["total_clipping_duration"],
+                "clipping_zones": analysis["super_clipping_zones"],
             }
         )
 
