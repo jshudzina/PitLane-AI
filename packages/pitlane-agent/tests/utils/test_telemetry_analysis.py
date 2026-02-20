@@ -266,7 +266,7 @@ class TestAnalyzeTelemetry:
         df.loc[100:149, "Throttle"] = 3.0  # above 1.0, below 5.0
 
         result_default = analyze_telemetry(df)
-        result_strict = analyze_telemetry(df, throttle_threshold=1.0)
+        result_strict = analyze_telemetry(df, lc_throttle_threshold=1.0)
 
         assert result_default["lift_coast_count"] >= 1
         assert result_strict["lift_coast_count"] == 0

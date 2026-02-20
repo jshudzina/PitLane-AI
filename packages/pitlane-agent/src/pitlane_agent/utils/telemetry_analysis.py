@@ -76,17 +76,6 @@ class TelemetryAnalysisResult(TypedDict):
 _LIFT_COAST_COLUMNS = ["Distance", "Speed", "Throttle", "Brake", "RPM", "nGear", "Time"]
 _SUPER_CLIP_COLUMNS = ["Distance", "Speed", "Throttle", "RPM", "nGear", "Time"]
 
-_LC_PARAMS = {"min_duration", "throttle_threshold", "brake_threshold"}
-_SC_PARAMS = {
-    "min_duration",
-    "throttle_threshold",
-    "speed_tolerance",
-    "rpm_stutter_threshold",
-    "min_gear",
-    "accel_lookback",
-    "min_speed_gain",
-}
-
 
 def _validate_telemetry_columns(
     telemetry: pd.DataFrame,
@@ -253,22 +242,43 @@ def detect_super_clipping_zones(
 
 def analyze_telemetry(
     telemetry: pd.DataFrame,
-    **kwargs: float | int,
+    *,
+    lc_min_duration: float = LIFT_COAST_MIN_DURATION,
+    lc_throttle_threshold: float = LIFT_COAST_THROTTLE_THRESHOLD,
+    lc_brake_threshold: int = LIFT_COAST_BRAKE_THRESHOLD,
+    sc_min_duration: float = SUPER_CLIP_MIN_DURATION,
+    sc_throttle_threshold: float = SUPER_CLIP_THROTTLE_THRESHOLD,
+    sc_speed_tolerance: float = SUPER_CLIP_SPEED_TOLERANCE,
+    sc_rpm_stutter_threshold: float = SUPER_CLIP_RPM_STUTTER_THRESHOLD,
+    sc_min_gear: int = SUPER_CLIP_MIN_GEAR,
+    sc_accel_lookback: int = SUPER_CLIP_ACCEL_LOOKBACK,
+    sc_min_speed_gain: float = SUPER_CLIP_MIN_SPEED_GAIN,
 ) -> TelemetryAnalysisResult:
     """Run all telemetry detectors and return an aggregated result.
 
-    Keyword arguments are forwarded to :func:`detect_lift_and_coast_zones`
-    and :func:`detect_super_clipping_zones` where the parameter names
-    match.
+    Parameters prefixed with ``lc_`` are forwarded to
+    :func:`detect_lift_and_coast_zones`; those prefixed with ``sc_`` are
+    forwarded to :func:`detect_super_clipping_zones`.
 
     Raises:
         ValueError: If *telemetry* is empty or missing required columns.
     """
-    lc_kwargs = {k: v for k, v in kwargs.items() if k in _LC_PARAMS}
-    sc_kwargs = {k: v for k, v in kwargs.items() if k in _SC_PARAMS}
-
-    lc_zones = detect_lift_and_coast_zones(telemetry, **lc_kwargs)
-    sc_zones = detect_super_clipping_zones(telemetry, **sc_kwargs)
+    lc_zones = detect_lift_and_coast_zones(
+        telemetry,
+        min_duration=lc_min_duration,
+        throttle_threshold=lc_throttle_threshold,
+        brake_threshold=lc_brake_threshold,
+    )
+    sc_zones = detect_super_clipping_zones(
+        telemetry,
+        min_duration=sc_min_duration,
+        throttle_threshold=sc_throttle_threshold,
+        speed_tolerance=sc_speed_tolerance,
+        rpm_stutter_threshold=sc_rpm_stutter_threshold,
+        min_gear=sc_min_gear,
+        accel_lookback=sc_accel_lookback,
+        min_speed_gain=sc_min_speed_gain,
+    )
 
     lc_total = round(sum(z["duration"] for z in lc_zones), 3)
     sc_total = round(sum(z["duration"] for z in sc_zones), 3)
