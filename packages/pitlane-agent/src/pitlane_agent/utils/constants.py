@@ -137,3 +137,15 @@ PLOTLY_DARK_THEME = {
 
 # Subplot row heights ratio for telemetry (Speed, RPM, Gear, Throttle, Brake)
 TELEMETRY_ROW_HEIGHTS = [0.25, 0.25, 0.18, 0.18, 0.14]
+
+# Telemetry Analysis — Lift and Coast Detection
+LIFT_COAST_MIN_DURATION = 0.5  # seconds — minimum coast duration to flag
+LIFT_COAST_THROTTLE_THRESHOLD = 5.0  # max throttle % to consider "off"
+LIFT_COAST_BRAKE_THRESHOLD = 0  # brake must be off (0=off, 1=on)
+
+# Telemetry Analysis — Super Clipping Detection
+SUPER_CLIP_MIN_DURATION = 0.3  # seconds — minimum clipping duration to flag
+SUPER_CLIP_THROTTLE_THRESHOLD = 95.0  # min throttle % for "full throttle"
+SUPER_CLIP_SPEED_TOLERANCE = 5.0  # km/h — max rolling std for speed plateau
+SUPER_CLIP_RPM_STUTTER_THRESHOLD = 500.0  # max RPM increase per sample
+SUPER_CLIP_MIN_GEAR = 6  # clipping only occurs in high gears
