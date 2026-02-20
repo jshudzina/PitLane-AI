@@ -234,11 +234,15 @@ def generate_telemetry_chart(
                 "max_rpm": float(tel["RPM"].max()),
                 "fastest_lap_time": str(fastest_lap["LapTime"])[10:18],
                 "fastest_lap_number": int(fastest_lap["LapNumber"]),
-                "sector_1_time": _format_sector_time(fastest_lap["Sector1Time"]),
-                "sector_2_time": _format_sector_time(fastest_lap["Sector2Time"]),
-                "sector_3_time": _format_sector_time(fastest_lap["Sector3Time"]),
-                "speed_trap": float(fastest_lap["SpeedST"]) if pd.notna(fastest_lap["SpeedST"]) else None,
-                "speed_fl": float(fastest_lap["SpeedFL"]) if pd.notna(fastest_lap["SpeedFL"]) else None,
+                "sector_1_time": _format_sector_time(fastest_lap.get("Sector1Time")),
+                "sector_2_time": _format_sector_time(fastest_lap.get("Sector2Time")),
+                "sector_3_time": _format_sector_time(fastest_lap.get("Sector3Time")),
+                "speed_trap": float(fastest_lap["SpeedST"])
+                if fastest_lap.get("SpeedST") is not None and pd.notna(fastest_lap["SpeedST"])
+                else None,
+                "speed_fl": float(fastest_lap["SpeedFL"])
+                if fastest_lap.get("SpeedFL") is not None and pd.notna(fastest_lap["SpeedFL"])
+                else None,
                 "lift_coast_count": analysis["lift_coast_count"],
                 "lift_coast_duration": analysis["total_lift_coast_duration"],
                 "lift_coast_zones": analysis["lift_and_coast_zones"],
