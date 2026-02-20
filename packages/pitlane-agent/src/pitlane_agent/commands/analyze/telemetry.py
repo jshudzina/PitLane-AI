@@ -29,7 +29,16 @@ from pitlane_agent.utils.plotting import (
     get_driver_team,
 )
 
+
 # Telemetry channels mapped to subplot rows and display labels
+def _format_sector_time(sector_time: pd.Timedelta) -> str | None:
+    """Format a sector time as SS.mmm, or None if not available."""
+    if pd.isna(sector_time):
+        return None
+    total_seconds = sector_time.total_seconds()
+    return f"{total_seconds:.3f}"
+
+
 CHANNELS = [
     {"key": "Speed", "label": "Speed (km/h)", "row": 1, "fmt": ".0f", "unit": "km/h"},
     {"key": "RPM", "label": "RPM", "row": 2, "fmt": ".0f", "unit": ""},
@@ -221,6 +230,11 @@ def generate_telemetry_chart(
                 "max_rpm": float(tel["RPM"].max()),
                 "fastest_lap_time": str(fastest_lap["LapTime"])[10:18],
                 "fastest_lap_number": int(fastest_lap["LapNumber"]),
+                "sector_1_time": _format_sector_time(fastest_lap["Sector1Time"]),
+                "sector_2_time": _format_sector_time(fastest_lap["Sector2Time"]),
+                "sector_3_time": _format_sector_time(fastest_lap["Sector3Time"]),
+                "speed_trap": float(fastest_lap["SpeedST"]) if pd.notna(fastest_lap["SpeedST"]) else None,
+                "speed_fl": float(fastest_lap["SpeedFL"]) if pd.notna(fastest_lap["SpeedFL"]) else None,
             }
         )
 
