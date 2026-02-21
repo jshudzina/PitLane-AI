@@ -26,6 +26,7 @@ from pitlane_agent.utils.constants import (
     SUPER_CLIP_MIN_GEAR,
     SUPER_CLIP_MIN_SPEED_GAIN,
     SUPER_CLIP_RPM_STUTTER_THRESHOLD,
+    SUPER_CLIP_SPEED_SLOPE_THRESHOLD,
     SUPER_CLIP_SPEED_TOLERANCE,
     SUPER_CLIP_THROTTLE_THRESHOLD,
 )
@@ -155,6 +156,7 @@ def detect_super_clipping_zones(
     min_duration: float = SUPER_CLIP_MIN_DURATION,
     throttle_threshold: float = SUPER_CLIP_THROTTLE_THRESHOLD,
     speed_tolerance: float = SUPER_CLIP_SPEED_TOLERANCE,
+    speed_slope_threshold: float = SUPER_CLIP_SPEED_SLOPE_THRESHOLD,
     rpm_stutter_threshold: float = SUPER_CLIP_RPM_STUTTER_THRESHOLD,
     min_gear: int = SUPER_CLIP_MIN_GEAR,
     accel_lookback: int = SUPER_CLIP_ACCEL_LOOKBACK,
@@ -163,10 +165,10 @@ def detect_super_clipping_zones(
     """Detect super-clipping zones in *telemetry*.
 
     A zone is a contiguous region where throttle is pinned at 100 %,
-    speed plateaus (low rolling standard deviation), and RPM stops
-    climbing — all in a high gear.  The zone must be preceded by a
-    rising-speed phase (acceleration) to distinguish genuine MGU-K
-    depletion from steady-state cruising.
+    speed plateaus (low rolling standard deviation and no upward trend),
+    and RPM stops climbing — all in a high gear.  The zone must be
+    preceded by a rising-speed phase (acceleration) to distinguish
+    genuine MGU-K depletion from steady-state cruising.
 
     Args:
         telemetry: DataFrame with columns Distance, Speed, Throttle,
@@ -175,6 +177,9 @@ def detect_super_clipping_zones(
         throttle_threshold: Minimum throttle % for "full throttle".
         speed_tolerance: Maximum rolling speed std-dev (km/h) to
             consider a plateau.
+        speed_slope_threshold: Maximum rolling mean of per-sample speed
+            change (km/h/sample).  Rejects gradual acceleration that
+            passes the std check due to its low variance.
         rpm_stutter_threshold: Maximum per-sample RPM increase;
             lower or negative values indicate the engine is no longer
             accelerating.
@@ -191,11 +196,13 @@ def detect_super_clipping_zones(
 
     window = min(5, len(telemetry))
     speed_std = telemetry["Speed"].rolling(window, min_periods=1).std().fillna(0.0)
+    speed_slope = telemetry["Speed"].diff().fillna(0.0).rolling(window, min_periods=1).mean().fillna(0.0)
     rpm_diff = telemetry["RPM"].diff().fillna(0.0)
 
     clipping = (
         (telemetry["Throttle"] >= throttle_threshold)
         & (speed_std <= speed_tolerance)
+        & (speed_slope <= speed_slope_threshold)
         & (rpm_diff <= rpm_stutter_threshold)
     )
     groups = (clipping != clipping.shift()).cumsum()
@@ -249,6 +256,7 @@ def analyze_telemetry(
     sc_min_duration: float = SUPER_CLIP_MIN_DURATION,
     sc_throttle_threshold: float = SUPER_CLIP_THROTTLE_THRESHOLD,
     sc_speed_tolerance: float = SUPER_CLIP_SPEED_TOLERANCE,
+    sc_speed_slope_threshold: float = SUPER_CLIP_SPEED_SLOPE_THRESHOLD,
     sc_rpm_stutter_threshold: float = SUPER_CLIP_RPM_STUTTER_THRESHOLD,
     sc_min_gear: int = SUPER_CLIP_MIN_GEAR,
     sc_accel_lookback: int = SUPER_CLIP_ACCEL_LOOKBACK,
@@ -274,6 +282,7 @@ def analyze_telemetry(
         min_duration=sc_min_duration,
         throttle_threshold=sc_throttle_threshold,
         speed_tolerance=sc_speed_tolerance,
+        speed_slope_threshold=sc_speed_slope_threshold,
         rpm_stutter_threshold=sc_rpm_stutter_threshold,
         min_gear=sc_min_gear,
         accel_lookback=sc_accel_lookback,

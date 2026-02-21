@@ -222,6 +222,43 @@ class TestDetectSuperClippingZones:
 
         assert zones == []
 
+    def test_no_zones_during_smooth_full_throttle_acceleration(self):
+        """Full-throttle smooth acceleration must not be flagged as super clipping.
+
+        Low rolling std during gradual acceleration (consecutive samples close
+        in value) previously caused false-positive zones before the speed plateau
+        was actually reached.  The speed_slope check guards against this.
+        """
+        df = _make_telemetry(throttle=100.0, gear=8)
+        # Steady acceleration: ~0.5 km/h per sample — low variance but clear upward trend
+        df["Speed"] = np.linspace(260, 330, len(df))
+        df["RPM"] = np.linspace(9000, 12000, len(df))
+        zones = detect_super_clipping_zones(df)
+
+        assert zones == []
+
+    def test_zone_does_not_start_before_plateau(self):
+        """Zone start must not fall inside the preceding acceleration ramp."""
+        df = _make_telemetry(throttle=50.0)
+        # Rapid ramp: ~1 km/h/sample so the lookback check passes
+        ramp_start, ramp_end = 100, 180
+        df.loc[ramp_start : ramp_end - 1, "Speed"] = np.linspace(250, 330, ramp_end - ramp_start)
+        df.loc[ramp_start : ramp_end - 1, "RPM"] = np.linspace(9000, 12000, ramp_end - ramp_start)
+        df.loc[ramp_start : ramp_end - 1, "Throttle"] = 100.0
+        # Plateau immediately follows the ramp
+        df.loc[ramp_end : ramp_end + 49, "Speed"] = 330.0
+        df.loc[ramp_end : ramp_end + 49, "RPM"] = 12000.0
+        df.loc[ramp_end : ramp_end + 49, "Throttle"] = 100.0
+        df.loc[ramp_end : ramp_end + 49, "nGear"] = 8
+
+        zones = detect_super_clipping_zones(df)
+
+        plateau_start_dist = float(df["Distance"].iloc[ramp_end])
+        for zone in zones:
+            assert zone["start_distance"] >= plateau_start_dist, (
+                f"Zone started at {zone['start_distance']:.1f}m, before plateau at {plateau_start_dist:.1f}m"
+            )
+
 
 # ---------------------------------------------------------------------------
 # Aggregated analysis

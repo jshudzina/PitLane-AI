@@ -151,3 +151,4 @@ SUPER_CLIP_RPM_STUTTER_THRESHOLD = 500.0  # max RPM increase per sample
 SUPER_CLIP_MIN_GEAR = 6  # clipping only occurs in high gears
 SUPER_CLIP_ACCEL_LOOKBACK = 10  # samples to look back for preceding acceleration
 SUPER_CLIP_MIN_SPEED_GAIN = 10.0  # km/h — minimum speed rise in lookback window
+SUPER_CLIP_SPEED_SLOPE_THRESHOLD = 0.3  # km/h/sample — max rolling mean of speed change at zone entry
