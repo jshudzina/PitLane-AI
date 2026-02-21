@@ -6,6 +6,7 @@ PitLane-AI is available as three Python packages on PyPI. You can install just t
 
 - Python 3.12, 3.13, or 3.14
 - pip or [uv](https://docs.astral.sh/uv/) package manager
+- **Anthropic API key** — Required to run the Claude-powered agent. Get one at [console.anthropic.com](https://console.anthropic.com).
 
 ## Install Options
 

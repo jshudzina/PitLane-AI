@@ -4,6 +4,20 @@ PitLane-AI can be configured using environment variables, command-line flags, an
 
 ## Environment Variables
 
+### Required
+
+#### ANTHROPIC_API_KEY
+
+Your Anthropic API key, used to authenticate with Claude.
+
+- **Type**: String
+- **Required**: Yes — the agent will not start without this
+- **Where to get it**: [console.anthropic.com](https://console.anthropic.com)
+- **Example**:
+  ```bash
+  export ANTHROPIC_API_KEY=sk-ant-...
+  ```
+
 ### General Settings
 
 #### PITLANE_TRACING_ENABLED

@@ -2,6 +2,17 @@
 
 Get up and running with PitLane-AI in minutes. This guide will walk you through your first F1 analysis using both the CLI and web interface.
 
+## Before You Begin
+
+PitLane-AI uses Claude to power its analysis. You'll need an Anthropic API key:
+
+1. Get a key at [console.anthropic.com](https://console.anthropic.com)
+2. Set it in your environment before running any commands:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
 ## CLI Quick Start
 
 ### 1. Install
