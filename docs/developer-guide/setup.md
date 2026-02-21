@@ -129,15 +129,17 @@ Visit [http://localhost:8000](http://localhost:8000)
 
 ## Environment Configuration
 
-Create `.env` file (optional):
+Set your Anthropic API key before running the project. Get a key at [console.anthropic.com](https://console.anthropic.com).
+
+You can export it directly or create a `.env` file:
 
 ```bash
-# Tracing
+# Required: Anthropic API key for Claude
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Tracing (optional)
 PITLANE_TRACING_ENABLED=1
 PITLANE_SPAN_PROCESSOR=simple
-
-# API Keys (if needed for extensions)
-ANTHROPIC_API_KEY=sk-ant-...
 
 # Cache directory (optional)
 PITLANE_CACHE_DIR=~/.pitlane/cache

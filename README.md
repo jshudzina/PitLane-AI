@@ -10,6 +10,17 @@ AI-powered Formula 1 data analysis - from lap times and tyre strategy to race te
 - **Driver Information** - Query F1 driver rosters, codes, and metadata from 1950 to present
 - **Event Schedules** - Browse complete season calendars with session timings and locations
 
+## Prerequisites
+
+PitLane-AI uses [Claude](https://www.anthropic.com/claude) as its AI backbone. You'll need an Anthropic API key to run the agent.
+
+1. Get an API key at [console.anthropic.com](https://console.anthropic.com)
+2. Set it in your environment:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
 ## Setup
 
 This project uses [uv](https://docs.astral.sh/uv/) for Python package management in a monorepo workspace.
