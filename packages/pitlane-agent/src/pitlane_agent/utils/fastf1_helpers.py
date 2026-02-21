@@ -262,6 +262,29 @@ def build_data_path(
     return workspace_dir / "data" / filename
 
 
+def pick_lap_by_spec(driver_laps, spec: str | int) -> Lap:
+    """Pick a lap by specification string or number.
+
+    Args:
+        driver_laps: FastF1 LapsDataFrame filtered to a single driver
+        spec: Either "best" (picks fastest lap) or an integer lap number
+
+    Returns:
+        The matching FastF1 Lap object
+
+    Raises:
+        ValueError: If the specified lap number is not found, with available laps listed
+    """
+    if str(spec) == "best":
+        return driver_laps.pick_fastest()
+    n = int(spec)
+    matching = driver_laps[driver_laps["LapNumber"] == n]
+    if matching.empty:
+        available = sorted(driver_laps["LapNumber"].dropna().astype(int).unique().tolist())
+        raise ValueError(f"Lap {n} not found for this driver. Available lap numbers: {available}")
+    return matching.iloc[0]
+
+
 def get_merged_telemetry(lap: Lap, required_channels: list[str] | None = None) -> Telemetry:
     """Get merged telemetry with validation.
 

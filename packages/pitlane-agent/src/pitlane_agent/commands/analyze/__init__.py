@@ -5,6 +5,7 @@ lap times, tyre strategies, speed traces, position changes, and championship pos
 """
 
 from pitlane_agent.commands.analyze.championship_possibilities import generate_championship_possibilities_chart
+from pitlane_agent.commands.analyze.driver_lap_compare import generate_multi_lap_chart, generate_year_compare_chart
 from pitlane_agent.commands.analyze.gear_shifts_map import generate_gear_shifts_map_chart
 from pitlane_agent.commands.analyze.lap_times import generate_lap_times_chart
 from pitlane_agent.commands.analyze.lap_times_distribution import generate_lap_times_distribution_chart
@@ -19,9 +20,11 @@ __all__ = [
     "generate_gear_shifts_map_chart",
     "generate_lap_times_chart",
     "generate_lap_times_distribution_chart",
+    "generate_multi_lap_chart",
     "generate_tyre_strategy_chart",
     "generate_speed_trace_chart",
     "generate_telemetry_chart",
     "generate_position_changes_chart",
     "generate_track_map_chart",
+    "generate_year_compare_chart",
 ]

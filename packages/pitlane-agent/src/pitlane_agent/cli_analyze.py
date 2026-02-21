@@ -14,11 +14,13 @@ from pitlane_agent.commands.analyze import (
     generate_gear_shifts_map_chart,
     generate_lap_times_chart,
     generate_lap_times_distribution_chart,
+    generate_multi_lap_chart,
     generate_position_changes_chart,
     generate_speed_trace_chart,
     generate_telemetry_chart,
     generate_track_map_chart,
     generate_tyre_strategy_chart,
+    generate_year_compare_chart,
 )
 from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
 from pitlane_agent.utils.fastf1_helpers import validate_session_or_test
@@ -512,6 +514,170 @@ def championship_possibilities(workspace_id: str, year: int, championship: str, 
         # Add session info to result
         result["workspace_id"] = workspace_id
 
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@analyze.command("multi-lap")
+@click.option("--workspace-id", required=True, help="Workspace ID")
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
+@click.option(
+    "--session",
+    "session_type",
+    type=str,
+    default="Q",
+    show_default=True,
+    help="Session type: R, Q, FP1, FP2, FP3, S, SQ",
+)
+@click.option("--driver", required=True, help="Driver abbreviation (e.g., VER)")
+@click.option(
+    "--lap",
+    "laps",
+    multiple=True,
+    required=True,
+    help="Lap specifier: 'best' for fastest lap or an integer lap number. Specify 2-6 times.",
+)
+@click.option(
+    "--annotate-corners",
+    is_flag=True,
+    default=False,
+    help="Add corner markers and labels to the chart",
+)
+def multi_lap(
+    workspace_id: str,
+    year: int,
+    gp: str,
+    session_type: str,
+    driver: str,
+    laps: tuple[str, ...],
+    annotate_corners: bool,
+):
+    """Compare multiple laps for a single driver within a session.
+
+    Each --lap value is either 'best' (fastest lap) or an integer lap number.
+    Useful for comparing a driver's Q1/Q3 attempts, or stint pace across a race.
+
+    Example: pitlane analyze multi-lap --year 2024 --gp Monaco --session Q
+             --driver VER --lap best --lap 3
+    """
+    if not workspace_exists(workspace_id):
+        click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
+        sys.exit(1)
+
+    if len(laps) < 2:
+        click.echo(json.dumps({"error": "multi-lap requires at least 2 --lap values"}), err=True)
+        sys.exit(1)
+    if len(laps) > 6:
+        click.echo(json.dumps({"error": "multi-lap supports at most 6 --lap values for readability"}), err=True)
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(workspace_id)
+
+    # Parse lap specs: coerce numeric strings to int, keep "best" as string
+    lap_specs: list[str | int] = []
+    for spec in laps:
+        if spec.lower() == "best":
+            lap_specs.append("best")
+        else:
+            try:
+                lap_specs.append(int(spec))
+            except ValueError:
+                click.echo(
+                    json.dumps({"error": f"Invalid --lap value '{spec}': must be 'best' or an integer"}), err=True
+                )
+                sys.exit(1)
+
+    try:
+        result = generate_multi_lap_chart(
+            year=year,
+            gp=gp,
+            session_type=session_type,
+            driver=driver,
+            lap_specs=lap_specs,
+            workspace_dir=workspace_path,
+            annotate_corners=annotate_corners,
+        )
+        result["workspace_id"] = workspace_id
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@analyze.command("year-compare")
+@click.option("--workspace-id", required=True, help="Workspace ID")
+@click.option(
+    "--gp",
+    type=str,
+    required=True,
+    help="Grand Prix name (e.g., Monza) — must exist in all specified years",
+)
+@click.option(
+    "--session",
+    "session_type",
+    type=str,
+    default="Q",
+    show_default=True,
+    help="Session type: R, Q, FP1, FP2, FP3, S, SQ",
+)
+@click.option("--driver", required=True, help="Driver abbreviation (e.g., VER)")
+@click.option(
+    "--years",
+    multiple=True,
+    required=True,
+    type=int,
+    help="Season year to include. Specify 2-6 times (e.g., --years 2022 --years 2024).",
+)
+@click.option(
+    "--annotate-corners",
+    is_flag=True,
+    default=False,
+    help="Add corner markers and labels to the chart",
+)
+def year_compare(
+    workspace_id: str,
+    gp: str,
+    session_type: str,
+    driver: str,
+    years: tuple[int, ...],
+    annotate_corners: bool,
+):
+    """Compare a driver's best lap at the same track across multiple seasons.
+
+    Useful for analysing the impact of regulation changes on lap time, braking,
+    speed profiles, and driving technique across eras.
+
+    Example: pitlane analyze year-compare --gp Monza --session Q
+             --driver VER --years 2022 --years 2024
+    """
+    if not workspace_exists(workspace_id):
+        click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
+        sys.exit(1)
+
+    if len(years) < 2:
+        click.echo(json.dumps({"error": "year-compare requires at least 2 --years values"}), err=True)
+        sys.exit(1)
+    if len(years) > 6:
+        click.echo(json.dumps({"error": "year-compare supports at most 6 --years values for readability"}), err=True)
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(workspace_id)
+
+    try:
+        result = generate_year_compare_chart(
+            gp=gp,
+            session_type=session_type,
+            driver=driver,
+            years=list(years),
+            workspace_dir=workspace_path,
+            annotate_corners=annotate_corners,
+        )
+        result["workspace_id"] = workspace_id
         click.echo(json.dumps(result, indent=2))
 
     except Exception as e:
