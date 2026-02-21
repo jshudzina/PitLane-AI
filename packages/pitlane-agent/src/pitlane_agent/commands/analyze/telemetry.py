@@ -46,6 +46,7 @@ CHANNELS = [
     {"key": "nGear", "label": "Gear", "row": 3, "fmt": ".0f", "unit": ""},
     {"key": "Throttle", "label": "Throttle (%)", "row": 4, "fmt": ".0f", "unit": "%"},
     {"key": "Brake", "label": "Brake", "row": 5, "fmt": ".0f", "unit": ""},
+    {"key": "SuperClip", "label": "Super Clip", "row": 6, "fmt": ".0f", "unit": ""},
 ]
 
 
@@ -226,6 +227,12 @@ def generate_telemetry_chart(
         # Telemetry technique analysis (lift-and-coast, super clipping)
         analysis = analyze_telemetry(tel)
 
+        # Add derived SuperClip channel: 1 inside a clipping zone, 0 elsewhere
+        tel["SuperClip"] = 0
+        for zone in analysis["super_clipping_zones"]:
+            mask = (tel["Distance"] >= zone["start_distance"]) & (tel["Distance"] <= zone["end_distance"])
+            tel.loc[mask, "SuperClip"] = 1
+
         stats.append(
             {
                 "driver": driver_abbr,
@@ -257,7 +264,7 @@ def generate_telemetry_chart(
 
     # Build Plotly figure with shared X axis
     fig = make_subplots(
-        rows=5,
+        rows=6,
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.03,
@@ -278,6 +285,7 @@ def generate_telemetry_chart(
 
         for channel in CHANNELS:
             customdata = _build_customdata(drv, channel["key"], tel, merged, other_drivers)
+            fill = "tozeroy" if channel["key"] == "SuperClip" else None
 
             fig.add_trace(
                 go.Scatter(
@@ -288,6 +296,7 @@ def generate_telemetry_chart(
                     showlegend=(channel["row"] == 1),
                     line={"color": color, "width": style["linewidth"], "dash": dash},
                     mode="lines",
+                    fill=fill,
                     customdata=customdata,
                     hovertemplate=_build_hover_template(drv, channel, other_drivers),
                 ),
@@ -306,7 +315,7 @@ def generate_telemetry_chart(
                 label = f"{number}{letter}"
                 dist = float(corner["Distance"])
 
-                for row in range(1, 6):
+                for row in range(1, 7):
                     fig.add_vline(
                         x=dist,
                         line={"color": PLOTLY_DARK_THEME["corner_line_color"], "width": 1, "dash": "dash"},
@@ -344,11 +353,11 @@ def generate_telemetry_chart(
             "bordercolor": "#555555",
             "borderwidth": 1,
         },
-        height=1000,
+        height=1100,
     )
 
     # Style all Y axes
-    for i in range(1, 6):
+    for i in range(1, 7):
         yaxis_key = f"yaxis{i}" if i > 1 else "yaxis"
         fig.update_layout(
             **{
@@ -363,10 +372,12 @@ def generate_telemetry_chart(
     fig.update_yaxes(dtick=2000, row=2, col=1)
     # Fix Gear axis to integer ticks (row 3 = yaxis3)
     fig.update_yaxes(dtick=1, row=3, col=1)
+    # Fix SuperClip axis to binary On/Off labels (row 6 = yaxis6)
+    fig.update_yaxes(range=[-0.1, 1.1], dtick=1, tickvals=[0, 1], ticktext=["Off", "On"], row=6, col=1)
 
     # Style X axes — only label the bottom one
     fig.update_xaxes(gridcolor=PLOTLY_DARK_THEME["gridcolor"])
-    fig.update_xaxes(title_text="Distance (m)", row=5, col=1)
+    fig.update_xaxes(title_text="Distance (m)", row=6, col=1)
 
     # Save as self-contained HTML
     output_path.parent.mkdir(parents=True, exist_ok=True)

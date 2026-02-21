@@ -135,8 +135,8 @@ PLOTLY_DARK_THEME = {
     "corner_label_color": "rgba(200,200,200,0.7)",
 }
 
-# Subplot row heights ratio for telemetry (Speed, RPM, Gear, Throttle, Brake)
-TELEMETRY_ROW_HEIGHTS = [0.25, 0.25, 0.18, 0.18, 0.14]
+# Subplot row heights ratio for telemetry (Speed, RPM, Gear, Throttle, Brake, SuperClip)
+TELEMETRY_ROW_HEIGHTS = [0.24, 0.24, 0.17, 0.17, 0.12, 0.06]
 
 # Telemetry Analysis — Lift and Coast Detection
 LIFT_COAST_MIN_DURATION = 0.5  # seconds — minimum coast duration to flag
