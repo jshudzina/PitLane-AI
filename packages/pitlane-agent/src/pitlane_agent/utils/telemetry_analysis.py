@@ -226,9 +226,11 @@ def detect_super_clipping_zones(
         # least *min_speed_gain* in the *accel_lookback* samples before
         # the zone starts.  Without this, constant-speed straights and
         # steady-state cruising produce false positives.
-        zone_start_idx = group.index[0]
-        lookback_start = max(0, zone_start_idx - accel_lookback)
-        speed_gain = speeds[zone_start_idx] - speeds[lookback_start]
+        # Use positional indexing to avoid treating a pandas label as an
+        # array offset (breaks on non-default-integer or sliced indices).
+        zone_start_pos = telemetry.index.get_loc(group.index[0])
+        lookback_start_pos = max(0, zone_start_pos - accel_lookback)
+        speed_gain = speeds[zone_start_pos] - speeds[lookback_start_pos]
         if speed_gain < min_speed_gain:
             continue
 

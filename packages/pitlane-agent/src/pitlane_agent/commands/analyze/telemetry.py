@@ -31,15 +31,19 @@ from pitlane_agent.utils.plotting import (
 from pitlane_agent.utils.telemetry_analysis import analyze_telemetry
 
 
-# Telemetry channels mapped to subplot rows and display labels
 def _format_sector_time(sector_time: pd.Timedelta) -> str | None:
-    """Format a sector time as SS.mmm, or None if not available."""
+    """Format a sector time as SS.mmm or M:SS.mmm, or None if not available."""
     if pd.isna(sector_time):
         return None
     total_seconds = sector_time.total_seconds()
-    return f"{total_seconds:.3f}"
+    minutes = int(total_seconds // 60)
+    secs = total_seconds % 60
+    if minutes > 0:
+        return f"{minutes}:{secs:06.3f}"
+    return f"{secs:.3f}"
 
 
+# Telemetry channels mapped to subplot rows and display labels
 CHANNELS = [
     {"key": "Speed", "label": "Speed (km/h)", "row": 1, "fmt": ".0f", "unit": "km/h"},
     {"key": "RPM", "label": "RPM", "row": 2, "fmt": ".0f", "unit": ""},
@@ -244,12 +248,8 @@ def generate_telemetry_chart(
                 "sector_1_time": _format_sector_time(fastest_lap.get("Sector1Time")),
                 "sector_2_time": _format_sector_time(fastest_lap.get("Sector2Time")),
                 "sector_3_time": _format_sector_time(fastest_lap.get("Sector3Time")),
-                "speed_trap": float(fastest_lap["SpeedST"])
-                if fastest_lap.get("SpeedST") is not None and pd.notna(fastest_lap["SpeedST"])
-                else None,
-                "speed_fl": float(fastest_lap["SpeedFL"])
-                if fastest_lap.get("SpeedFL") is not None and pd.notna(fastest_lap["SpeedFL"])
-                else None,
+                "speed_trap": float(fastest_lap["SpeedST"]) if pd.notna(fastest_lap.get("SpeedST")) else None,
+                "speed_fl": float(fastest_lap["SpeedFL"]) if pd.notna(fastest_lap.get("SpeedFL")) else None,
                 "lift_coast_count": analysis["lift_coast_count"],
                 "lift_coast_duration": analysis["total_lift_coast_duration"],
                 "lift_coast_zones": analysis["lift_and_coast_zones"],
@@ -264,7 +264,7 @@ def generate_telemetry_chart(
 
     # Build Plotly figure with shared X axis
     fig = make_subplots(
-        rows=6,
+        rows=len(CHANNELS),
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.03,
@@ -315,7 +315,7 @@ def generate_telemetry_chart(
                 label = f"{number}{letter}"
                 dist = float(corner["Distance"])
 
-                for row in range(1, 7):
+                for row in range(1, len(CHANNELS) + 1):
                     fig.add_vline(
                         x=dist,
                         line={"color": PLOTLY_DARK_THEME["corner_line_color"], "width": 1, "dash": "dash"},
@@ -357,7 +357,7 @@ def generate_telemetry_chart(
     )
 
     # Style all Y axes
-    for i in range(1, 7):
+    for i in range(1, len(CHANNELS) + 1):
         yaxis_key = f"yaxis{i}" if i > 1 else "yaxis"
         fig.update_layout(
             **{
@@ -372,12 +372,13 @@ def generate_telemetry_chart(
     fig.update_yaxes(dtick=2000, row=2, col=1)
     # Fix Gear axis to integer ticks (row 3 = yaxis3)
     fig.update_yaxes(dtick=1, row=3, col=1)
-    # Fix SuperClip axis to binary On/Off labels (row 6 = yaxis6)
-    fig.update_yaxes(range=[-0.1, 1.1], dtick=1, tickvals=[0, 1], ticktext=["Off", "On"], row=6, col=1)
+    # Fix SuperClip axis to binary On/Off labels
+    _superclip_row = next(ch["row"] for ch in CHANNELS if ch["key"] == "SuperClip")
+    fig.update_yaxes(range=[-0.1, 1.1], dtick=1, tickvals=[0, 1], ticktext=["Off", "On"], row=_superclip_row, col=1)
 
     # Style X axes — only label the bottom one
     fig.update_xaxes(gridcolor=PLOTLY_DARK_THEME["gridcolor"])
-    fig.update_xaxes(title_text="Distance (m)", row=6, col=1)
+    fig.update_xaxes(title_text="Distance (m)", row=len(CHANNELS), col=1)
 
     # Save as self-contained HTML
     output_path.parent.mkdir(parents=True, exist_ok=True)
