@@ -29,6 +29,8 @@ def _make_telemetry_df(speed_vals, rpm_vals=None, distance_vals=None):
             "nGear": [7.0] * n,
             "Throttle": [100.0] * n,
             "Brake": [0] * n,
+            "SuperClip": [0] * n,
+            "Time": pd.to_timedelta([float(i) for i in range(n)], unit="s"),
         }
     )
 
@@ -39,6 +41,14 @@ def _make_all_telemetry(drivers_speeds: dict[str, list[float]]):
     for drv, speeds in drivers_speeds.items():
         entries.append({"driver": drv, "telemetry": _make_telemetry_df(speeds)})
     return entries
+
+
+def _make_mock_fastest_lap(data: dict) -> MagicMock:
+    """Create a MagicMock that supports both bracket access and .get()."""
+    mock = MagicMock()
+    mock.__getitem__ = lambda self, key: data[key]
+    mock.get = lambda key, default=None: data.get(key, default)
+    return mock
 
 
 CHANNEL_KEYS = [ch["key"] for ch in CHANNELS]
@@ -216,11 +226,17 @@ class TestGenerateTelemetryChart:
             rpm_vals=[10000, 11000, 12000, 11500, 10500],
         )
 
-        mock_fastest_lap = MagicMock()
-        mock_fastest_lap.__getitem__ = lambda self, key: {
-            "LapTime": pd.Timedelta(seconds=89.5),
-            "LapNumber": 12,
-        }[key]
+        mock_fastest_lap = _make_mock_fastest_lap(
+            {
+                "LapTime": pd.Timedelta(seconds=89.5),
+                "LapNumber": 12,
+                "Sector1Time": pd.Timedelta(seconds=28.123),
+                "Sector2Time": pd.Timedelta(seconds=30.456),
+                "Sector3Time": pd.Timedelta(seconds=30.921),
+                "SpeedST": 315.0,
+                "SpeedFL": 298.0,
+            }
+        )
 
         mock_car_data = MagicMock()
         mock_car_data.add_distance.return_value = mock_telemetry
@@ -246,6 +262,11 @@ class TestGenerateTelemetryChart:
         assert len(result["drivers_compared"]) == 2
         assert len(result["statistics"]) == 2
         assert result["statistics"][0]["max_speed"] == 310.0
+        assert result["statistics"][0]["sector_1_time"] == "28.123"
+        assert result["statistics"][0]["sector_2_time"] == "30.456"
+        assert result["statistics"][0]["sector_3_time"] == "30.921"
+        assert result["statistics"][0]["speed_trap"] == 315.0
+        assert result["statistics"][0]["speed_fl"] == 298.0
         assert result["corners_annotated"] is False
         assert output_file.exists()
 
@@ -284,11 +305,17 @@ class TestGenerateTelemetryChart:
 
         mock_telemetry = _make_telemetry_df([250, 280, 310])
 
-        mock_fastest_lap = MagicMock()
-        mock_fastest_lap.__getitem__ = lambda self, key: {
-            "LapTime": pd.Timedelta(seconds=89.5),
-            "LapNumber": 12,
-        }[key]
+        mock_fastest_lap = _make_mock_fastest_lap(
+            {
+                "LapTime": pd.Timedelta(seconds=89.5),
+                "LapNumber": 12,
+                "Sector1Time": pd.Timedelta(seconds=28.123),
+                "Sector2Time": pd.Timedelta(seconds=30.456),
+                "Sector3Time": pd.Timedelta(seconds=30.921),
+                "SpeedST": 315.0,
+                "SpeedFL": 298.0,
+            }
+        )
 
         mock_car_data = MagicMock()
         mock_car_data.add_distance.return_value = mock_telemetry
@@ -340,11 +367,17 @@ class TestGenerateTelemetryChart:
 
         mock_telemetry = _make_telemetry_df([250, 280, 310, 290, 270])
 
-        mock_fastest_lap = MagicMock()
-        mock_fastest_lap.__getitem__ = lambda self, key: {
-            "LapTime": pd.Timedelta(seconds=89.5),
-            "LapNumber": 12,
-        }[key]
+        mock_fastest_lap = _make_mock_fastest_lap(
+            {
+                "LapTime": pd.Timedelta(seconds=89.5),
+                "LapNumber": 12,
+                "Sector1Time": pd.Timedelta(seconds=28.123),
+                "Sector2Time": pd.Timedelta(seconds=30.456),
+                "Sector3Time": pd.Timedelta(seconds=30.921),
+                "SpeedST": 315.0,
+                "SpeedFL": 298.0,
+            }
+        )
 
         mock_car_data = MagicMock()
         mock_car_data.add_distance.return_value = mock_telemetry
@@ -394,11 +427,17 @@ class TestGenerateTelemetryChart:
 
         mock_telemetry = _make_telemetry_df([250, 280, 310])
 
-        mock_fastest_lap = MagicMock()
-        mock_fastest_lap.__getitem__ = lambda self, key: {
-            "LapTime": pd.Timedelta(seconds=89.5),
-            "LapNumber": 12,
-        }[key]
+        mock_fastest_lap = _make_mock_fastest_lap(
+            {
+                "LapTime": pd.Timedelta(seconds=89.5),
+                "LapNumber": 12,
+                "Sector1Time": pd.Timedelta(seconds=28.123),
+                "Sector2Time": pd.Timedelta(seconds=30.456),
+                "Sector3Time": pd.Timedelta(seconds=30.921),
+                "SpeedST": 315.0,
+                "SpeedFL": 298.0,
+            }
+        )
 
         mock_car_data = MagicMock()
         mock_car_data.add_distance.return_value = mock_telemetry

@@ -18,6 +18,10 @@ def rewrite_workspace_paths(text: str, session_id: str) -> str:
       /Users/.../.pitlane/workspaces/{session-id}/charts/lap_times.png
       → /charts/{session-id}/lap_times.png
 
+    Also handles bare /charts/filename references (missing session ID) that the
+    LLM may produce when it doesn't use the full workspace path:
+      /charts/lap_times.png → /charts/{session-id}/lap_times.png
+
     Security: Only rewrites paths for the current session to prevent data leaks.
 
     Args:
@@ -55,6 +59,16 @@ def rewrite_workspace_paths(text: str, session_id: str) -> str:
     if rewrite_count > 0:
         logger.debug(f"Rewrote {rewrite_count} workspace path(s) for session {session_id}")
 
+    # Fallback: catch bare /charts/filename references missing session ID.
+    # The LLM sometimes outputs "/charts/file.png" instead of the full workspace path.
+    # Rewrite these to "/charts/{session_id}/file.png" so they hit the serving route.
+    # Negative lookbehind ensures we don't match /charts/ embedded in absolute filesystem paths.
+    bare_pattern = r"(?<![/\w])(/charts/)(?![a-fA-F0-9\-]{36}/)([a-zA-Z0-9_\-\.]+\.(?:png|jpg|jpeg|svg|webp|html))"
+    bare_count = len(re.findall(bare_pattern, result))
+    if bare_count > 0:
+        result = re.sub(bare_pattern, rf"\g<1>{session_id}/\g<2>", result)
+        logger.debug(f"Rewrote {bare_count} bare chart path(s) for session {session_id}")
+
     return result
 
 
@@ -81,8 +95,10 @@ def html_charts_to_iframes(text: str) -> str:
     md_pattern = r"!\[([^\]]*)\]\((/charts/[^\s\)]+\.html)\)"
     text = re.sub(
         md_pattern,
-        r'<iframe src="\2" title="\1"'
-        r' sandbox="allow-scripts allow-same-origin"></iframe>',
+        r'<div class="chart-container">'
+        r'<a class="chart-open-link" href="\2" target="_blank" rel="noopener noreferrer">&#8599; Open in new tab</a>'
+        r'<iframe src="\2" title="\1" sandbox="allow-scripts allow-same-origin"></iframe>'
+        r"</div>",
         text,
     )
 
@@ -90,8 +106,10 @@ def html_charts_to_iframes(text: str) -> str:
     img_pattern = r'<img[^>]*src="(/charts/[^"]+\.html)"[^>]*/?\s*>'
     text = re.sub(
         img_pattern,
-        r'<iframe src="\1"'
-        r' sandbox="allow-scripts allow-same-origin"></iframe>',
+        r'<div class="chart-container">'
+        r'<a class="chart-open-link" href="\1" target="_blank" rel="noopener noreferrer">&#8599; Open in new tab</a>'
+        r'<iframe src="\1" sandbox="allow-scripts allow-same-origin"></iframe>'
+        r"</div>",
         text,
     )
 

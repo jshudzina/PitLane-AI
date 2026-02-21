@@ -28,6 +28,20 @@ from pitlane_agent.utils.plotting import (
     get_driver_color_safe,
     get_driver_team,
 )
+from pitlane_agent.utils.telemetry_analysis import analyze_telemetry
+
+
+def _format_sector_time(sector_time: pd.Timedelta) -> str | None:
+    """Format a sector time as SS.mmm or M:SS.mmm, or None if not available."""
+    if pd.isna(sector_time):
+        return None
+    total_seconds = sector_time.total_seconds()
+    minutes = int(total_seconds // 60)
+    secs = total_seconds % 60
+    if minutes > 0:
+        return f"{minutes}:{secs:06.3f}"
+    return f"{secs:.3f}"
+
 
 # Telemetry channels mapped to subplot rows and display labels
 CHANNELS = [
@@ -36,6 +50,7 @@ CHANNELS = [
     {"key": "nGear", "label": "Gear", "row": 3, "fmt": ".0f", "unit": ""},
     {"key": "Throttle", "label": "Throttle (%)", "row": 4, "fmt": ".0f", "unit": "%"},
     {"key": "Brake", "label": "Brake", "row": 5, "fmt": ".0f", "unit": ""},
+    {"key": "SuperClip", "label": "Super Clip", "row": 6, "fmt": ".0f", "unit": ""},
 ]
 
 
@@ -213,6 +228,15 @@ def generate_telemetry_chart(
             }
         )
 
+        # Telemetry technique analysis (lift-and-coast, super clipping)
+        analysis = analyze_telemetry(tel)
+
+        # Add derived SuperClip channel: 1 inside a clipping zone, 0 elsewhere
+        tel["SuperClip"] = 0
+        for zone in analysis["super_clipping_zones"]:
+            mask = (tel["Distance"] >= zone["start_distance"]) & (tel["Distance"] <= zone["end_distance"])
+            tel.loc[mask, "SuperClip"] = 1
+
         stats.append(
             {
                 "driver": driver_abbr,
@@ -221,6 +245,17 @@ def generate_telemetry_chart(
                 "max_rpm": float(tel["RPM"].max()),
                 "fastest_lap_time": str(fastest_lap["LapTime"])[10:18],
                 "fastest_lap_number": int(fastest_lap["LapNumber"]),
+                "sector_1_time": _format_sector_time(fastest_lap.get("Sector1Time")),
+                "sector_2_time": _format_sector_time(fastest_lap.get("Sector2Time")),
+                "sector_3_time": _format_sector_time(fastest_lap.get("Sector3Time")),
+                "speed_trap": float(fastest_lap["SpeedST"]) if pd.notna(fastest_lap.get("SpeedST")) else None,
+                "speed_fl": float(fastest_lap["SpeedFL"]) if pd.notna(fastest_lap.get("SpeedFL")) else None,
+                "lift_coast_count": analysis["lift_coast_count"],
+                "lift_coast_duration": analysis["total_lift_coast_duration"],
+                "lift_coast_zones": analysis["lift_and_coast_zones"],
+                "clipping_count": analysis["clipping_count"],
+                "clipping_duration": analysis["total_clipping_duration"],
+                "clipping_zones": analysis["super_clipping_zones"],
             }
         )
 
@@ -229,7 +264,7 @@ def generate_telemetry_chart(
 
     # Build Plotly figure with shared X axis
     fig = make_subplots(
-        rows=5,
+        rows=len(CHANNELS),
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.03,
@@ -250,6 +285,7 @@ def generate_telemetry_chart(
 
         for channel in CHANNELS:
             customdata = _build_customdata(drv, channel["key"], tel, merged, other_drivers)
+            fill = "tozeroy" if channel["key"] == "SuperClip" else None
 
             fig.add_trace(
                 go.Scatter(
@@ -260,6 +296,7 @@ def generate_telemetry_chart(
                     showlegend=(channel["row"] == 1),
                     line={"color": color, "width": style["linewidth"], "dash": dash},
                     mode="lines",
+                    fill=fill,
                     customdata=customdata,
                     hovertemplate=_build_hover_template(drv, channel, other_drivers),
                 ),
@@ -278,7 +315,7 @@ def generate_telemetry_chart(
                 label = f"{number}{letter}"
                 dist = float(corner["Distance"])
 
-                for row in range(1, 6):
+                for row in range(1, len(CHANNELS) + 1):
                     fig.add_vline(
                         x=dist,
                         line={"color": PLOTLY_DARK_THEME["corner_line_color"], "width": 1, "dash": "dash"},
@@ -316,11 +353,11 @@ def generate_telemetry_chart(
             "bordercolor": "#555555",
             "borderwidth": 1,
         },
-        height=1000,
+        height=1100,
     )
 
     # Style all Y axes
-    for i in range(1, 6):
+    for i in range(1, len(CHANNELS) + 1):
         yaxis_key = f"yaxis{i}" if i > 1 else "yaxis"
         fig.update_layout(
             **{
@@ -335,10 +372,13 @@ def generate_telemetry_chart(
     fig.update_yaxes(dtick=2000, row=2, col=1)
     # Fix Gear axis to integer ticks (row 3 = yaxis3)
     fig.update_yaxes(dtick=1, row=3, col=1)
+    # Fix SuperClip axis to binary On/Off labels
+    _superclip_row = next(ch["row"] for ch in CHANNELS if ch["key"] == "SuperClip")
+    fig.update_yaxes(range=[-0.1, 1.1], dtick=1, tickvals=[0, 1], ticktext=["Off", "On"], row=_superclip_row, col=1)
 
     # Style X axes — only label the bottom one
     fig.update_xaxes(gridcolor=PLOTLY_DARK_THEME["gridcolor"])
-    fig.update_xaxes(title_text="Distance (m)", row=5, col=1)
+    fig.update_xaxes(title_text="Distance (m)", row=len(CHANNELS), col=1)
 
     # Save as self-contained HTML
     output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -176,6 +176,48 @@ class TestRewriteWorkspacePaths:
         # Path should be rewritten
         assert f"/charts/{test_session_id}/lap_times.png'" in result
 
+    def test_bare_chart_path_gets_session_id(self, test_session_id):
+        """Test that bare /charts/filename paths get session ID inserted."""
+        text = "![Speed Trace](/charts/speed_trace_2025_test1_day2_HAM_SAI.png)"
+
+        result = rewrite_workspace_paths(text, test_session_id)
+
+        assert f"/charts/{test_session_id}/speed_trace_2025_test1_day2_HAM_SAI.png" in result
+
+    def test_bare_chart_path_html_extension(self, test_session_id):
+        """Test that bare /charts/filename.html paths get session ID inserted."""
+        text = "![Telemetry](/charts/telemetry_2024_monaco_Q_HAM_VER.html)"
+
+        result = rewrite_workspace_paths(text, test_session_id)
+
+        assert f"/charts/{test_session_id}/telemetry_2024_monaco_Q_HAM_VER.html" in result
+
+    def test_bare_chart_path_not_applied_when_session_id_present(self, test_session_id):
+        """Test that already-correct /charts/{session_id}/filename paths are not double-rewritten."""
+        text = f"![Chart](/charts/{test_session_id}/lap_times.png)"
+
+        result = rewrite_workspace_paths(text, test_session_id)
+
+        # Should remain unchanged (session ID already present)
+        assert result == text
+
+    def test_bare_chart_path_in_img_tag(self, test_session_id):
+        """Test that bare chart paths in HTML img tags get session ID inserted."""
+        text = '<img src="/charts/speed_trace.png" alt="chart">'
+
+        result = rewrite_workspace_paths(text, test_session_id)
+
+        assert f"/charts/{test_session_id}/speed_trace.png" in result
+
+    def test_bare_chart_path_multiple_occurrences(self, test_session_id):
+        """Test that multiple bare chart paths are all rewritten."""
+        text = "![Chart 1](/charts/lap_times.png)\n![Chart 2](/charts/speed_trace.png)"
+
+        result = rewrite_workspace_paths(text, test_session_id)
+
+        assert f"/charts/{test_session_id}/lap_times.png" in result
+        assert f"/charts/{test_session_id}/speed_trace.png" in result
+
 
 class TestHtmlChartsToIframes:
     """Tests for HTML chart to iframe conversion."""
