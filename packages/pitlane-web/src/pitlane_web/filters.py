@@ -95,8 +95,10 @@ def html_charts_to_iframes(text: str) -> str:
     md_pattern = r"!\[([^\]]*)\]\((/charts/[^\s\)]+\.html)\)"
     text = re.sub(
         md_pattern,
-        r'<iframe src="\2" title="\1"'
-        r' sandbox="allow-scripts allow-same-origin"></iframe>',
+        r'<div class="chart-container">'
+        r'<a class="chart-open-link" href="\2" target="_blank" rel="noopener noreferrer">&#8599; Open in new tab</a>'
+        r'<iframe src="\2" title="\1" sandbox="allow-scripts allow-same-origin"></iframe>'
+        r"</div>",
         text,
     )
 
@@ -104,8 +106,10 @@ def html_charts_to_iframes(text: str) -> str:
     img_pattern = r'<img[^>]*src="(/charts/[^"]+\.html)"[^>]*/?\s*>'
     text = re.sub(
         img_pattern,
-        r'<iframe src="\1"'
-        r' sandbox="allow-scripts allow-same-origin"></iframe>',
+        r'<div class="chart-container">'
+        r'<a class="chart-open-link" href="\1" target="_blank" rel="noopener noreferrer">&#8599; Open in new tab</a>'
+        r'<iframe src="\1" sandbox="allow-scripts allow-same-origin"></iframe>'
+        r"</div>",
         text,
     )
 
