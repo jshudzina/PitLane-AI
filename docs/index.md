@@ -25,6 +25,13 @@ AI-powered Formula 1 data analysis built with [Claude's Agent SDK](https://githu
 
 ## Quick Start
 
+!!! tip "Before you begin"
+    PitLane-AI requires an Anthropic API key. Get one at [console.anthropic.com](https://console.anthropic.com) and set it in your environment:
+
+    ```bash
+    export ANTHROPIC_API_KEY=sk-ant-...
+    ```
+
 === "CLI"
 
     ```bash
