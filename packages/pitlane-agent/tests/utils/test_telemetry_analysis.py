@@ -186,7 +186,7 @@ class TestDetectSuperClippingZones:
         assert len(zones) >= 1
         zone = zones[0]
         assert zone["throttle_percent"] >= 95.0
-        assert zone["gear"] >= 6
+        assert zone["gear"] >= 7
 
     def test_low_gear_excluded(self):
         df = _make_telemetry(throttle=50.0)  # baseline below full-throttle
