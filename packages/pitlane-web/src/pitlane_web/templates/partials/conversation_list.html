@@ -64,6 +64,7 @@
     {% if conversations %}
         {% for conv in conversations %}
         <div class="conversation-item {% if conv.id == active_id %}active{% endif %}"
+             data-conversation-id="{{ conv.id }}"
              hx-post="/api/conversations/{{ conv.id }}/resume"
              hx-target="#conversation-status"
              hx-swap="innerHTML">

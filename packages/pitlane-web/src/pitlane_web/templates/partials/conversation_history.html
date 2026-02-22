@@ -1,0 +1,10 @@
+{% for msg in messages %}
+<article class="message">
+    <div class="message-question">
+        <strong>Q:</strong> {{ msg.question }}
+    </div>
+    <div class="message-content">
+        {{ msg.content | rewrite_paths(session_id) | html_charts_to_iframes | markdown | safe }}
+    </div>
+</article>
+{% endfor %}

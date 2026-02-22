@@ -197,6 +197,129 @@
         background: #3d3d3d;
         border-color: #e10600;
     }
+
+    /* Message history (conversation resume) */
+    .message {
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 12px;
+        padding: 1.5rem;
+    }
+
+    .message-question {
+        font-size: 0.9rem;
+        color: #888;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #333;
+    }
+
+    .message-content {
+        line-height: 1.7;
+    }
+
+    .message-content h1,
+    .message-content h2,
+    .message-content h3 {
+        color: #e10600;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .message-content h1:first-child,
+    .message-content h2:first-child,
+    .message-content h3:first-child {
+        margin-top: 0;
+    }
+
+    .message-content ul,
+    .message-content ol {
+        padding-left: 1.5rem;
+    }
+
+    .message-content li {
+        margin-bottom: 0.5rem;
+    }
+
+    .message-content code {
+        background: #2d2d2d;
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+
+    .message-content pre {
+        background: #2d2d2d;
+        padding: 1rem;
+        border-radius: 8px;
+        overflow-x: auto;
+    }
+
+    .message-content pre code {
+        background: none;
+        padding: 0;
+    }
+
+    .message-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin: 1rem 0;
+    }
+
+    .message-content iframe {
+        width: 100%;
+        height: 1000px;
+        border: none;
+        border-radius: 8px;
+        background: #1a1a1a;
+    }
+
+    .message-content .chart-container {
+        position: relative;
+        margin: 1rem 0;
+    }
+
+    .message-content .chart-open-link {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        z-index: 10;
+        background: rgba(30, 30, 30, 0.85);
+        color: #e10600;
+        padding: 0.25rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        text-decoration: none;
+        border: 1px solid #333;
+        transition: background 0.15s;
+    }
+
+    .message-content .chart-open-link:hover {
+        background: rgba(50, 50, 50, 0.95);
+    }
+
+    .message-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+    }
+
+    .message-content th,
+    .message-content td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #333;
+    }
+
+    .message-content th {
+        background: #2d2d2d;
+        color: #e10600;
+    }
+
+    .message-content strong {
+        color: #fff;
+    }
 </style>
 {% endblock %}
 
@@ -298,10 +421,15 @@
             event.detail.elt.querySelector('textarea').value = '';
         }
 
-        // Close panel and clear responses when resuming a conversation
+        // Close panel and load history when resuming a conversation
         if (event.detail.pathInfo.requestPath.includes('/resume')) {
             toggleConversationPanel(false);
+            const conversationId = event.detail.elt.dataset.conversationId;
             document.getElementById('responses').innerHTML = '';
+            htmx.ajax('GET', `/api/conversations/${conversationId}/messages`, {
+                target: '#responses',
+                swap: 'innerHTML'
+            });
         }
     });
 </script>

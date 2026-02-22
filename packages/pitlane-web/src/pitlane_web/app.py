@@ -13,6 +13,8 @@ from pitlane_agent.commands.workspace import (
     get_active_conversation,
     get_workspace_path,
     load_conversations,
+    load_messages,
+    save_message,
     set_active_conversation,
     update_conversation,
     workspace_exists,
@@ -179,15 +181,25 @@ async def chat(
             response_text = "I wasn't able to process your question. Please try again."
 
         # Create or update conversation after successful response
+        conv_id = None
         if agent.agent_session_id:
             if active_conv:
                 # Update existing conversation
                 update_conversation(session_id, active_conv["id"])
-                logger.debug(f"Updated conversation: {active_conv['id']}")
+                conv_id = active_conv["id"]
+                logger.debug(f"Updated conversation: {conv_id}")
             else:
                 # Create new conversation with captured SDK session ID
                 new_conv = create_conversation(session_id, agent.agent_session_id, question)
-                logger.info(f"Created new conversation: {new_conv['id']}")
+                conv_id = new_conv["id"]
+                logger.info(f"Created new conversation: {conv_id}")
+
+        # Persist message pair for history replay on resume
+        if conv_id:
+            try:
+                save_message(session_id, conv_id, question, response_text)
+            except Exception as save_err:
+                logger.warning(f"Failed to save message history: {save_err}")
 
     except Exception as e:
         logger.error(f"Error processing chat: {e}", exc_info=True)
@@ -400,4 +412,33 @@ async def resume_conversation(
         request,
         "partials/conversation_status.html",
         {"status": "resumed", "conversation": conversation},
+    )
+
+
+@app.get("/api/conversations/{conversation_id}/messages", response_class=HTMLResponse)
+@limiter.limit(RATE_LIMIT_CHART)
+async def get_conversation_messages(
+    request: Request,
+    conversation_id: str,
+    session: str | None = Cookie(None, alias=SESSION_COOKIE_NAME),
+):
+    """Return rendered HTML of all messages for a conversation (newest first)."""
+    is_valid, validated_session = validate_session_safely(session)
+    if not is_valid or not validated_session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    # Verify conversation belongs to this session
+    conversations_data = load_conversations(validated_session)
+    if not any(c["id"] == conversation_id for c in conversations_data["conversations"]):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    messages = load_messages(validated_session, conversation_id)
+
+    return templates.TemplateResponse(
+        request,
+        "partials/conversation_history.html",
+        {
+            "messages": list(reversed(messages)),  # newest first, matching live chat display order
+            "session_id": validated_session,
+        },
     )

@@ -14,7 +14,9 @@ from pitlane_agent.commands.workspace.operations import (
     get_workspace_path,
     list_workspaces,
     load_conversations,
+    load_messages,
     remove_workspace,
+    save_message,
     set_active_conversation,
     update_conversation,
     update_workspace_metadata,
@@ -36,4 +38,6 @@ __all__ = [
     "get_active_conversation",
     "set_active_conversation",
     "load_conversations",
+    "save_message",
+    "load_messages",
 ]
