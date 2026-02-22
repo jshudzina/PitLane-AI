@@ -12,140 +12,240 @@ from pitlane_agent.commands.fetch.season_summary import (
 )
 
 # ---------------------------------------------------------------------------
-# Helpers shared by analyze tests
+# Shared helpers for analyze tests
 # ---------------------------------------------------------------------------
 
 
-def _make_race_result_row(**kwargs) -> dict:
-    defaults = {
-        "position": 1,
-        "positionText": "1",
-        "status": "Finished",
-        "driverId": "ver",
-        "constructorId": "red_bull",
-        "fastestLapRank": 3,
-    }
-    return {**defaults, **kwargs}
+def _make_ff1_results(rows: list[dict]) -> pd.DataFrame:
+    """Make a minimal FastF1 results DataFrame."""
+    defaults = {"Abbreviation": "VER", "TeamName": "Red Bull Racing", "Points": 25.0}
+    return pd.DataFrame([{**defaults, **r} for r in rows])
 
 
-def _make_df(rows: list[dict]) -> pd.DataFrame:
-    return pd.DataFrame(rows)
+def _make_ff1_schedule(events: list[dict]) -> pd.DataFrame:
+    """Make a minimal FastF1 schedule DataFrame."""
+    defaults = {"RoundNumber": 1, "EventName": "Bahrain Grand Prix", "EventFormat": "conventional"}
+    return pd.DataFrame([{**defaults, **e} for e in events])
 
 
-def _ergast_resp(content: list[pd.DataFrame]) -> MagicMock:
-    mock = MagicMock()
-    mock.content = content
-    return mock
-
-
-def _standings(entries: list[dict], round_num: int = 3) -> dict:
-    return {
-        "year": 2024,
-        "round": round_num,
-        "total_standings": len(entries),
-        "filters": {"round": None},
-        "standings": entries,
-    }
-
-
-def _schedule(total_races: int = 3) -> dict:
-    return {
-        "year": 2024,
-        "events": [{"round": i, "sessions": [{"name": "Race"}]} for i in range(1, total_races + 1)],
-    }
-
-
-def _driver_entry(position: int, driver_id: str, name: str, wins: int, points: float) -> dict:
-    return {
-        "position": position,
-        "points": points,
-        "wins": wins,
-        "driver_id": driver_id,
-        "driver_code": driver_id.upper()[:3],
-        "full_name": name,
-        "teams": ["Team A"],
-        "team_ids": ["team_a"],
-    }
+def _make_session_mock(results: pd.DataFrame) -> MagicMock:
+    session = MagicMock()
+    session.results = results
+    return session
 
 
 # ---------------------------------------------------------------------------
-# Analyze season_summary tests
+# _fetch_per_round_points tests
 # ---------------------------------------------------------------------------
 
 
-class TestAnalyzeSeasonSummaryHelpers:
-    """Unit tests for _count_per_driver and _count_per_constructor."""
+class TestFetchPerRoundPoints:
+    """Unit tests for _fetch_per_round_points."""
 
-    def test_count_per_driver_by_position(self):
-        from pitlane_agent.commands.analyze.season_summary import _count_per_driver
+    def test_basic_driver_aggregation(self, monkeypatch):
+        from pitlane_agent.commands.analyze.season_summary import _fetch_per_round_points
 
-        df = _make_df(
+        schedule = _make_ff1_schedule(
             [
-                _make_race_result_row(driverId="ver", position=1),
-                _make_race_result_row(driverId="lec", position=2),
-                _make_race_result_row(driverId="ham", position=1),
+                {"RoundNumber": 1, "EventName": "Bahrain Grand Prix"},
+                {"RoundNumber": 2, "EventName": "Saudi Arabian Grand Prix"},
             ]
         )
-        result = _count_per_driver([df], position=1)
-        assert result == {"ver": 1, "ham": 1}
-
-    def test_count_per_driver_fastest_lap(self):
-        from pitlane_agent.commands.analyze.season_summary import _count_per_driver
-
-        df = _make_df(
+        results_r1 = _make_ff1_results(
             [
-                _make_race_result_row(driverId="ver", fastestLapRank=1),
-                _make_race_result_row(driverId="lec", fastestLapRank=2),
+                {"Abbreviation": "VER", "TeamName": "Red Bull Racing", "Points": 25.0},
+                {"Abbreviation": "LEC", "TeamName": "Ferrari", "Points": 18.0},
             ]
         )
-        result = _count_per_driver([df], fastest_rank=True)
-        assert result == {"ver": 1}
-
-    def test_count_per_driver_accumulates_across_rounds(self):
-        from pitlane_agent.commands.analyze.season_summary import _count_per_driver
-
-        df1 = _make_df([_make_race_result_row(driverId="ver", position=1)])
-        df2 = _make_df([_make_race_result_row(driverId="ver", position=1)])
-        result = _count_per_driver([df1, df2], position=1)
-        assert result == {"ver": 2}
-
-    def test_count_per_driver_empty_content(self):
-        from pitlane_agent.commands.analyze.season_summary import _count_per_driver
-
-        assert _count_per_driver([], position=1) == {}
-
-    def test_count_per_constructor(self):
-        from pitlane_agent.commands.analyze.season_summary import _count_per_constructor
-
-        df = _make_df(
+        results_r2 = _make_ff1_results(
             [
-                _make_race_result_row(constructorId="red_bull", position=1),
-                _make_race_result_row(constructorId="ferrari", position=2),
+                {"Abbreviation": "LEC", "TeamName": "Ferrari", "Points": 25.0},
+                {"Abbreviation": "VER", "TeamName": "Red Bull Racing", "Points": 18.0},
             ]
         )
-        result = _count_per_constructor([df], position=1)
-        assert result == {"red_bull": 1}
+
+        call_count = {"n": 0}
+
+        def fake_get_session(year, event_name, session_type):
+            call_count["n"] += 1
+            if "Bahrain" in event_name:
+                return _make_session_mock(results_r1)
+            return _make_session_mock(results_r2)
+
+        monkeypatch.setattr("pitlane_agent.commands.analyze.season_summary.fastf1.get_session", fake_get_session)
+
+        points_df, total_points, short_names = _fetch_per_round_points(2024, schedule, "drivers")
+
+        assert set(points_df.index) == {"VER", "LEC"}
+        assert list(points_df.columns) == [1, 2]
+        assert points_df.at["VER", 1] == 25.0
+        assert points_df.at["VER", 2] == 18.0
+        assert points_df.at["LEC", 1] == 18.0
+        assert points_df.at["LEC", 2] == 25.0
+        assert total_points["VER"] == 43.0
+        assert total_points["LEC"] == 43.0
+        assert short_names == ["Bahrain", "Saudi Arabian"]
+
+    def test_sorted_ascending_by_total(self, monkeypatch):
+        """Champion (most points) should be last in the ascending-sorted index."""
+        from pitlane_agent.commands.analyze.season_summary import _fetch_per_round_points
+
+        schedule = _make_ff1_schedule([{"RoundNumber": 1, "EventName": "Bahrain Grand Prix"}])
+        results = _make_ff1_results(
+            [
+                {"Abbreviation": "VER", "TeamName": "Red Bull Racing", "Points": 25.0},
+                {"Abbreviation": "HAM", "TeamName": "Mercedes", "Points": 12.0},
+            ]
+        )
+        monkeypatch.setattr(
+            "pitlane_agent.commands.analyze.season_summary.fastf1.get_session",
+            lambda *a: _make_session_mock(results),
+        )
+
+        points_df, total_points, _ = _fetch_per_round_points(2024, schedule, "drivers")
+
+        # Ascending sort: lowest points first, highest (champion) last
+        assert list(total_points.index)[-1] == "VER"
+        assert list(total_points.index)[0] == "HAM"
+
+    def test_sprint_points_added(self, monkeypatch):
+        """Sprint qualifying points are added to race points for the same round."""
+        from pitlane_agent.commands.analyze.season_summary import _fetch_per_round_points
+
+        schedule = _make_ff1_schedule(
+            [
+                {"RoundNumber": 1, "EventName": "Chinese Grand Prix", "EventFormat": "sprint_qualifying"},
+            ]
+        )
+        race_results = _make_ff1_results(
+            [
+                {"Abbreviation": "VER", "TeamName": "Red Bull Racing", "Points": 25.0},
+            ]
+        )
+        sprint_results = _make_ff1_results(
+            [
+                {"Abbreviation": "VER", "TeamName": "Red Bull Racing", "Points": 8.0},
+            ]
+        )
+
+        def fake_get_session(year, event_name, session_type):
+            if session_type == "R":
+                return _make_session_mock(race_results)
+            return _make_session_mock(sprint_results)
+
+        monkeypatch.setattr("pitlane_agent.commands.analyze.season_summary.fastf1.get_session", fake_get_session)
+
+        points_df, total_points, _ = _fetch_per_round_points(2024, schedule, "drivers")
+
+        assert points_df.at["VER", 1] == 33.0
+        assert total_points["VER"] == 33.0
+
+    def test_constructors_sums_driver_points(self, monkeypatch):
+        """Constructor mode sums both drivers' points per team per round."""
+        from pitlane_agent.commands.analyze.season_summary import _fetch_per_round_points
+
+        schedule = _make_ff1_schedule([{"RoundNumber": 1, "EventName": "Bahrain Grand Prix"}])
+        results = _make_ff1_results(
+            [
+                {"Abbreviation": "VER", "TeamName": "Red Bull Racing", "Points": 25.0},
+                {"Abbreviation": "PER", "TeamName": "Red Bull Racing", "Points": 18.0},
+                {"Abbreviation": "LEC", "TeamName": "Ferrari", "Points": 15.0},
+            ]
+        )
+        monkeypatch.setattr(
+            "pitlane_agent.commands.analyze.season_summary.fastf1.get_session",
+            lambda *a: _make_session_mock(results),
+        )
+
+        points_df, total_points, _ = _fetch_per_round_points(2024, schedule, "constructors")
+
+        assert points_df.at["Red Bull Racing", 1] == 43.0
+        assert points_df.at["Ferrari", 1] == 15.0
+
+    def test_round_zero_is_skipped(self, monkeypatch):
+        """Events with RoundNumber == 0 (testing) must not produce rows."""
+        from pitlane_agent.commands.analyze.season_summary import _fetch_per_round_points
+
+        schedule = _make_ff1_schedule(
+            [
+                {"RoundNumber": 0, "EventName": "Pre-Season Testing"},
+                {"RoundNumber": 1, "EventName": "Bahrain Grand Prix"},
+            ]
+        )
+        results = _make_ff1_results([{"Abbreviation": "VER", "Points": 25.0}])
+        call_log: list[str] = []
+
+        def fake_get_session(year, event_name, session_type):
+            call_log.append(event_name)
+            return _make_session_mock(results)
+
+        monkeypatch.setattr("pitlane_agent.commands.analyze.season_summary.fastf1.get_session", fake_get_session)
+
+        _fetch_per_round_points(2024, schedule, "drivers")
+
+        assert all("Testing" not in name for name in call_log)
+
+    def test_failed_session_load_is_skipped(self, monkeypatch):
+        """If FastF1 raises for a round, that round is skipped gracefully."""
+        from pitlane_agent.commands.analyze.season_summary import _fetch_per_round_points
+
+        schedule = _make_ff1_schedule(
+            [
+                {"RoundNumber": 1, "EventName": "Bahrain Grand Prix"},
+                {"RoundNumber": 2, "EventName": "Saudi Arabian Grand Prix"},
+            ]
+        )
+        results_r2 = _make_ff1_results([{"Abbreviation": "VER", "Points": 25.0}])
+
+        def fake_get_session(year, event_name, session_type):
+            if "Bahrain" in event_name:
+                raise RuntimeError("Session not found")
+            return _make_session_mock(results_r2)
+
+        monkeypatch.setattr("pitlane_agent.commands.analyze.season_summary.fastf1.get_session", fake_get_session)
+
+        points_df, total_points, _ = _fetch_per_round_points(2024, schedule, "drivers")
+
+        assert list(points_df.columns) == [2]
+        assert points_df.at["VER", 2] == 25.0
+
+    def test_empty_schedule_returns_empty(self, monkeypatch):
+        """An empty schedule yields empty DataFrames."""
+        from pitlane_agent.commands.analyze.season_summary import _fetch_per_round_points
+
+        schedule = pd.DataFrame(columns=["RoundNumber", "EventName", "EventFormat"])
+        monkeypatch.setattr(
+            "pitlane_agent.commands.analyze.season_summary.fastf1.get_session",
+            lambda *a: (_ for _ in ()).throw(AssertionError("should not be called")),
+        )
+
+        points_df, total_points, short_names = _fetch_per_round_points(2024, schedule, "drivers")
+
+        assert points_df.empty
+        assert total_points.empty
+        assert short_names == []
+
+
+# ---------------------------------------------------------------------------
+# generate_season_summary_chart tests
+# ---------------------------------------------------------------------------
 
 
 class TestGenerateSeasonSummaryChart:
-    """Tests for generate_season_summary_chart using mocked dependencies."""
+    """Tests for generate_season_summary_chart using mocked FastF1."""
 
-    def _setup_patches(self, monkeypatch, driver_standings_data, schedule_data, mock_api):
+    def _setup_patches(self, monkeypatch, schedule: pd.DataFrame, session_factory):
         monkeypatch.setattr(
-            "pitlane_agent.commands.analyze.season_summary.get_driver_standings",
-            lambda year, **kw: driver_standings_data,
+            "pitlane_agent.commands.analyze.season_summary.fastf1.get_event_schedule",
+            lambda year, **kw: schedule,
         )
         monkeypatch.setattr(
-            "pitlane_agent.commands.analyze.season_summary.get_constructor_standings",
-            lambda year, **kw: driver_standings_data,
+            "pitlane_agent.commands.analyze.season_summary.fastf1.get_session",
+            session_factory,
         )
         monkeypatch.setattr(
-            "pitlane_agent.commands.analyze.season_summary.get_event_schedule",
-            lambda year, **kw: schedule_data,
-        )
-        monkeypatch.setattr(
-            "pitlane_agent.commands.analyze.season_summary.get_ergast_client",
-            lambda: mock_api,
+            "pitlane_agent.commands.analyze.season_summary.setup_fastf1_cache",
+            lambda: None,
         )
         monkeypatch.setattr(
             "pitlane_agent.commands.analyze.season_summary.setup_plot_style",
@@ -156,30 +256,24 @@ class TestGenerateSeasonSummaryChart:
             lambda fig, path, **kw: (path.parent.mkdir(parents=True, exist_ok=True), path.touch()),
         )
 
-    def _minimal_api(self, round_dfs: dict[int, pd.DataFrame]) -> MagicMock:
-        """Build a mock Ergast API returning empty for position-filtered queries."""
-        api = MagicMock()
-        api.get_race_results.side_effect = lambda **kw: (
-            _ergast_resp([])
-            if kw.get("results_position") in (2, 3)
-            else _ergast_resp([])
-            if kw.get("fastest_rank") == 1
-            else _ergast_resp([round_dfs[kw["round"]]])
-            if kw.get("round") in round_dfs
-            else _ergast_resp([])
+    def _single_round_schedule(self) -> pd.DataFrame:
+        return _make_ff1_schedule([{"RoundNumber": 1, "EventName": "Bahrain Grand Prix"}])
+
+    def _single_round_results(self) -> pd.DataFrame:
+        return _make_ff1_results(
+            [
+                {"Abbreviation": "VER", "TeamName": "Red Bull Racing", "Points": 25.0},
+                {"Abbreviation": "LEC", "TeamName": "Ferrari", "Points": 18.0},
+            ]
         )
-        api.get_qualifying_results.return_value = _ergast_resp([])
-        return api
 
     def test_returns_required_keys(self, monkeypatch, tmp_path):
-        standings = _standings([_driver_entry(1, "ver", "Max Verstappen", 3, 75.0)])
-        schedule = _schedule(3)
-        round_df = _make_df(
-            [_make_race_result_row(driverId="ver", constructorId="red_bull", position=1, positionText="1")]
+        schedule = self._single_round_schedule()
+        self._setup_patches(
+            monkeypatch,
+            schedule,
+            lambda *a: _make_session_mock(self._single_round_results()),
         )
-        api = self._minimal_api({1: round_df, 2: round_df, 3: round_df})
-
-        self._setup_patches(monkeypatch, standings, schedule, api)
 
         from pitlane_agent.commands.analyze.season_summary import generate_season_summary_chart
 
@@ -200,7 +294,6 @@ class TestGenerateSeasonSummaryChart:
 
         assert result["year"] == 2024
         assert result["summary_type"] == "drivers"
-        assert result["season_complete"] is True
 
     def test_invalid_type_raises(self, tmp_path):
         from pitlane_agent.commands.analyze.season_summary import generate_season_summary_chart
@@ -208,28 +301,39 @@ class TestGenerateSeasonSummaryChart:
         with pytest.raises(ValueError, match="Invalid summary_type"):
             generate_season_summary_chart(year=2024, summary_type="teams", workspace_dir=tmp_path)
 
-    def test_empty_standings_raises(self, monkeypatch, tmp_path):
+    def test_no_data_raises(self, monkeypatch, tmp_path):
+        """Empty schedule → no FastF1 data → ValueError."""
         from pitlane_agent.commands.analyze.season_summary import generate_season_summary_chart
 
         monkeypatch.setattr(
-            "pitlane_agent.commands.analyze.season_summary.get_driver_standings",
-            lambda year, **kw: _standings([]),
+            "pitlane_agent.commands.analyze.season_summary.fastf1.get_event_schedule",
+            lambda year, **kw: pd.DataFrame(columns=["RoundNumber", "EventName", "EventFormat"]),
         )
         monkeypatch.setattr(
-            "pitlane_agent.commands.analyze.season_summary.get_event_schedule",
-            lambda year, **kw: _schedule(3),
+            "pitlane_agent.commands.analyze.season_summary.setup_fastf1_cache",
+            lambda: None,
         )
 
         with pytest.raises(ValueError, match="No standings data"):
             generate_season_summary_chart(year=2024, summary_type="drivers", workspace_dir=tmp_path)
 
     def test_partial_season_marked_incomplete(self, monkeypatch, tmp_path):
-        standings = _standings([_driver_entry(1, "ver", "Max Verstappen", 1, 25.0)], round_num=1)
-        schedule = _schedule(3)  # 3 total races
-        round_df = _make_df([_make_race_result_row(driverId="ver", positionText="1")])
-        api = self._minimal_api({1: round_df})
+        schedule = _make_ff1_schedule(
+            [
+                {"RoundNumber": 1, "EventName": "Bahrain Grand Prix"},
+                {"RoundNumber": 2, "EventName": "Saudi Arabian Grand Prix"},
+                {"RoundNumber": 3, "EventName": "Australian Grand Prix"},
+            ]
+        )
+        # Only round 1 returns data; rounds 2 and 3 raise
+        results_r1 = _make_ff1_results([{"Abbreviation": "VER", "Points": 25.0}])
 
-        self._setup_patches(monkeypatch, standings, schedule, api)
+        def fake_get_session(year, event_name, session_type):
+            if "Bahrain" in event_name:
+                return _make_session_mock(results_r1)
+            raise RuntimeError("not available")
+
+        self._setup_patches(monkeypatch, schedule, fake_get_session)
 
         from pitlane_agent.commands.analyze.season_summary import generate_season_summary_chart
 
@@ -237,103 +341,66 @@ class TestGenerateSeasonSummaryChart:
 
         assert result["season_complete"] is False
         assert result["analysis_round"] == 1
+        assert result["total_races"] == 3
 
-    def test_dnf_counted_for_retired_driver(self, monkeypatch, tmp_path):
-        standings = _standings(
-            [
-                _driver_entry(1, "ver", "Max Verstappen", 1, 25.0),
-                _driver_entry(2, "lec", "Charles Leclerc", 0, 0.0),
-            ],
-            round_num=1,
+    def test_complete_season_flagged(self, monkeypatch, tmp_path):
+        schedule = self._single_round_schedule()
+        self._setup_patches(
+            monkeypatch,
+            schedule,
+            lambda *a: _make_session_mock(self._single_round_results()),
         )
-        schedule = _schedule(1)
-
-        round_df = _make_df(
-            [
-                _make_race_result_row(
-                    driverId="ver", constructorId="red_bull", position=1, positionText="1", status="Finished"
-                ),
-                _make_race_result_row(
-                    driverId="lec", constructorId="ferrari", position=20, positionText="R", status="Retired"
-                ),
-            ]
-        )
-        api = self._minimal_api({1: round_df})
-
-        self._setup_patches(monkeypatch, standings, schedule, api)
 
         from pitlane_agent.commands.analyze.season_summary import generate_season_summary_chart
 
         result = generate_season_summary_chart(year=2024, summary_type="drivers", workspace_dir=tmp_path)
-        competitors = result["statistics"]["competitors"]
-        lec = next(c for c in competitors if c["driver_id"] == "lec")
-        ver = next(c for c in competitors if c["driver_id"] == "ver")
 
-        assert lec["dnfs"] == 1
-        assert ver["dnfs"] == 0
-        assert lec["avg_finish_position"] is None
-        assert ver["avg_finish_position"] == 1.0
+        assert result["season_complete"] is True
+        assert result["total_races"] == 1
 
-    def test_podiums_include_p1_p2_p3(self, monkeypatch, tmp_path):
-        """Podiums = wins + P2 + P3 counts."""
-        standings = _standings(
-            [
-                _driver_entry(1, "ver", "Max Verstappen", 1, 25.0),
-                _driver_entry(2, "lec", "Charles Leclerc", 0, 18.0),
-            ],
-            round_num=1,
+    def test_leader_is_points_leader(self, monkeypatch, tmp_path):
+        schedule = self._single_round_schedule()
+        self._setup_patches(
+            monkeypatch,
+            schedule,
+            lambda *a: _make_session_mock(self._single_round_results()),
         )
-        schedule = _schedule(1)
-
-        p2_df = _make_df([_make_race_result_row(driverId="lec", constructorId="ferrari", position=2)])
-
-        api = MagicMock()
-        api.get_race_results.side_effect = lambda **kw: (
-            _ergast_resp([p2_df])
-            if kw.get("results_position") == 2
-            else _ergast_resp([])
-            if kw.get("results_position") == 3
-            else _ergast_resp([])
-            if kw.get("fastest_rank") == 1
-            else _ergast_resp(
-                [
-                    _make_df(
-                        [
-                            _make_race_result_row(
-                                driverId="ver", constructorId="red_bull", position=1, positionText="1"
-                            ),
-                            _make_race_result_row(
-                                driverId="lec", constructorId="ferrari", position=2, positionText="2"
-                            ),
-                        ]
-                    )
-                ]
-            )
-            if kw.get("round") == 1
-            else _ergast_resp([])
-        )
-        api.get_qualifying_results.return_value = _ergast_resp([])
-
-        self._setup_patches(monkeypatch, standings, schedule, api)
 
         from pitlane_agent.commands.analyze.season_summary import generate_season_summary_chart
 
         result = generate_season_summary_chart(year=2024, summary_type="drivers", workspace_dir=tmp_path)
-        competitors = result["statistics"]["competitors"]
-        lec = next(c for c in competitors if c["driver_id"] == "lec")
-        ver = next(c for c in competitors if c["driver_id"] == "ver")
 
-        assert ver["wins"] == 1
-        assert ver["podiums"] == 1
-        assert lec["wins"] == 0
-        assert lec["podiums"] == 1  # 1 P2
+        leader = result["leader"]
+        assert leader["name"] == "VER"
+        assert leader["points"] == 25.0
+        assert leader["position"] == 1
+
+    def test_statistics_contains_all_competitors(self, monkeypatch, tmp_path):
+        schedule = self._single_round_schedule()
+        self._setup_patches(
+            monkeypatch,
+            schedule,
+            lambda *a: _make_session_mock(self._single_round_results()),
+        )
+
+        from pitlane_agent.commands.analyze.season_summary import generate_season_summary_chart
+
+        result = generate_season_summary_chart(year=2024, summary_type="drivers", workspace_dir=tmp_path)
+
+        stats = result["statistics"]
+        assert stats["total_competitors"] == 2
+        names = {c["name"] for c in stats["competitors"]}
+        assert names == {"VER", "LEC"}
+        positions = {c["championship_position"] for c in stats["competitors"]}
+        assert positions == {1, 2}
 
     def test_chart_file_written_to_workspace(self, monkeypatch, tmp_path):
-        standings = _standings([_driver_entry(1, "ver", "Max Verstappen", 0, 0.0)], round_num=1)
-        schedule = _schedule(1)
-        api = self._minimal_api({1: _make_df([_make_race_result_row()])})
-
-        self._setup_patches(monkeypatch, standings, schedule, api)
+        schedule = self._single_round_schedule()
+        self._setup_patches(
+            monkeypatch,
+            schedule,
+            lambda *a: _make_session_mock(self._single_round_results()),
+        )
 
         from pitlane_agent.commands.analyze.season_summary import generate_season_summary_chart
 
@@ -343,6 +410,32 @@ class TestGenerateSeasonSummaryChart:
         assert chart_path.name == "season_summary_2024_drivers.png"
         assert chart_path.parent == tmp_path / "charts"
         assert chart_path.exists()
+
+    def test_constructors_type(self, monkeypatch, tmp_path):
+        schedule = self._single_round_schedule()
+        results = _make_ff1_results(
+            [
+                {"Abbreviation": "VER", "TeamName": "Red Bull Racing", "Points": 25.0},
+                {"Abbreviation": "PER", "TeamName": "Red Bull Racing", "Points": 18.0},
+                {"Abbreviation": "LEC", "TeamName": "Ferrari", "Points": 15.0},
+            ]
+        )
+        self._setup_patches(monkeypatch, schedule, lambda *a: _make_session_mock(results))
+
+        from pitlane_agent.commands.analyze.season_summary import generate_season_summary_chart
+
+        result = generate_season_summary_chart(year=2024, summary_type="constructors", workspace_dir=tmp_path)
+
+        assert result["summary_type"] == "constructors"
+        assert result["leader"]["name"] == "Red Bull Racing"
+        assert result["leader"]["points"] == 43.0
+        chart_path = Path(result["chart_path"])
+        assert chart_path.name == "season_summary_2024_constructors.png"
+
+
+# ---------------------------------------------------------------------------
+# fetch/season_summary.py tests (unchanged)
+# ---------------------------------------------------------------------------
 
 
 class TestCountTrackInterruptions:
