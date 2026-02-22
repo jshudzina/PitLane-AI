@@ -85,24 +85,28 @@ def _prepare_lap_entry(lap, label: str, key: str, color: str) -> tuple[dict, dic
 
 def generate_multi_lap_chart(
     year: int,
-    gp: str,
-    session_type: str,
+    gp: str | None,
+    session_type: str | None,
     driver: str,
     lap_specs: list[str | int],
     workspace_dir: Path,
     annotate_corners: bool = False,
+    test_number: int | None = None,
+    session_number: int | None = None,
 ) -> dict:
     """Compare multiple laps for a single driver within a session.
 
     Args:
         year: Season year
-        gp: Grand Prix name
-        session_type: Session identifier (Q, R, FP1, FP2, FP3, S, SQ)
+        gp: Grand Prix name (None when using testing session)
+        session_type: Session identifier (Q, R, FP1, FP2, FP3, S, SQ; None when using testing session)
         driver: Driver abbreviation (e.g. "VER")
         lap_specs: List of lap specifiers — "best" for fastest lap or an integer lap number.
                    Must have between 2 and 6 entries.
         workspace_dir: Workspace directory for chart output
         annotate_corners: Whether to add corner markers
+        test_number: Testing event number (mutually exclusive with gp/session_type)
+        session_number: Day/session within testing event (mutually exclusive with gp/session_type)
 
     Returns:
         Dictionary with chart path, per-lap statistics, and metadata
@@ -116,7 +120,9 @@ def generate_multi_lap_chart(
     if len(lap_specs) > MAX_ENTRIES:
         raise ValueError(f"multi-lap supports at most {MAX_ENTRIES} lap specs for readability, got {len(lap_specs)}")
 
-    session = load_session_or_testing(year, gp, session_type, telemetry=True)
+    session = load_session_or_testing(
+        year, gp, session_type, telemetry=True, test_number=test_number, session_number=session_number
+    )
     driver_laps = session.laps.pick_drivers(driver)
 
     if driver_laps.empty:
@@ -146,8 +152,11 @@ def generate_multi_lap_chart(
         except Exception:
             _log.warning("Failed to load circuit info for corner annotations", exc_info=True)
 
-    gp_sanitized = sanitize_filename(gp)
-    filename = f"multi_lap_{year}_{gp_sanitized}_{session_type}_{driver}.html"
+    if test_number is not None:
+        session_label = f"testing_{test_number}_day{session_number}"
+    else:
+        session_label = f"{sanitize_filename(gp)}_{session_type}"
+    filename = f"multi_lap_{year}_{session_label}_{driver}.html"
     output_path = workspace_dir / "charts" / filename
 
     title = f"{session.event['EventName']} {year} — {session.name}<br>{driver} Lap Comparison"
@@ -168,12 +177,14 @@ def generate_multi_lap_chart(
 
 
 def generate_year_compare_chart(
-    gp: str,
-    session_type: str,
+    gp: str | None,
+    session_type: str | None,
     driver: str,
     years: list[int],
     workspace_dir: Path,
     annotate_corners: bool = False,
+    test_number: int | None = None,
+    session_number: int | None = None,
 ) -> dict:
     """Compare a driver's best lap at the same track across multiple seasons.
 
@@ -184,12 +195,14 @@ def generate_year_compare_chart(
     speed profiles, and driving technique over multiple seasons.
 
     Args:
-        gp: Grand Prix name (same track must exist in all specified years)
-        session_type: Session identifier (Q, R, FP1, FP2, FP3, S, SQ)
+        gp: Grand Prix name (same track must exist in all specified years; None for testing sessions)
+        session_type: Session identifier (Q, R, FP1, FP2, FP3, S, SQ; None for testing sessions)
         driver: Driver abbreviation (e.g. "HAM")
         years: List of season years to compare. Must have between 2 and 6 entries.
         workspace_dir: Workspace directory for chart output
         annotate_corners: Whether to add corner markers
+        test_number: Testing event number (mutually exclusive with gp/session_type)
+        session_number: Day/session within testing event (mutually exclusive with gp/session_type)
 
     Returns:
         Dictionary with chart path, per-year statistics, and metadata
@@ -208,7 +221,9 @@ def generate_year_compare_chart(
     first_session = None
 
     for i, year in enumerate(years):
-        session = load_session_or_testing(year, gp, session_type, telemetry=True)
+        session = load_session_or_testing(
+            year, gp, session_type, telemetry=True, test_number=test_number, session_number=session_number
+        )
 
         if first_session is None:
             first_session = session
@@ -234,12 +249,17 @@ def generate_year_compare_chart(
         except Exception:
             _log.warning("Failed to load circuit info for corner annotations", exc_info=True)
 
-    gp_sanitized = sanitize_filename(gp)
     years_str = "_".join(str(y) for y in sorted(years))
-    filename = f"year_compare_{gp_sanitized}_{session_type}_{driver}_{years_str}.html"
+    if test_number is not None:
+        session_label = f"testing_{test_number}_day{session_number}"
+        chart_subject = f"Pre-season Testing (test {test_number}, day {session_number})"
+    else:
+        session_label = f"{sanitize_filename(gp)}_{session_type}"
+        chart_subject = f"{gp} — {session_type}"
+    filename = f"year_compare_{session_label}_{driver}_{years_str}.html"
     output_path = workspace_dir / "charts" / filename
 
-    title = f"{gp} — {session_type}<br>{driver} Year-over-Year Comparison ({', '.join(str(y) for y in years)})"
+    title = f"{chart_subject}<br>{driver} Year-over-Year Comparison ({', '.join(str(y) for y in years)})"
     corners_drawn = _render_telemetry_chart(entries, circuit_info, output_path, annotate_corners, title)
 
     return {

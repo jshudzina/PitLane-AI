@@ -310,7 +310,7 @@ class TestGenerateYearCompareChartSuccess:
     def test_two_years_produces_html(self, mock_load, tmp_output_dir):
         sessions = [_make_mock_session("Italian Grand Prix"), _make_mock_session("Italian Grand Prix")]
 
-        def session_for_year(year, gp, session_type, telemetry=False):
+        def session_for_year(year, gp, session_type, telemetry=False, **kwargs):
             return sessions[0] if year == 2022 else sessions[1]
 
         mock_load.side_effect = session_for_year
@@ -340,7 +340,7 @@ class TestGenerateYearCompareChartSuccess:
     def test_year_labels_in_output(self, mock_load, tmp_output_dir):
         sessions = [_make_mock_session(), _make_mock_session()]
 
-        def session_for_year(year, gp, session_type, telemetry=False):
+        def session_for_year(year, gp, session_type, telemetry=False, **kwargs):
             return sessions[0] if year == 2022 else sessions[1]
 
         mock_load.side_effect = session_for_year
@@ -368,7 +368,7 @@ class TestGenerateYearCompareChartSuccess:
     def test_year_stats_contain_year_field(self, mock_load, tmp_output_dir):
         sessions = [_make_mock_session(), _make_mock_session()]
 
-        def session_for_year(year, gp, session_type, telemetry=False):
+        def session_for_year(year, gp, session_type, telemetry=False, **kwargs):
             return sessions[0] if year == 2022 else sessions[1]
 
         mock_load.side_effect = session_for_year
@@ -395,7 +395,7 @@ class TestGenerateYearCompareChartSuccess:
     def test_chart_file_is_created(self, mock_load, tmp_output_dir):
         sessions = [_make_mock_session(), _make_mock_session()]
 
-        def session_for_year(year, gp, session_type, telemetry=False):
+        def session_for_year(year, gp, session_type, telemetry=False, **kwargs):
             return sessions[0] if year == 2022 else sessions[1]
 
         mock_load.side_effect = session_for_year
@@ -417,3 +417,118 @@ class TestGenerateYearCompareChartSuccess:
         from pathlib import Path
 
         assert Path(result["chart_path"]).exists()
+
+
+# ---------------------------------------------------------------------------
+# generate_multi_lap_chart — testing-session mode
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateMultiLapChartTestingMode:
+    @patch("pitlane_agent.commands.analyze.driver_lap_compare.load_session_or_testing")
+    @patch("pitlane_agent.commands.analyze.driver_lap_compare.pick_lap_by_spec")
+    def test_testing_mode_passes_test_params(self, mock_pick_lap, mock_load, tmp_output_dir, mock_fastf1_session):
+        mock_load.return_value = mock_fastf1_session
+        mock_fastf1_session.laps.pick_drivers.return_value = MagicMock(empty=False)
+        mock_pick_lap.side_effect = [_make_mock_lap(3), _make_mock_lap(12)]
+
+        generate_multi_lap_chart(
+            year=2025,
+            gp=None,
+            session_type=None,
+            driver="VER",
+            lap_specs=["best", 12],
+            workspace_dir=tmp_output_dir,
+            test_number=1,
+            session_number=2,
+        )
+
+        mock_load.assert_called_once_with(2025, None, None, telemetry=True, test_number=1, session_number=2)
+
+    @patch("pitlane_agent.commands.analyze.driver_lap_compare.load_session_or_testing")
+    @patch("pitlane_agent.commands.analyze.driver_lap_compare.pick_lap_by_spec")
+    def test_testing_mode_filename_contains_testing_label(
+        self, mock_pick_lap, mock_load, tmp_output_dir, mock_fastf1_session
+    ):
+        mock_load.return_value = mock_fastf1_session
+        mock_fastf1_session.laps.pick_drivers.return_value = MagicMock(empty=False)
+        mock_pick_lap.side_effect = [_make_mock_lap(3), _make_mock_lap(12)]
+
+        result = generate_multi_lap_chart(
+            year=2025,
+            gp=None,
+            session_type=None,
+            driver="VER",
+            lap_specs=["best", 12],
+            workspace_dir=tmp_output_dir,
+            test_number=1,
+            session_number=2,
+        )
+
+        assert "testing_1_day2" in result["chart_path"]
+
+
+# ---------------------------------------------------------------------------
+# generate_year_compare_chart — testing-session mode
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateYearCompareChartTestingMode:
+    @patch("pitlane_agent.commands.analyze.driver_lap_compare.load_session_or_testing")
+    def test_testing_mode_passes_test_params_each_year(self, mock_load, tmp_output_dir):
+        sessions = [_make_mock_session(), _make_mock_session()]
+
+        def session_for_year(year, gp, session_type, telemetry=False, **kwargs):
+            return sessions[0] if year == 2022 else sessions[1]
+
+        mock_load.side_effect = session_for_year
+
+        for session in sessions:
+            mock_driver_laps = MagicMock()
+            mock_driver_laps.empty = False
+            mock_driver_laps.pick_fastest.return_value = _make_mock_lap(8)
+            session.laps.pick_drivers.return_value = mock_driver_laps
+
+        generate_year_compare_chart(
+            gp=None,
+            session_type=None,
+            driver="HAM",
+            years=[2022, 2024],
+            workspace_dir=tmp_output_dir,
+            test_number=1,
+            session_number=2,
+        )
+
+        assert mock_load.call_count == 2
+        for call in mock_load.call_args_list:
+            assert call.kwargs.get("test_number") == 1
+            assert call.kwargs.get("session_number") == 2
+            assert call.args[1] is None  # gp
+            assert call.args[2] is None  # session_type
+
+    @patch("pitlane_agent.commands.analyze.driver_lap_compare.load_session_or_testing")
+    def test_testing_mode_filename_contains_testing_label(self, mock_load, tmp_output_dir):
+        sessions = [_make_mock_session(), _make_mock_session()]
+
+        def session_for_year(year, gp, session_type, telemetry=False, **kwargs):
+            return sessions[0] if year == 2022 else sessions[1]
+
+        mock_load.side_effect = session_for_year
+
+        for session in sessions:
+            mock_driver_laps = MagicMock()
+            mock_driver_laps.empty = False
+            mock_driver_laps.pick_fastest.return_value = _make_mock_lap(8)
+            session.laps.pick_drivers.return_value = mock_driver_laps
+
+        result = generate_year_compare_chart(
+            gp=None,
+            session_type=None,
+            driver="HAM",
+            years=[2022, 2024],
+            workspace_dir=tmp_output_dir,
+            test_number=1,
+            session_number=2,
+        )
+
+        assert "testing_1_day2" in result["chart_path"]

@@ -524,15 +524,16 @@ def championship_possibilities(workspace_id: str, year: int, championship: str, 
 @analyze.command("multi-lap")
 @click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
-@click.option("--gp", type=str, required=True, help="Grand Prix name (e.g., Monaco)")
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option(
     "--session",
     "session_type",
     type=str,
-    default="Q",
-    show_default=True,
+    default=None,
     help="Session type: R, Q, FP1, FP2, FP3, S, SQ",
 )
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
 @click.option("--driver", required=True, help="Driver abbreviation (e.g., VER)")
 @click.option(
     "--lap",
@@ -550,8 +551,10 @@ def championship_possibilities(workspace_id: str, year: int, championship: str, 
 def multi_lap(
     workspace_id: str,
     year: int,
-    gp: str,
-    session_type: str,
+    gp: str | None,
+    session_type: str | None,
+    test_number: int | None,
+    session_number: int | None,
     driver: str,
     laps: tuple[str, ...],
     annotate_corners: bool,
@@ -561,9 +564,16 @@ def multi_lap(
     Each --lap value is either 'best' (fastest lap) or an integer lap number.
     Useful for comparing a driver's Q1/Q3 attempts, or stint pace across a race.
 
-    Example: pitlane analyze multi-lap --year 2024 --gp Monaco --session Q
-             --driver VER --lap best --lap 3
+    Example (GP session):
+      pitlane analyze multi-lap --year 2024 --gp Monaco --session Q
+        --driver VER --lap best --lap 3
+
+    Example (testing session):
+      pitlane analyze multi-lap --year 2024 --test 1 --day 2
+        --driver VER --lap best --lap 3
     """
+    validate_session_or_test(gp, session_type, test_number, session_number)
+
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
         sys.exit(1)
@@ -600,6 +610,8 @@ def multi_lap(
             lap_specs=lap_specs,
             workspace_dir=workspace_path,
             annotate_corners=annotate_corners,
+            test_number=test_number,
+            session_number=session_number,
         )
         result["workspace_id"] = workspace_id
         click.echo(json.dumps(result, indent=2))
@@ -614,17 +626,18 @@ def multi_lap(
 @click.option(
     "--gp",
     type=str,
-    required=True,
+    default=None,
     help="Grand Prix name (e.g., Monza) — must exist in all specified years",
 )
 @click.option(
     "--session",
     "session_type",
     type=str,
-    default="Q",
-    show_default=True,
+    default=None,
     help="Session type: R, Q, FP1, FP2, FP3, S, SQ",
 )
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
 @click.option("--driver", required=True, help="Driver abbreviation (e.g., VER)")
 @click.option(
     "--years",
@@ -641,8 +654,10 @@ def multi_lap(
 )
 def year_compare(
     workspace_id: str,
-    gp: str,
-    session_type: str,
+    gp: str | None,
+    session_type: str | None,
+    test_number: int | None,
+    session_number: int | None,
     driver: str,
     years: tuple[int, ...],
     annotate_corners: bool,
@@ -652,9 +667,16 @@ def year_compare(
     Useful for analysing the impact of regulation changes on lap time, braking,
     speed profiles, and driving technique across eras.
 
-    Example: pitlane analyze year-compare --gp Monza --session Q
-             --driver VER --years 2022 --years 2024
+    Example (GP session):
+      pitlane analyze year-compare --gp Monza --session Q
+        --driver VER --years 2022 --years 2024
+
+    Example (testing session):
+      pitlane analyze year-compare --test 1 --day 2
+        --driver VER --years 2022 --years 2024
     """
+    validate_session_or_test(gp, session_type, test_number, session_number)
+
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
         sys.exit(1)
@@ -676,6 +698,8 @@ def year_compare(
             years=list(years),
             workspace_dir=workspace_path,
             annotate_corners=annotate_corners,
+            test_number=test_number,
+            session_number=session_number,
         )
         result["workspace_id"] = workspace_id
         click.echo(json.dumps(result, indent=2))

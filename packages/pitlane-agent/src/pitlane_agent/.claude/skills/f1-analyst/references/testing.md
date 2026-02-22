@@ -56,6 +56,15 @@ pitlane analyze gear-shifts-map --workspace-id $PITLANE_WORKSPACE_ID --year 2026
 # Track map
 pitlane analyze track-map --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 1
 
+# Multi-lap comparison (one driver, multiple laps within the testing session)
+pitlane analyze multi-lap --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 2 --driver VER --lap best --lap 5
+
+# Year-over-year comparison at the same test (same test number and day, multiple seasons)
+pitlane analyze year-compare --workspace-id $PITLANE_WORKSPACE_ID --test 1 --day 2 --driver VER --years 2024 --years 2026
+
+# Full telemetry comparison
+pitlane analyze telemetry --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 2 --drivers VER --drivers HAM
+
 # Race control messages (flags, stoppages)
 pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 2
 ```
