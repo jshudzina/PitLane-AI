@@ -103,7 +103,10 @@ def generate_driver_lap_list(
     driver_laps = session.laps.pick_drivers(driver)
 
     if driver_laps.empty:
-        raise ValueError(f"No laps found for driver {driver} in {year} {gp} {session_type}")
+        session_desc = (
+            f"testing event {test_number} day {session_number}" if test_number is not None else f"{gp} {session_type}"
+        )
+        raise ValueError(f"No laps found for driver {driver} in {year} {session_desc}")
 
     # Use FastF1 Stint column when available and populated
     has_stint_col = "Stint" in driver_laps.columns and driver_laps["Stint"].notna().any()
@@ -116,7 +119,7 @@ def generate_driver_lap_list(
     for i, (_, lap) in enumerate(driver_laps.iterrows()):
         lap_time_td = lap.get("LapTime")
         lap_time_str = _format_lap_time(lap_time_td)
-        lap_time_sec = _safe_float(lap_time_td.total_seconds() if not pd.isna(lap_time_td) else None)
+        lap_time_sec = None if pd.isna(lap_time_td) else float(lap_time_td.total_seconds())
 
         compound = lap.get("Compound")
         compound_val = compound if (compound is not None and not pd.isna(compound)) else None

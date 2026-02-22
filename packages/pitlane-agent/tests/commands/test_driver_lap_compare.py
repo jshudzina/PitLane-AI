@@ -63,30 +63,6 @@ def _make_mock_session(event_name="Monaco Grand Prix", session_name="Qualifying"
     return session
 
 
-def _make_mock_driver_laps(lap_numbers: list[int]):
-    """Create a mock LapsDataFrame that supports pick_fastest and filtering by LapNumber."""
-    mock = MagicMock()
-    mock.empty = False
-
-    laps = [_make_mock_lap(n) for n in lap_numbers]
-    mock.pick_fastest.return_value = laps[0]
-
-    # When filtered by LapNumber, return a mock with iloc[0] = matching lap
-    def filter_by_lap_number(df):
-        # This is called via driver_laps[driver_laps["LapNumber"] == n]
-        # We simulate this by making the mock behave like pandas indexing
-        return df
-
-    mock.__getitem__ = MagicMock(return_value=mock)
-    mock.iloc = MagicMock()
-    mock.iloc.__getitem__ = lambda self, idx: laps[idx] if idx < len(laps) else laps[0]
-
-    # Make lap number filtering work: return the mock (non-empty) for any lap number
-    mock.__getitem__.return_value = mock
-
-    return mock, laps
-
-
 # ---------------------------------------------------------------------------
 # generate_multi_lap_chart — validation
 # ---------------------------------------------------------------------------

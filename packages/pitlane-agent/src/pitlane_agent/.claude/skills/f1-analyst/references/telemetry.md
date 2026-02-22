@@ -259,7 +259,7 @@ pitlane analyze multi-lap \
 
 ---
 
-### 5. Year-over-Year Track Comparison
+### 6. Year-over-Year Track Comparison
 
 Compare a driver's best lap at the same track across multiple seasons. Best suited for analysing how regulation changes, car evolution, or driver adaptation affect pace, technique, and driving style.
 

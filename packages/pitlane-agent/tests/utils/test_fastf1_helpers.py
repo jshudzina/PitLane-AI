@@ -12,6 +12,7 @@ from pitlane_agent.utils.fastf1_helpers import (
     get_merged_telemetry,
     load_session_or_testing,
     load_testing_session,
+    pick_lap_by_spec,
     validate_session_or_test,
 )
 
@@ -364,3 +365,33 @@ class TestValidateSessionOrTest:
     def test_rejects_both(self):
         with pytest.raises(click.UsageError, match="Cannot use"):
             validate_session_or_test("Monaco", "R", 1, 2)
+
+
+class TestPickLapBySpec:
+    """Unit tests for pick_lap_by_spec."""
+
+    def _make_laps_df(self, lap_numbers: list[int]) -> pd.DataFrame:
+        return pd.DataFrame({"LapNumber": [float(n) for n in lap_numbers]})
+
+    def test_best_delegates_to_pick_fastest(self):
+        mock_laps = MagicMock()
+        mock_laps.pick_fastest.return_value = "fastest_lap"
+        result = pick_lap_by_spec(mock_laps, "best")
+        mock_laps.pick_fastest.assert_called_once()
+        assert result == "fastest_lap"
+
+    def test_invalid_lap_number_raises_with_available_laps(self):
+        df = self._make_laps_df([1, 2, 3])
+        with pytest.raises(ValueError, match="Lap 99 not found") as exc_info:
+            pick_lap_by_spec(df, 99)
+        assert "Available lap numbers: [1, 2, 3]" in str(exc_info.value)
+
+    def test_invalid_lap_lists_all_available(self):
+        df = self._make_laps_df([5, 10, 15, 20])
+        with pytest.raises(ValueError) as exc_info:
+            pick_lap_by_spec(df, 7)
+        msg = str(exc_info.value)
+        assert "5" in msg
+        assert "10" in msg
+        assert "15" in msg
+        assert "20" in msg

@@ -126,7 +126,10 @@ def generate_multi_lap_chart(
     driver_laps = session.laps.pick_drivers(driver)
 
     if driver_laps.empty:
-        raise ValueError(f"No laps found for driver {driver} in {year} {gp} {session_type}")
+        session_desc = (
+            f"testing event {test_number} day {session_number}" if test_number is not None else f"{gp} {session_type}"
+        )
+        raise ValueError(f"No laps found for driver {driver} in {year} {session_desc}")
 
     entries: list[dict] = []
     lap_stats: list[dict] = []
@@ -230,7 +233,12 @@ def generate_year_compare_chart(
 
         driver_laps = session.laps.pick_drivers(driver)
         if driver_laps.empty:
-            raise ValueError(f"No laps found for driver {driver} in {year} {gp} {session_type}")
+            session_desc = (
+                f"testing event {test_number} day {session_number}"
+                if test_number is not None
+                else f"{gp} {session_type}"
+            )
+            raise ValueError(f"No laps found for driver {driver} in {year} {session_desc}")
 
         fastest_lap = driver_laps.pick_fastest()
         label = f"{driver} {year}"

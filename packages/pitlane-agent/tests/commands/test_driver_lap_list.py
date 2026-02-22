@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-from pitlane_agent.commands.analyze.driver_lap_list import generate_driver_lap_list
+from pitlane_agent.commands.analyze.driver_lap_list import _compute_stint_numbers, generate_driver_lap_list
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -362,6 +362,46 @@ class TestStintComputation:
 
         stint_nums = [lap["stint_number"] for lap in result["laps"]]
         assert stint_nums == [1, 1, 2, 2]
+
+
+# ---------------------------------------------------------------------------
+# _compute_stint_numbers — direct unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestComputeStintNumbers:
+    def test_compound_change_increments_stint(self):
+        df = _make_driver_laps_df(
+            lap_numbers=[1, 2, 3, 4],
+            compounds=["SOFT", "SOFT", "MEDIUM", "MEDIUM"],
+        )
+        assert _compute_stint_numbers(df) == [1, 1, 2, 2]
+
+    def test_pit_out_same_compound_increments_stint(self):
+        # Lap 3 is a pit-out lap on the same compound (e.g. minor repair)
+        df = _make_driver_laps_df(
+            lap_numbers=[1, 2, 3, 4],
+            compounds=["SOFT", "SOFT", "SOFT", "SOFT"],
+            pit_out=[False, False, True, False],
+        )
+        assert _compute_stint_numbers(df) == [1, 1, 2, 2]
+
+    def test_single_compound_no_pit_out_stays_in_stint_one(self):
+        df = _make_driver_laps_df(
+            lap_numbers=[1, 2, 3],
+            compounds=["HARD", "HARD", "HARD"],
+        )
+        assert _compute_stint_numbers(df) == [1, 1, 1]
+
+    def test_compound_change_and_pit_out_each_increment(self):
+        # Lap 3: compound change SOFT→MEDIUM (stint 2)
+        # Lap 5: pit-out same compound (stint 3)
+        df = _make_driver_laps_df(
+            lap_numbers=[1, 2, 3, 4, 5, 6],
+            compounds=["SOFT", "SOFT", "MEDIUM", "MEDIUM", "MEDIUM", "MEDIUM"],
+            pit_out=[False, False, False, False, True, False],
+        )
+        assert _compute_stint_numbers(df) == [1, 1, 2, 2, 3, 3]
 
 
 # ---------------------------------------------------------------------------
