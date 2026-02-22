@@ -298,10 +298,16 @@
             event.detail.elt.querySelector('textarea').value = '';
         }
 
-        // Close panel and clear responses when resuming a conversation
+        // Close panel and load history when resuming a conversation
         if (event.detail.pathInfo.requestPath.includes('/resume')) {
             toggleConversationPanel(false);
+            const requestPath = event.detail.pathInfo.requestPath;
+            const conversationId = requestPath.split('/conversations/')[1].split('/resume')[0];
             document.getElementById('responses').innerHTML = '';
+            htmx.ajax('GET', `/api/conversations/${conversationId}/messages`, {
+                target: '#responses',
+                swap: 'innerHTML'
+            });
         }
     });
 </script>

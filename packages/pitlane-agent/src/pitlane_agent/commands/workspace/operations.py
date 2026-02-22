@@ -564,3 +564,92 @@ def set_active_conversation(workspace_id: str, conversation_id: str | None) -> N
     data = load_conversations(workspace_id)
     data["active_conversation_id"] = conversation_id
     save_conversations(workspace_id, data)
+
+
+# =============================================================================
+# Message Persistence
+# =============================================================================
+
+
+def get_messages_path(workspace_id: str, conversation_id: str) -> Path:
+    """Get path to the messages file for a specific conversation.
+
+    Args:
+        workspace_id: The workspace identifier.
+        conversation_id: The conversation identifier.
+
+    Returns:
+        Path to the {conversation_id}.messages.json file.
+    """
+    return get_workspace_path(workspace_id) / f"{conversation_id}.messages.json"
+
+
+def save_message(workspace_id: str, conversation_id: str, question: str, content: str) -> None:
+    """Atomically append a message pair to the conversation's messages file.
+
+    Args:
+        workspace_id: Workspace identifier.
+        conversation_id: The conversation to append to.
+        question: The user's question.
+        content: The assistant's response content.
+
+    Raises:
+        ValueError: If workspace doesn't exist.
+    """
+    if not workspace_exists(workspace_id):
+        raise ValueError(f"Workspace does not exist for workspace ID: {workspace_id}")
+
+    messages_path = get_messages_path(workspace_id, conversation_id)
+    workspace_path = get_workspace_path(workspace_id)
+
+    # Load existing messages
+    messages = []
+    if messages_path.exists():
+        try:
+            with open(messages_path) as f:
+                messages = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            messages = []
+
+    messages.append(
+        {
+            "question": question,
+            "content": content,
+            "timestamp": datetime.now(UTC).isoformat() + "Z",
+        }
+    )
+
+    fd, temp_path = tempfile.mkstemp(
+        dir=workspace_path,
+        prefix=f".{conversation_id}.tmp.",
+        suffix=".json",
+    )
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(messages, f, indent=2)
+        os.replace(temp_path, messages_path)
+    except Exception:
+        with suppress(Exception):
+            os.unlink(temp_path)
+        raise
+
+
+def load_messages(workspace_id: str, conversation_id: str) -> list[dict]:
+    """Load all message pairs for a conversation.
+
+    Args:
+        workspace_id: Workspace identifier.
+        conversation_id: The conversation to load messages for.
+
+    Returns:
+        List of message dicts with 'question', 'content', and 'timestamp' keys.
+        Returns empty list if no messages have been saved yet.
+    """
+    messages_path = get_messages_path(workspace_id, conversation_id)
+    if not messages_path.exists():
+        return []
+    try:
+        with open(messages_path) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
