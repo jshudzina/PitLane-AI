@@ -615,7 +615,7 @@ def save_message(workspace_id: str, conversation_id: str, question: str, content
         {
             "question": question,
             "content": content,
-            "timestamp": datetime.now(UTC).isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat(),
         }
     )
 

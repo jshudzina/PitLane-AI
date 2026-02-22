@@ -10,7 +10,9 @@ from pitlane_agent.commands.workspace.operations import (
     get_active_conversation,
     get_conversations_path,
     load_conversations,
+    load_messages,
     save_conversations,
+    save_message,
     set_active_conversation,
     update_conversation,
 )
@@ -367,3 +369,113 @@ class TestGetConversationsPath:
 
         result = get_conversations_path("test-session")
         assert result == workspace_path / "conversations.json"
+
+
+class TestSaveMessage:
+    """Tests for save_message function."""
+
+    def _setup(self, tmp_path, monkeypatch):
+        workspace_path = tmp_path / "workspace"
+        workspace_path.mkdir()
+        monkeypatch.setattr("pitlane_agent.commands.workspace.operations.workspace_exists", lambda sid: True)
+        monkeypatch.setattr(
+            "pitlane_agent.commands.workspace.operations.get_workspace_path",
+            lambda sid: workspace_path,
+        )
+        return workspace_path
+
+    def test_raises_on_missing_workspace(self, monkeypatch):
+        """Test that missing workspace raises ValueError."""
+        monkeypatch.setattr("pitlane_agent.commands.workspace.operations.workspace_exists", lambda sid: False)
+        with pytest.raises(ValueError, match="Workspace does not exist"):
+            save_message("bad-ws", "conv_1", "q", "a")
+
+    def test_creates_file_on_first_save(self, tmp_path, monkeypatch):
+        """Test that messages file is created when first message is saved."""
+        workspace_path = self._setup(tmp_path, monkeypatch)
+        save_message("ws", "conv_1", "What happened at Spa?", "It rained.")
+        messages_path = workspace_path / "conv_1.messages.json"
+        assert messages_path.exists()
+        messages = json.loads(messages_path.read_text())
+        assert len(messages) == 1
+        assert messages[0]["question"] == "What happened at Spa?"
+        assert messages[0]["content"] == "It rained."
+
+    def test_appends_to_existing_messages(self, tmp_path, monkeypatch):
+        """Test that subsequent saves append rather than overwrite."""
+        workspace_path = self._setup(tmp_path, monkeypatch)
+        save_message("ws", "conv_1", "First question", "First answer")
+        save_message("ws", "conv_1", "Second question", "Second answer")
+        messages = json.loads((workspace_path / "conv_1.messages.json").read_text())
+        assert len(messages) == 2
+        assert messages[0]["question"] == "First question"
+        assert messages[1]["question"] == "Second question"
+
+    def test_timestamp_is_valid_iso8601(self, tmp_path, monkeypatch):
+        """Test that timestamp is valid ISO 8601 without double-Z suffix."""
+        from datetime import datetime
+
+        self._setup(tmp_path, monkeypatch)
+        save_message("ws", "conv_1", "q", "a")
+        messages_path = tmp_path / "workspace" / "conv_1.messages.json"
+        messages = json.loads(messages_path.read_text())
+        ts = messages[0]["timestamp"]
+        # Must parse without error and must not end with the double-Z pattern "+00:00Z"
+        datetime.fromisoformat(ts)
+        assert not ts.endswith("+00:00Z"), f"Timestamp has double-Z suffix: {ts!r}"
+
+    def test_recovers_from_corrupt_existing_file(self, tmp_path, monkeypatch):
+        """Test that a corrupt messages file is silently reset."""
+        workspace_path = self._setup(tmp_path, monkeypatch)
+        messages_path = workspace_path / "conv_1.messages.json"
+        messages_path.write_text("not valid json {{{")
+        save_message("ws", "conv_1", "q", "a")
+        messages = json.loads(messages_path.read_text())
+        assert len(messages) == 1
+
+    def test_separate_conversations_are_independent(self, tmp_path, monkeypatch):
+        """Test that messages for different conversations don't mix."""
+        workspace_path = self._setup(tmp_path, monkeypatch)
+        save_message("ws", "conv_a", "question A", "answer A")
+        save_message("ws", "conv_b", "question B", "answer B")
+        msgs_a = json.loads((workspace_path / "conv_a.messages.json").read_text())
+        msgs_b = json.loads((workspace_path / "conv_b.messages.json").read_text())
+        assert len(msgs_a) == 1 and msgs_a[0]["question"] == "question A"
+        assert len(msgs_b) == 1 and msgs_b[0]["question"] == "question B"
+
+
+class TestLoadMessages:
+    """Tests for load_messages function."""
+
+    def _setup(self, tmp_path, monkeypatch):
+        workspace_path = tmp_path / "workspace"
+        workspace_path.mkdir()
+        monkeypatch.setattr(
+            "pitlane_agent.commands.workspace.operations.get_workspace_path",
+            lambda sid: workspace_path,
+        )
+        return workspace_path
+
+    def test_returns_empty_list_when_no_file(self, tmp_path, monkeypatch):
+        """Test that missing messages file returns empty list."""
+        self._setup(tmp_path, monkeypatch)
+        result = load_messages("ws", "conv_1")
+        assert result == []
+
+    def test_returns_messages_in_order(self, tmp_path, monkeypatch):
+        """Test that messages are returned in saved (chronological) order."""
+        workspace_path = self._setup(tmp_path, monkeypatch)
+        data = [
+            {"question": "q1", "content": "a1", "timestamp": "2026-01-01T10:00:00+00:00"},
+            {"question": "q2", "content": "a2", "timestamp": "2026-01-01T11:00:00+00:00"},
+        ]
+        (workspace_path / "conv_1.messages.json").write_text(json.dumps(data))
+        result = load_messages("ws", "conv_1")
+        assert result == data
+
+    def test_returns_empty_list_on_corrupt_file(self, tmp_path, monkeypatch):
+        """Test that corrupt JSON returns empty list without raising."""
+        workspace_path = self._setup(tmp_path, monkeypatch)
+        (workspace_path / "conv_1.messages.json").write_text("{not json")
+        result = load_messages("ws", "conv_1")
+        assert result == []
