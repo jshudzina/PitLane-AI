@@ -11,6 +11,7 @@ from pitlane_agent.commands.analyze.gear_shifts_map import generate_gear_shifts_
 from pitlane_agent.commands.analyze.lap_times import generate_lap_times_chart
 from pitlane_agent.commands.analyze.lap_times_distribution import generate_lap_times_distribution_chart
 from pitlane_agent.commands.analyze.position_changes import generate_position_changes_chart
+from pitlane_agent.commands.analyze.season_summary import generate_season_summary_chart
 from pitlane_agent.commands.analyze.speed_trace import generate_speed_trace_chart
 from pitlane_agent.commands.analyze.telemetry import generate_telemetry_chart
 from pitlane_agent.commands.analyze.track_map import generate_track_map_chart
@@ -23,6 +24,7 @@ __all__ = [
     "generate_lap_times_chart",
     "generate_lap_times_distribution_chart",
     "generate_multi_lap_chart",
+    "generate_season_summary_chart",
     "generate_tyre_strategy_chart",
     "generate_speed_trace_chart",
     "generate_telemetry_chart",

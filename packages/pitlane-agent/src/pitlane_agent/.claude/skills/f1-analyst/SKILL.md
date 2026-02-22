@@ -52,7 +52,10 @@ Based on the user's question, read the appropriate reference file for detailed i
 **Examples:**
 - "Who can still win the championship?"
 - "Show me the standings progression"
-- "Give me a season summary"
+- "Summarize the 2024 season"
+- "Show me season statistics for all drivers"
+- "Who had the most podiums in 2024?"
+- "Show me the constructors' season overview"
 - "Which was the craziest race of 2024?"
 - "Rank the races by how wild they were"
 
