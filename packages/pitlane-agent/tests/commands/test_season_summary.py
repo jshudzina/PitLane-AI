@@ -18,7 +18,7 @@ from pitlane_agent.commands.fetch.season_summary import (
 
 def _make_ff1_results(rows: list[dict]) -> pd.DataFrame:
     """Make a minimal FastF1 results DataFrame."""
-    defaults = {"Abbreviation": "VER", "TeamName": "Red Bull Racing", "Points": 25.0}
+    defaults = {"Abbreviation": "VER", "TeamName": "Red Bull Racing", "Points": 25.0, "Position": 1.0}
     return pd.DataFrame([{**defaults, **r} for r in rows])
 
 
@@ -74,7 +74,7 @@ class TestFetchPerRoundPoints:
 
         monkeypatch.setattr("pitlane_agent.commands.analyze.season_summary.fastf1.get_session", fake_get_session)
 
-        points_df, total_points, short_names = _fetch_per_round_points(2024, schedule, "drivers")
+        points_df, position_df, total_points, short_names = _fetch_per_round_points(2024, schedule, "drivers")
 
         assert set(points_df.index) == {"VER", "LEC"}
         assert list(points_df.columns) == [1, 2]
@@ -85,6 +85,9 @@ class TestFetchPerRoundPoints:
         assert total_points["VER"] == 43.0
         assert total_points["LEC"] == 43.0
         assert short_names == ["Bahrain", "Saudi Arabian"]
+        # position_df should be populated for drivers mode
+        assert not position_df.empty
+        assert position_df.at["VER", 1] == 1
 
     def test_sorted_ascending_by_total(self, monkeypatch):
         """Champion (most points) should be last in the ascending-sorted index."""
@@ -102,7 +105,7 @@ class TestFetchPerRoundPoints:
             lambda *a: _make_session_mock(results),
         )
 
-        points_df, total_points, _ = _fetch_per_round_points(2024, schedule, "drivers")
+        points_df, _position_df, total_points, _ = _fetch_per_round_points(2024, schedule, "drivers")
 
         # Ascending sort: lowest points first, highest (champion) last
         assert list(total_points.index)[-1] == "VER"
@@ -135,7 +138,7 @@ class TestFetchPerRoundPoints:
 
         monkeypatch.setattr("pitlane_agent.commands.analyze.season_summary.fastf1.get_session", fake_get_session)
 
-        points_df, total_points, _ = _fetch_per_round_points(2024, schedule, "drivers")
+        points_df, _position_df, total_points, _ = _fetch_per_round_points(2024, schedule, "drivers")
 
         assert points_df.at["VER", 1] == 33.0
         assert total_points["VER"] == 33.0
@@ -157,10 +160,12 @@ class TestFetchPerRoundPoints:
             lambda *a: _make_session_mock(results),
         )
 
-        points_df, total_points, _ = _fetch_per_round_points(2024, schedule, "constructors")
+        points_df, position_df, total_points, _ = _fetch_per_round_points(2024, schedule, "constructors")
 
         assert points_df.at["Red Bull Racing", 1] == 43.0
         assert points_df.at["Ferrari", 1] == 15.0
+        # position_df is empty for constructors mode
+        assert position_df.empty
 
     def test_round_zero_is_skipped(self, monkeypatch):
         """Events with RoundNumber == 0 (testing) must not produce rows."""
@@ -181,7 +186,7 @@ class TestFetchPerRoundPoints:
 
         monkeypatch.setattr("pitlane_agent.commands.analyze.season_summary.fastf1.get_session", fake_get_session)
 
-        _fetch_per_round_points(2024, schedule, "drivers")
+        _fetch_per_round_points(2024, schedule, "drivers")  # noqa: return unpacking not needed here
 
         assert all("Testing" not in name for name in call_log)
 
@@ -204,7 +209,7 @@ class TestFetchPerRoundPoints:
 
         monkeypatch.setattr("pitlane_agent.commands.analyze.season_summary.fastf1.get_session", fake_get_session)
 
-        points_df, total_points, _ = _fetch_per_round_points(2024, schedule, "drivers")
+        points_df, _position_df, total_points, _ = _fetch_per_round_points(2024, schedule, "drivers")
 
         assert list(points_df.columns) == [2]
         assert points_df.at["VER", 2] == 25.0
@@ -219,9 +224,10 @@ class TestFetchPerRoundPoints:
             lambda *a: (_ for _ in ()).throw(AssertionError("should not be called")),
         )
 
-        points_df, total_points, short_names = _fetch_per_round_points(2024, schedule, "drivers")
+        points_df, position_df, total_points, short_names = _fetch_per_round_points(2024, schedule, "drivers")
 
         assert points_df.empty
+        assert position_df.empty
         assert total_points.empty
         assert short_names == []
 
@@ -247,13 +253,13 @@ class TestGenerateSeasonSummaryChart:
             "pitlane_agent.commands.analyze.season_summary.setup_fastf1_cache",
             lambda: None,
         )
+        # Plotly write_html — create the file without actually rendering
+        import plotly.graph_objects as go
+
         monkeypatch.setattr(
-            "pitlane_agent.commands.analyze.season_summary.setup_plot_style",
-            lambda: None,
-        )
-        monkeypatch.setattr(
-            "pitlane_agent.commands.analyze.season_summary.save_figure",
-            lambda fig, path, **kw: (path.parent.mkdir(parents=True, exist_ok=True), path.touch()),
+            go.Figure,
+            "write_html",
+            lambda self, path, **kw: Path(path).touch(),
         )
 
     def _single_round_schedule(self) -> pd.DataFrame:
@@ -407,7 +413,7 @@ class TestGenerateSeasonSummaryChart:
         result = generate_season_summary_chart(year=2024, summary_type="drivers", workspace_dir=tmp_path)
 
         chart_path = Path(result["chart_path"])
-        assert chart_path.name == "season_summary_2024_drivers.png"
+        assert chart_path.name == "season_summary_2024_drivers.html"
         assert chart_path.parent == tmp_path / "charts"
         assert chart_path.exists()
 
@@ -430,7 +436,7 @@ class TestGenerateSeasonSummaryChart:
         assert result["leader"]["name"] == "Red Bull Racing"
         assert result["leader"]["points"] == 43.0
         chart_path = Path(result["chart_path"])
-        assert chart_path.name == "season_summary_2024_constructors.png"
+        assert chart_path.name == "season_summary_2024_constructors.html"
 
 
 # ---------------------------------------------------------------------------

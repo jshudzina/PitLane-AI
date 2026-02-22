@@ -9,13 +9,11 @@ import logging
 from pathlib import Path
 
 import fastf1
-import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-from pitlane_agent.utils.constants import DEFAULT_DPI
 from pitlane_agent.utils.fastf1_helpers import setup_fastf1_cache
-from pitlane_agent.utils.plotting import save_figure, setup_plot_style
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +22,8 @@ def _fetch_per_round_points(
     year: int,
     schedule: pd.DataFrame,
     summary_type: str,
-) -> tuple[pd.DataFrame, pd.Series, list[str]]:
-    """Fetch per-round points for all drivers/constructors via FastF1.
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, list[str]]:
+    """Fetch per-round points (and finishing positions) via FastF1.
 
     Args:
         year: Championship year
@@ -34,10 +32,12 @@ def _fetch_per_round_points(
 
     Returns:
         Tuple of:
-        - points_df: DataFrame with competitors as index, round numbers as columns,
-          sorted ascending by total points (champion at top of heatmap)
-        - total_points: Series with total season points per competitor, same order
-        - short_event_names: Short race name strings in round-number order
+        - points_df: pivot of competitor × round → points, sorted ascending by
+          total (champion sits at the top of the heatmap)
+        - position_df: pivot of driver × round → finishing position (drivers
+          mode only; empty DataFrame for constructors)
+        - total_points: Series of total season points per competitor, same order
+        - short_event_names: short race name strings in round-number order
     """
     rows: list[dict] = []
     short_event_names: list[str] = []
@@ -70,6 +70,10 @@ def _fetch_per_round_points(
             team_name = str(driver_row["TeamName"]) if pd.notna(driver_row["TeamName"]) else "Unknown"
             race_points = float(driver_row["Points"]) if pd.notna(driver_row["Points"]) else 0.0
 
+            # Convert position to int for clean hover display
+            raw_pos = driver_row["Position"]
+            position = int(raw_pos) if pd.notna(raw_pos) else None
+
             sprint_points = 0.0
             if sprint is not None:
                 sprint_driver = sprint.results[sprint.results["Abbreviation"] == abbreviation]
@@ -83,17 +87,20 @@ def _fetch_per_round_points(
                     "RoundNumber": round_number,
                     "Competitor": competitor,
                     "Points": race_points + sprint_points,
+                    "Position": position,
                 }
             )
 
     df = pd.DataFrame(rows)
     if df.empty:
-        return pd.DataFrame(), pd.Series(dtype=float), short_event_names
+        return pd.DataFrame(), pd.DataFrame(), pd.Series(dtype=float), short_event_names
 
     if summary_type == "constructors":
         points_df = df.groupby(["Competitor", "RoundNumber"])["Points"].sum().unstack(fill_value=0)
+        position_df = pd.DataFrame()
     else:
         points_df = df.pivot(index="Competitor", columns="RoundNumber", values="Points").fillna(0)
+        position_df = df.pivot(index="Competitor", columns="RoundNumber", values="Position").fillna("N/A")
 
     # Ensure columns are in round-number order
     points_df = points_df[sorted(points_df.columns)]
@@ -104,74 +111,91 @@ def _fetch_per_round_points(
     points_df = points_df.loc[sorted_idx]
     total_points = total_points.loc[sorted_idx]
 
-    return points_df, total_points, short_event_names
+    if not position_df.empty:
+        position_df = position_df.loc[sorted_idx, sorted(position_df.columns)]
+
+    return points_df, position_df, total_points, short_event_names
 
 
-def _plot_season_heatmap(
+def _build_season_heatmap(
     points_df: pd.DataFrame,
+    position_df: pd.DataFrame,
     total_points: pd.Series,
     short_event_names: list[str],
     year: int,
     summary_type: str,
-    fig: plt.Figure,
-) -> None:
-    """Render the two-panel season points heatmap onto the figure.
+) -> go.Figure:
+    """Build the two-panel Plotly heatmap and return the figure.
 
-    Left panel (85 %): per-round points grid.
-    Right panel (15 %): total season points column.
+    Left panel (85 %): per-round points with hover showing finishing position.
+    Right panel (15 %): total season points.
     """
-    gs = fig.add_gridspec(1, 2, width_ratios=[0.85, 0.15], wspace=0.03)
-    ax_main = fig.add_subplot(gs[0])
-    ax_total = fig.add_subplot(gs[1])
-
-    cmap = "YlGnBu"
     n_rounds = len(points_df.columns)
     x_labels = short_event_names[:n_rounds]
-    vmax = float(points_df.values.max()) if points_df.size > 0 else 25.0
-
-    sns.heatmap(
-        points_df,
-        ax=ax_main,
-        cmap=cmap,
-        annot=True,
-        fmt=".0f",
-        linewidths=0.4,
-        linecolor="#111111",
-        cbar=False,
-        xticklabels=x_labels,
-        yticklabels=list(points_df.index),
-        vmin=0,
-        vmax=vmax,
-        annot_kws={"size": 7},
-    )
-
     type_label = "Drivers'" if summary_type == "drivers" else "Constructors'"
-    ax_main.set_title(f"{year} {type_label} Championship — Points Per Round", fontsize=13, pad=10)
-    ax_main.set_xlabel("")
-    ax_main.set_ylabel("")
-    ax_main.tick_params(axis="x", rotation=45, labelsize=8)
-    ax_main.tick_params(axis="y", rotation=0, labelsize=9)
+    vmax_main = float(points_df.values.max()) if points_df.size > 0 else 25.0
 
-    total_df = total_points.to_frame(name="Total")
-    sns.heatmap(
-        total_df,
-        ax=ax_total,
-        cmap=cmap,
-        annot=True,
-        fmt=".0f",
-        linewidths=0.4,
-        linecolor="#111111",
-        cbar=False,
-        xticklabels=["Total"],
-        yticklabels=False,
-        vmin=0,
-        vmax=float(total_points.max()) if len(total_points) > 0 else 1.0,
-        annot_kws={"size": 9, "weight": "bold"},
+    # Build per-cell hover customdata (list-of-lists of dicts with position)
+    if not position_df.empty:
+        hover_info = [
+            [
+                {"position": position_df.at[driver, race] if race in position_df.columns else "N/A"}
+                for race in points_df.columns
+            ]
+            for driver in points_df.index
+        ]
+        hovertemplate = "Driver: %{y}<br>Race: %{x}<br>Points: %{z}<br>Position: %{customdata.position}<extra></extra>"
+    else:
+        hover_info = None
+        hovertemplate = "Constructor: %{y}<br>Race: %{x}<br>Points: %{z}<extra></extra>"
+
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        column_widths=[0.85, 0.15],
+        subplot_titles=(f"F1 {year} {type_label} Championship", "Total Points"),
     )
-    ax_total.set_title("Total", fontsize=11, pad=10)
-    ax_total.set_xlabel("")
-    ax_total.set_ylabel("")
-    ax_total.tick_params(axis="y", left=False)
+    fig.update_layout(
+        width=max(900, n_rounds * 45 + 200),
+        height=max(500, len(points_df) * 28 + 120),
+    )
+
+    main_trace = go.Heatmap(
+        x=x_labels,
+        y=list(points_df.index),
+        z=points_df.values,
+        text=points_df.values,
+        texttemplate="%{text:.0f}",
+        textfont={"size": 10},
+        colorscale="YlGnBu",
+        showscale=False,
+        zmin=0,
+        zmax=vmax_main,
+        hovertemplate=hovertemplate,
+    )
+    if hover_info is not None:
+        main_trace.customdata = hover_info
+
+    fig.add_trace(main_trace, row=1, col=1)
+
+    fig.add_trace(
+        go.Heatmap(
+            x=["Total Points"] * len(total_points),
+            y=list(points_df.index),
+            z=total_points.values,
+            text=total_points.values,
+            texttemplate="%{text:.0f}",
+            textfont={"size": 11},
+            colorscale="YlGnBu",
+            showscale=False,
+            zmin=0,
+            zmax=float(total_points.max()) if len(total_points) > 0 else 1.0,
+        ),
+        row=1,
+        col=2,
+    )
+
+    return fig
 
 
 def generate_season_summary_chart(
@@ -179,7 +203,9 @@ def generate_season_summary_chart(
     summary_type: str = "drivers",
     workspace_dir: Path | None = None,
 ) -> dict:
-    """Generate season summary heatmap with per-round championship points.
+    """Generate an interactive season summary heatmap with per-round points.
+
+    Saves the chart as an HTML file so the Plotly hover tooltips are preserved.
 
     Args:
         year: Championship year (e.g., 2024)
@@ -200,7 +226,7 @@ def generate_season_summary_chart(
     schedule = fastf1.get_event_schedule(year, include_testing=False)
     total_race_events = int((schedule["RoundNumber"] > 0).sum())
 
-    points_df, total_points, short_event_names = _fetch_per_round_points(year, schedule, summary_type)
+    points_df, position_df, total_points, short_event_names = _fetch_per_round_points(year, schedule, summary_type)
 
     if points_df.empty:
         raise ValueError(f"No standings data available for {year} {summary_type} championship.")
@@ -208,7 +234,7 @@ def generate_season_summary_chart(
     completed_round = int(points_df.columns.max())
     season_complete = completed_round >= total_race_events
 
-    # Build competitor list: champion is last in ascending-sorted index
+    # Build competitor list — champion is last in the ascending-sorted index
     competitors = [
         {
             "name": competitor,
@@ -219,19 +245,15 @@ def generate_season_summary_chart(
     ]
     leader = competitors[0] if competitors else {}
 
-    setup_plot_style()
-    n_competitors = len(points_df)
-    n_rounds = len(points_df.columns)
-    fig = plt.figure(figsize=(max(16, n_rounds * 0.8), max(8, n_competitors * 0.5 + 2)))
-
-    _plot_season_heatmap(points_df, total_points, short_event_names, year, summary_type, fig)
+    fig = _build_season_heatmap(points_df, position_df, total_points, short_event_names, year, summary_type)
 
     round_label = f"After Round {completed_round}" if not season_complete else f"Final — {completed_round} Races"
-    fig.suptitle(round_label, fontsize=10, y=1.01, alpha=0.7)
+    fig.update_layout(title_text=round_label, title_x=0.5, title_font_size=12)
 
-    filename = f"season_summary_{year}_{summary_type}.png"
+    filename = f"season_summary_{year}_{summary_type}.html"
     output_path = workspace_dir / "charts" / filename
-    save_figure(fig, output_path, dpi=DEFAULT_DPI)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.write_html(str(output_path))
 
     return {
         "chart_path": str(output_path),
