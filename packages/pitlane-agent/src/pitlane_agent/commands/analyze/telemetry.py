@@ -54,26 +54,40 @@ CHANNELS = [
 ]
 
 
+def _entry_key(entry: dict) -> str:
+    """Return the column-naming key for an entry (backward-compatible with 'driver' field)."""
+    return entry.get("key", entry.get("driver", ""))
+
+
+def _entry_label(entry: dict) -> str:
+    """Return the display label for an entry (backward-compatible with 'driver' field)."""
+    return entry.get("label", entry.get("driver", ""))
+
+
 def _build_merged_telemetry(
     all_telemetry: list[dict],
     channel_keys: list[str],
 ) -> pd.DataFrame | None:
-    """Merge all drivers' telemetry onto a common distance grid.
+    """Merge all entries' telemetry onto a common distance grid.
 
-    Returns a DataFrame with columns: Distance, {channel}_{driver} for each
-    driver/channel pair. Returns None if fewer than 2 drivers have data.
+    Returns a DataFrame with columns: Distance, {channel}_{key} for each
+    entry/channel pair. Returns None if fewer than 2 entries have data.
+
+    Entry dicts support both new-style (with 'key'/'label') and old-style
+    (with 'driver') for backward compatibility.
     """
     if len(all_telemetry) < 2:
         return None
 
     cols_needed = ["Distance"] + channel_keys
+    key0 = _entry_key(all_telemetry[0])
     ref = all_telemetry[0]["telemetry"][cols_needed].copy()
-    ref.columns = ["Distance"] + [f"{c}_{all_telemetry[0]['driver']}" for c in channel_keys]
+    ref.columns = ["Distance"] + [f"{c}_{key0}" for c in channel_keys]
 
     for entry in all_telemetry[1:]:
-        drv = entry["driver"]
+        k = _entry_key(entry)
         other = entry["telemetry"][cols_needed].copy()
-        other.columns = ["Distance"] + [f"{c}_{drv}" for c in channel_keys]
+        other.columns = ["Distance"] + [f"{c}_{k}" for c in channel_keys]
         ref = pd.merge_asof(
             ref.sort_values("Distance"),
             other.sort_values("Distance"),
@@ -85,21 +99,37 @@ def _build_merged_telemetry(
 
 
 def _build_customdata(
-    driver: str,
+    label: str,
     channel_key: str,
     tel: pd.DataFrame,
     merged: pd.DataFrame,
-    other_drivers: list[str],
+    other_labels: list[str],
+    *,
+    key: str | None = None,
+    other_keys: list[str] | None = None,
 ) -> np.ndarray:
-    """Build customdata array with deltas vs other drivers for tooltip display."""
-    if merged is None or not other_drivers:
+    """Build customdata array with deltas vs other entries for tooltip display.
+
+    Args:
+        label: Display name of this entry (used only for context; column ops use key)
+        channel_key: The telemetry channel key (e.g. "Speed")
+        tel: This entry's telemetry DataFrame
+        merged: Merged telemetry DataFrame from _build_merged_telemetry
+        other_labels: Display labels of other entries (for fallback if other_keys not given)
+        key: Column-naming key for this entry (defaults to label if not provided)
+        other_keys: Column-naming keys of other entries (defaults to other_labels if not provided)
+    """
+    if merged is None or not other_labels:
         return np.zeros((len(tel), 1))
 
-    own_col = f"{channel_key}_{driver}"
+    own_key = key if key is not None else label
+    _other_keys = other_keys if other_keys is not None else other_labels
+
+    own_col = f"{channel_key}_{own_key}"
     result_cols = []
 
-    for other_drv in other_drivers:
-        other_col = f"{channel_key}_{other_drv}"
+    for other_key in _other_keys:
+        other_col = f"{channel_key}_{other_key}"
         aligned = pd.merge_asof(
             tel[["Distance"]].sort_values("Distance"),
             merged[["Distance", own_col, other_col]].sort_values("Distance"),
@@ -113,22 +143,179 @@ def _build_customdata(
 
 
 def _build_hover_template(
-    driver: str,
+    label: str,
     channel: dict,
-    other_drivers: list[str],
+    other_labels: list[str],
 ) -> str:
-    """Build Plotly hovertemplate string with delta lines for each other driver."""
+    """Build Plotly hovertemplate string with delta lines for each other entry."""
     fmt = channel["fmt"]
     unit = channel["unit"]
     lines = [
-        f"<b>{driver}</b>",
+        f"<b>{label}</b>",
         "Distance: %{x:.0f}m",
         f"{channel['label']}: %{{y:{fmt}}}{unit}",
     ]
-    for i, other in enumerate(other_drivers):
+    for i, other in enumerate(other_labels):
         lines.append(f"\u0394 vs {other}: %{{customdata[{i}]:+.1f}}{unit}")
     lines.append("<extra></extra>")
     return "<br>".join(lines)
+
+
+def _render_telemetry_chart(
+    entries: list[dict],
+    circuit_info,
+    output_path: Path,
+    annotate_corners: bool,
+    title: str,
+) -> bool:
+    """Render a Plotly telemetry chart to HTML and return whether corners were drawn.
+
+    Args:
+        entries: List of entry dicts, each with:
+            - 'key': column-naming identifier (no spaces)
+            - 'label': display label (may contain spaces)
+            - 'telemetry': DataFrame with Distance, Speed, RPM, nGear, Throttle, Brake, SuperClip
+            - 'color': hex color string
+            - 'style': line style dict with 'linestyle' and 'linewidth' keys
+        circuit_info: FastF1 circuit info object (for corner annotations), or None
+        output_path: Path to write the HTML file
+        annotate_corners: Whether to draw corner annotations
+        title: Chart title text
+
+    Returns:
+        True if corner annotations were successfully drawn, False otherwise
+    """
+    channel_keys = [ch["key"] for ch in CHANNELS]
+    merged = _build_merged_telemetry(entries, channel_keys)
+
+    fig = make_subplots(
+        rows=len(CHANNELS),
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.03,
+        row_heights=TELEMETRY_ROW_HEIGHTS,
+        subplot_titles=[ch["label"] for ch in CHANNELS],
+    )
+
+    for entry in entries:
+        lbl = _entry_label(entry)
+        k = _entry_key(entry)
+        tel = entry["telemetry"]
+        color = entry["color"]
+        style = entry["style"]
+
+        other_labels = [_entry_label(e) for e in entries if _entry_key(e) != k]
+        other_keys = [_entry_key(e) for e in entries if _entry_key(e) != k]
+
+        dash_map = {"-": "solid", "--": "dash"}
+        dash = dash_map.get(style["linestyle"], "solid")
+
+        for channel in CHANNELS:
+            customdata = _build_customdata(
+                lbl,
+                channel["key"],
+                tel,
+                merged,
+                other_labels,
+                key=k,
+                other_keys=other_keys,
+            )
+            fill = "tozeroy" if channel["key"] == "SuperClip" else None
+
+            fig.add_trace(
+                go.Scatter(
+                    x=tel["Distance"],
+                    y=tel[channel["key"]],
+                    name=lbl,
+                    legendgroup=lbl,
+                    showlegend=(channel["row"] == 1),
+                    line={"color": color, "width": style["linewidth"], "dash": dash},
+                    mode="lines",
+                    fill=fill,
+                    customdata=customdata,
+                    hovertemplate=_build_hover_template(lbl, channel, other_labels),
+                ),
+                row=channel["row"],
+                col=1,
+            )
+
+    corners_drawn = False
+    if annotate_corners and circuit_info is not None:
+        try:
+            for _, corner in circuit_info.corners.iterrows():
+                number = int(corner["Number"])
+                letter = str(corner["Letter"]) if pd.notna(corner["Letter"]) and corner["Letter"] else ""
+                corner_label = f"{number}{letter}"
+                dist = float(corner["Distance"])
+
+                for row in range(1, len(CHANNELS) + 1):
+                    fig.add_vline(
+                        x=dist,
+                        line={"color": PLOTLY_DARK_THEME["corner_line_color"], "width": 1, "dash": "dash"},
+                        row=row,
+                        col=1,
+                    )
+
+                fig.add_annotation(
+                    x=dist,
+                    y=1.02,
+                    yref="y domain",
+                    xref="x",
+                    text=corner_label,
+                    showarrow=False,
+                    font={"color": PLOTLY_DARK_THEME["corner_label_color"], "size": 9},
+                    row=1,
+                    col=1,
+                )
+            corners_drawn = True
+        except Exception:
+            logging.getLogger(__name__).warning("Failed to draw corner annotations", exc_info=True)
+
+    fig.update_layout(
+        paper_bgcolor=PLOTLY_DARK_THEME["paper_bgcolor"],
+        plot_bgcolor=PLOTLY_DARK_THEME["plot_bgcolor"],
+        font={"color": PLOTLY_DARK_THEME["font_color"]},
+        title={"text": title, "font": {"size": 16}},
+        hovermode="x",
+        legend={
+            "bgcolor": "rgba(30,30,30,0.8)",
+            "bordercolor": "#555555",
+            "borderwidth": 1,
+        },
+        height=1100,
+    )
+
+    for i in range(1, len(CHANNELS) + 1):
+        yaxis_key = f"yaxis{i}" if i > 1 else "yaxis"
+        fig.update_layout(
+            **{
+                yaxis_key: {
+                    "gridcolor": PLOTLY_DARK_THEME["gridcolor"],
+                    "zerolinecolor": PLOTLY_DARK_THEME["zerolinecolor"],
+                }
+            }
+        )
+
+    fig.update_yaxes(dtick=2000, row=2, col=1)
+    fig.update_yaxes(dtick=1, row=3, col=1)
+    _superclip_row = next(ch["row"] for ch in CHANNELS if ch["key"] == "SuperClip")
+    fig.update_yaxes(range=[-0.1, 1.1], dtick=1, tickvals=[0, 1], ticktext=["Off", "On"], row=_superclip_row, col=1)
+
+    fig.update_xaxes(gridcolor=PLOTLY_DARK_THEME["gridcolor"])
+    fig.update_xaxes(title_text="Distance (m)", row=len(CHANNELS), col=1)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.write_html(
+        str(output_path),
+        include_plotlyjs=True,
+        full_html=True,
+        config={
+            "displayModeBar": True,
+            "scrollZoom": True,
+        },
+    )
+
+    return corners_drawn
 
 
 def generate_telemetry_chart(
@@ -191,10 +378,8 @@ def generate_telemetry_chart(
         if team:
             team_drivers.setdefault(team, []).append(driver_abbr)
 
-    # Collect per-driver telemetry
-    all_telemetry: list[dict] = []
+    entries: list[dict] = []
     stats: list[dict] = []
-    channel_keys = [ch["key"] for ch in CHANNELS]
 
     for driver_abbr in drivers:
         driver_laps = session.laps.pick_drivers(driver_abbr)
@@ -219,15 +404,6 @@ def generate_telemetry_chart(
             teammate_index = team_drivers[team].index(driver_abbr)
         style = TEAMMATE_LINE_STYLES[min(teammate_index, len(TEAMMATE_LINE_STYLES) - 1)]
 
-        all_telemetry.append(
-            {
-                "driver": driver_abbr,
-                "telemetry": tel,
-                "color": color,
-                "style": style,
-            }
-        )
-
         # Telemetry technique analysis (lift-and-coast, super clipping)
         analysis = analyze_telemetry(tel)
 
@@ -236,6 +412,17 @@ def generate_telemetry_chart(
         for zone in analysis["super_clipping_zones"]:
             mask = (tel["Distance"] >= zone["start_distance"]) & (tel["Distance"] <= zone["end_distance"])
             tel.loc[mask, "SuperClip"] = 1
+
+        entries.append(
+            {
+                "driver": driver_abbr,  # kept for backward compatibility with tests
+                "key": driver_abbr,
+                "label": driver_abbr,
+                "telemetry": tel,
+                "color": color,
+                "style": style,
+            }
+        )
 
         stats.append(
             {
@@ -259,138 +446,15 @@ def generate_telemetry_chart(
             }
         )
 
-    # Pre-compute merged telemetry for delta tooltips
-    merged = _build_merged_telemetry(all_telemetry, channel_keys)
-
-    # Build Plotly figure with shared X axis
-    fig = make_subplots(
-        rows=len(CHANNELS),
-        cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.03,
-        row_heights=TELEMETRY_ROW_HEIGHTS,
-        subplot_titles=[ch["label"] for ch in CHANNELS],
-    )
-
-    # Add traces for each driver on each channel
-    for entry in all_telemetry:
-        drv = entry["driver"]
-        tel = entry["telemetry"]
-        color = entry["color"]
-        style = entry["style"]
-        other_drivers = [e["driver"] for e in all_telemetry if e["driver"] != drv]
-
-        dash_map = {"-": "solid", "--": "dash"}
-        dash = dash_map.get(style["linestyle"], "solid")
-
-        for channel in CHANNELS:
-            customdata = _build_customdata(drv, channel["key"], tel, merged, other_drivers)
-            fill = "tozeroy" if channel["key"] == "SuperClip" else None
-
-            fig.add_trace(
-                go.Scatter(
-                    x=tel["Distance"],
-                    y=tel[channel["key"]],
-                    name=drv,
-                    legendgroup=drv,
-                    showlegend=(channel["row"] == 1),
-                    line={"color": color, "width": style["linewidth"], "dash": dash},
-                    mode="lines",
-                    fill=fill,
-                    customdata=customdata,
-                    hovertemplate=_build_hover_template(drv, channel, other_drivers),
-                ),
-                row=channel["row"],
-                col=1,
-            )
-
-    # Corner annotations
-    corners_drawn = False
+    circuit_info = None
     if annotate_corners:
         try:
             circuit_info = session.get_circuit_info()
-            for _, corner in circuit_info.corners.iterrows():
-                number = int(corner["Number"])
-                letter = str(corner["Letter"]) if pd.notna(corner["Letter"]) and corner["Letter"] else ""
-                label = f"{number}{letter}"
-                dist = float(corner["Distance"])
-
-                for row in range(1, len(CHANNELS) + 1):
-                    fig.add_vline(
-                        x=dist,
-                        line={"color": PLOTLY_DARK_THEME["corner_line_color"], "width": 1, "dash": "dash"},
-                        row=row,
-                        col=1,
-                    )
-
-                fig.add_annotation(
-                    x=dist,
-                    y=1.02,
-                    yref="y domain",
-                    xref="x",
-                    text=label,
-                    showarrow=False,
-                    font={"color": PLOTLY_DARK_THEME["corner_label_color"], "size": 9},
-                    row=1,
-                    col=1,
-                )
-            corners_drawn = True
         except Exception:
-            logging.getLogger(__name__).warning("Failed to draw corner annotations", exc_info=True)
+            logging.getLogger(__name__).warning("Failed to load circuit info for corner annotations", exc_info=True)
 
-    # Apply dark theme
-    fig.update_layout(
-        paper_bgcolor=PLOTLY_DARK_THEME["paper_bgcolor"],
-        plot_bgcolor=PLOTLY_DARK_THEME["plot_bgcolor"],
-        font={"color": PLOTLY_DARK_THEME["font_color"]},
-        title={
-            "text": f"{session.event['EventName']} {year} — {session.name}<br>Telemetry Comparison",
-            "font": {"size": 16},
-        },
-        hovermode="x",
-        legend={
-            "bgcolor": "rgba(30,30,30,0.8)",
-            "bordercolor": "#555555",
-            "borderwidth": 1,
-        },
-        height=1100,
-    )
-
-    # Style all Y axes
-    for i in range(1, len(CHANNELS) + 1):
-        yaxis_key = f"yaxis{i}" if i > 1 else "yaxis"
-        fig.update_layout(
-            **{
-                yaxis_key: {
-                    "gridcolor": PLOTLY_DARK_THEME["gridcolor"],
-                    "zerolinecolor": PLOTLY_DARK_THEME["zerolinecolor"],
-                }
-            }
-        )
-
-    # Fix RPM axis to use round tick intervals (row 2 = yaxis2)
-    fig.update_yaxes(dtick=2000, row=2, col=1)
-    # Fix Gear axis to integer ticks (row 3 = yaxis3)
-    fig.update_yaxes(dtick=1, row=3, col=1)
-    # Fix SuperClip axis to binary On/Off labels
-    _superclip_row = next(ch["row"] for ch in CHANNELS if ch["key"] == "SuperClip")
-    fig.update_yaxes(range=[-0.1, 1.1], dtick=1, tickvals=[0, 1], ticktext=["Off", "On"], row=_superclip_row, col=1)
-
-    # Style X axes — only label the bottom one
-    fig.update_xaxes(gridcolor=PLOTLY_DARK_THEME["gridcolor"])
-    fig.update_xaxes(title_text="Distance (m)", row=len(CHANNELS), col=1)
-
-    # Save as self-contained HTML
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(
-        str(output_path),
-        include_plotlyjs=True,
-        full_html=True,
-        config={
-            "displayModeBar": True,
-            "scrollZoom": True,
-        },
-    )
+    title = f"{session.event['EventName']} {year} — {session.name}<br>Telemetry Comparison"
+    corners_drawn = _render_telemetry_chart(entries, circuit_info, output_path, annotate_corners, title)
 
     return {
         "chart_path": str(output_path),

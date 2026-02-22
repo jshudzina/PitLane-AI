@@ -162,6 +162,178 @@ pitlane analyze telemetry \
 - Minimum 2 drivers, maximum 5 drivers for chart readability
 - Brake data is boolean (on/off), not brake pressure
 
+### 4. Driver Lap List (Data Fetch)
+
+Fetch structured per-lap data for a single driver — no chart generated. Use this to identify which lap numbers are worth comparing before calling `multi-lap`.
+
+**Command:**
+```bash
+pitlane analyze driver-laps \
+  --workspace-id $PITLANE_WORKSPACE_ID \
+  --year 2024 \
+  --gp Monaco \
+  --session R \
+  --driver VER
+```
+
+**What it does:**
+- Returns JSON with a `laps` array — one entry per lap driven
+- Each entry includes: lap number, lap time, tyre compound, tyre life, stint number, pit in/out flags, race position, position change, sector times, and `is_accurate` flag
+- Also returns a `pit_stops` summary (lap number and compound change for each stop) and `fastest_lap_number`
+- Does **not** load telemetry — fast to call
+
+**Parameters:**
+- `--year`: Season year
+- `--gp`: Grand Prix name (omit for testing sessions)
+- `--session`: Session type (R, Q, FP1, FP2, FP3, S, SQ; omit for testing sessions)
+- `--driver`: Single driver abbreviation
+- `--test` / `--day`: Testing event number and day (mutually exclusive with `--gp`/`--session`)
+
+**Returned fields per lap:**
+- `lap_number`, `lap_time` (M:SS.mmm), `lap_time_seconds`
+- `compound` (SOFT/MEDIUM/HARD/etc.), `tyre_life` (laps on set), `stint_number`
+- `is_pit_out_lap`, `is_pit_in_lap`
+- `is_accurate` — `false` for pit laps and outlier laps; use to filter to race-representative laps
+- `position`, `position_change` (positive = gained places that lap)
+- `sector_1_time`, `sector_2_time`, `sector_3_time`
+
+**Top-level fields:**
+- `fastest_lap_number` — lap number with the minimum lap time
+- `pit_stops` — list of `{ lap_number, from_compound, to_compound }`
+- `total_laps` — total number of laps in the array
+
+**Example Questions:**
+- "What laps did Verstappen do on each tyre compound at Monaco?"
+- "When did Norris pit in the British Grand Prix race?"
+- "Which of Hamilton's qualifying laps were accurate?"
+- "Show me Leclerc's stint structure in the Monaco race"
+
+---
+
+### 5. Multi-Lap Driver Comparison
+
+Compare specific laps for a single driver within one session — useful for comparing qualifying attempts, studying tyre degradation across stints, or isolating setup change effects.
+
+**Command:**
+```bash
+pitlane analyze multi-lap \
+  --workspace-id $PITLANE_WORKSPACE_ID \
+  --year 2024 \
+  --gp Monaco \
+  --session Q \
+  --driver VER \
+  --lap best \
+  --lap 3
+```
+
+**What it does:**
+- Loads a single session and picks the specified laps for one driver
+- Each `--laps` value is either `best` (fastest lap) or an integer lap number
+- Displays tyre compound in each entry label when available (e.g., "VER Lap 12 (SOFT)")
+- Uses sequential distinct colors (not team colors) to differentiate laps
+- Returns the same interactive HTML telemetry chart as `telemetry` command
+
+**Parameters:**
+- `--year`: Season year
+- `--gp`: Grand Prix name
+- `--session`: Session type (Q, R, FP1, etc.)
+- `--driver`: Single driver abbreviation
+- `--lap`: 2–6 lap specifiers — `best` or an integer lap number (specify multiple times: `--lap best --lap 5`)
+- `--annotate-corners`: (optional flag) Add corner annotations
+
+**Example Questions:**
+- "Compare Verstappen's Q1 and Q3 laps at Monaco qualifying"
+- "How did Norris's pace change from lap 5 to lap 35 in the race?"
+- "Show me Leclerc's fastest lap vs his lap 8 at Monza"
+- "Compare all of Hamilton's qualifying attempts at Silverstone"
+
+**Returned Statistics (per lap):**
+- `label`: Entry label including lap number and compound (e.g., "VER Lap 12 (SOFT)")
+- `lap_number`, `lap_time`, `sector_1/2/3_time`
+- `max_speed`, `avg_speed`, `max_rpm`
+- `lift_coast_count`, `lift_coast_duration`, `clipping_count`, `clipping_duration`
+
+**Limitations:**
+- Single session only; lap numbers must exist in that session
+- 2–6 lap specs supported for chart readability
+
+---
+
+### 6. Year-over-Year Track Comparison
+
+Compare a driver's best lap at the same track across multiple seasons. Best suited for analysing how regulation changes, car evolution, or driver adaptation affect pace, technique, and driving style.
+
+**Command:**
+```bash
+pitlane analyze year-compare \
+  --workspace-id $PITLANE_WORKSPACE_ID \
+  --gp Monza \
+  --session Q \
+  --driver VER \
+  --years 2022 \
+  --years 2024
+```
+
+**What it does:**
+- Loads one session per year (same GP, same session type) and picks the driver's fastest lap
+- Labels each entry as "{DRIVER} {YEAR}" (e.g., "VER 2022", "VER 2024")
+- Uses sequential distinct colors per year — does NOT use team colors (driver's team may vary year to year)
+- Circuit info for corner annotations is taken from the first year's session
+
+**Parameters:**
+- `--gp`: Grand Prix name (must exist in all specified years)
+- `--session`: Session type
+- `--driver`: Single driver abbreviation
+- `--years`: 2–6 season years (specify multiple times)
+- `--annotate-corners`: (optional flag) Add corner annotations
+
+**Example Questions:**
+- "How has Verstappen's best qualifying lap at Monza evolved since the 2022 ground-effects regulations?"
+- "Compare Hamilton's Silverstone pole lap from 2021 to 2023 and 2024"
+- "Show me how braking zones changed at Spa between the V6 hybrid era and current regs"
+- "Compare the top speed profiles at Monza across 2019, 2022, and 2024 (different aero rules)"
+- "How did the 2026 regulation change affect lap time at Suzuka?"
+
+**Returned Statistics (per year):**
+- `year`, `label`, `lap_time`, `sector_1/2/3_time`
+- `max_speed`, `avg_speed`, `max_rpm`
+- `lift_coast_count`, `clipping_count` (technique differences across eras)
+
+**Limitations:**
+- Requires the GP to exist in all specified years; newly added circuits may not have historic data
+- Telemetry typically available from 2018 onwards
+- If the circuit layout changed between years (e.g., a resurfacing or reprofiling), differences may be partially layout-driven rather than car performance
+- 2–6 years supported for chart readability
+
+---
+
+## Selecting Laps for Multi-Lap Analysis
+
+When the user's question implies a comparison but doesn't specify lap numbers (e.g., "compare Verstappen's stints", "how did Norris's pace change across compounds?"), use a two-step workflow:
+
+**Step 1 — Fetch lap inventory:**
+```bash
+pitlane analyze driver-laps \
+  --workspace-id $PITLANE_WORKSPACE_ID \
+  --year 2024 --gp Monaco --session R --driver VER
+```
+
+**Step 2 — Reason about intent and pick meaningful laps:**
+
+| User intent | Selection strategy |
+|---|---|
+| Compare stints | Pick the first `is_accurate` lap from each `stint_number` |
+| Compare compound performance | Pick the fastest `is_accurate` lap for each `compound` value |
+| Study degradation within a stint | Pick first and last `is_accurate` laps of the same `stint_number` |
+| Qualifying attempt comparison | Pick laps where `is_accurate` is true, sorted by `lap_time_seconds` |
+| Before vs after pit stop | Pick last lap of stint N and first accurate lap of stint N+1 |
+
+**Step 3 — Call `multi-lap` with the chosen `lap_number` values.**
+
+Always filter to `is_accurate: true` laps unless the user explicitly wants pit laps or formation laps.
+
+---
+
 ## Analysis Workflow
 
 ### Step 1: Identify Session and Drivers
@@ -172,9 +344,14 @@ Extract from user's question:
 
 ### Step 2: Generate Visualization
 Choose the appropriate command:
-- `pitlane analyze speed-trace` for speed-only comparison (PNG)
-- `pitlane analyze gear-shifts-map` for gear usage on track map (PNG)
-- `pitlane analyze telemetry` for full multi-channel comparison (interactive HTML)
+- `pitlane analyze driver-laps` for structured per-lap data to inform lap selection (JSON, no chart)
+- `pitlane analyze speed-trace` for speed-only comparison between drivers (PNG)
+- `pitlane analyze gear-shifts-map` for gear usage on track map for one driver (PNG)
+- `pitlane analyze telemetry` for full multi-channel comparison between drivers (interactive HTML)
+- `pitlane analyze multi-lap` for one driver's multiple laps within a session (interactive HTML)
+- `pitlane analyze year-compare` for one driver's best lap at the same track across multiple seasons (interactive HTML)
+
+**Regulation-change analysis workflow:** When the user asks how a driver or team adapted to a regulation change, use `year-compare` with years bracketing the regulation change. For example, for the 2022 ground-effects introduction, compare years 2021 (pre) vs 2022 or 2023 (post). For 2026 power unit changes, compare 2025 vs 2026.
 
 ### Step 3: Analyze Results
 The command returns JSON with:

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import click
 import fastf1
+import pandas as pd
 from fastf1.core import Lap, Session, Telemetry
 
 from pitlane_agent.utils.fastf1_cache import get_fastf1_cache_dir
@@ -260,6 +261,58 @@ def build_data_path(
 
     filename = "_".join(parts) + ".json"
     return workspace_dir / "data" / filename
+
+
+def format_lap_time(lap_time: pd.Timedelta | None) -> str | None:
+    """Format a lap time Timedelta as M:SS.mmm, or None if not available.
+
+    Uses explicit arithmetic instead of the str()[10:18] slice hack so the
+    result is always 3 decimal places with no leading zero on minutes.
+    """
+    if lap_time is None or pd.isna(lap_time):
+        return None
+    total_seconds = lap_time.total_seconds()
+    minutes = int(total_seconds // 60)
+    seconds = total_seconds % 60
+    return f"{minutes}:{seconds:06.3f}"
+
+
+def format_sector_time(sector_time: pd.Timedelta | None) -> str | None:
+    """Format a sector time Timedelta as SS.mmm or M:SS.mmm, or None if not available.
+
+    Sectors under one minute are returned without a minutes prefix (e.g. "28.341").
+    """
+    if sector_time is None or pd.isna(sector_time):
+        return None
+    total_seconds = sector_time.total_seconds()
+    minutes = int(total_seconds // 60)
+    secs = total_seconds % 60
+    if minutes > 0:
+        return f"{minutes}:{secs:06.3f}"
+    return f"{secs:.3f}"
+
+
+def pick_lap_by_spec(driver_laps, spec: str | int) -> Lap:
+    """Pick a lap by specification string or number.
+
+    Args:
+        driver_laps: FastF1 LapsDataFrame filtered to a single driver
+        spec: Either "best" (picks fastest lap) or an integer lap number
+
+    Returns:
+        The matching FastF1 Lap object
+
+    Raises:
+        ValueError: If the specified lap number is not found, with available laps listed
+    """
+    if str(spec) == "best":
+        return driver_laps.pick_fastest()
+    n = int(spec)
+    matching = driver_laps[driver_laps["LapNumber"] == n]
+    if matching.empty:
+        available = sorted(driver_laps["LapNumber"].dropna().astype(int).unique().tolist())
+        raise ValueError(f"Lap {n} not found for this driver. Available lap numbers: {available}")
+    return matching.iloc[0]
 
 
 def get_merged_telemetry(lap: Lap, required_channels: list[str] | None = None) -> Telemetry:

@@ -9,11 +9,55 @@ import pytest
 from pitlane_agent.utils.fastf1_helpers import (
     build_chart_path,
     build_data_path,
+    format_lap_time,
+    format_sector_time,
     get_merged_telemetry,
     load_session_or_testing,
     load_testing_session,
+    pick_lap_by_spec,
     validate_session_or_test,
 )
+
+
+class TestFormatLapTime:
+    def test_valid_timedelta_formats_correctly(self):
+        td = pd.Timedelta(seconds=89.456)
+        assert format_lap_time(td) == "1:29.456"
+
+    def test_sub_minute_lap_time(self):
+        td = pd.Timedelta(seconds=59.123)
+        assert format_lap_time(td) == "0:59.123"
+
+    def test_nat_returns_none(self):
+        assert format_lap_time(pd.NaT) is None
+
+    def test_none_returns_none(self):
+        assert format_lap_time(None) is None
+
+    def test_three_decimal_places(self):
+        td = pd.Timedelta(seconds=90.001)
+        result = format_lap_time(td)
+        assert result.endswith(".001")
+
+
+class TestFormatSectorTime:
+    def test_sub_minute_sector_no_minutes_prefix(self):
+        td = pd.Timedelta(seconds=28.341)
+        assert format_sector_time(td) == "28.341"
+
+    def test_over_minute_sector_includes_minutes(self):
+        td = pd.Timedelta(seconds=75.5)
+        assert format_sector_time(td) == "1:15.500"
+
+    def test_nat_returns_none(self):
+        assert format_sector_time(pd.NaT) is None
+
+    def test_none_returns_none(self):
+        assert format_sector_time(None) is None
+
+    def test_three_decimal_places(self):
+        td = pd.Timedelta(seconds=30.007)
+        assert format_sector_time(td) == "30.007"
 
 
 class TestGetMergedTelemetry:
@@ -364,3 +408,33 @@ class TestValidateSessionOrTest:
     def test_rejects_both(self):
         with pytest.raises(click.UsageError, match="Cannot use"):
             validate_session_or_test("Monaco", "R", 1, 2)
+
+
+class TestPickLapBySpec:
+    """Unit tests for pick_lap_by_spec."""
+
+    def _make_laps_df(self, lap_numbers: list[int]) -> pd.DataFrame:
+        return pd.DataFrame({"LapNumber": [float(n) for n in lap_numbers]})
+
+    def test_best_delegates_to_pick_fastest(self):
+        mock_laps = MagicMock()
+        mock_laps.pick_fastest.return_value = "fastest_lap"
+        result = pick_lap_by_spec(mock_laps, "best")
+        mock_laps.pick_fastest.assert_called_once()
+        assert result == "fastest_lap"
+
+    def test_invalid_lap_number_raises_with_available_laps(self):
+        df = self._make_laps_df([1, 2, 3])
+        with pytest.raises(ValueError, match="Lap 99 not found") as exc_info:
+            pick_lap_by_spec(df, 99)
+        assert "Available lap numbers: [1, 2, 3]" in str(exc_info.value)
+
+    def test_invalid_lap_lists_all_available(self):
+        df = self._make_laps_df([5, 10, 15, 20])
+        with pytest.raises(ValueError) as exc_info:
+            pick_lap_by_spec(df, 7)
+        msg = str(exc_info.value)
+        assert "5" in msg
+        assert "10" in msg
+        assert "15" in msg
+        assert "20" in msg
