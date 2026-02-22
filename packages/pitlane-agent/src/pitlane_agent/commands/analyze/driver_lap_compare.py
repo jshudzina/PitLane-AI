@@ -10,8 +10,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from pitlane_agent.commands.analyze.telemetry import _format_sector_time, _render_telemetry_chart
-from pitlane_agent.utils.fastf1_helpers import load_session_or_testing, pick_lap_by_spec
+from pitlane_agent.commands.analyze.telemetry import _render_telemetry_chart
+from pitlane_agent.utils.fastf1_helpers import (
+    format_lap_time,
+    format_sector_time,
+    load_session_or_testing,
+    pick_lap_by_spec,
+)
 from pitlane_agent.utils.filename import sanitize_filename
 from pitlane_agent.utils.telemetry_analysis import analyze_telemetry
 
@@ -67,10 +72,10 @@ def _prepare_lap_entry(lap, label: str, key: str, color: str) -> tuple[dict, dic
     stats = {
         "label": label,
         "lap_number": int(lap["LapNumber"]),
-        "lap_time": str(lap["LapTime"])[10:18],
-        "sector_1_time": _format_sector_time(lap.get("Sector1Time")),
-        "sector_2_time": _format_sector_time(lap.get("Sector2Time")),
-        "sector_3_time": _format_sector_time(lap.get("Sector3Time")),
+        "lap_time": format_lap_time(lap["LapTime"]),
+        "sector_1_time": format_sector_time(lap.get("Sector1Time")),
+        "sector_2_time": format_sector_time(lap.get("Sector2Time")),
+        "sector_3_time": format_sector_time(lap.get("Sector3Time")),
         "max_speed": float(tel["Speed"].max()),
         "avg_speed": float(tel["Speed"].mean()),
         "max_rpm": float(tel["RPM"].max()),

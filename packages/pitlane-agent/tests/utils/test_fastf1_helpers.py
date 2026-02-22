@@ -9,12 +9,55 @@ import pytest
 from pitlane_agent.utils.fastf1_helpers import (
     build_chart_path,
     build_data_path,
+    format_lap_time,
+    format_sector_time,
     get_merged_telemetry,
     load_session_or_testing,
     load_testing_session,
     pick_lap_by_spec,
     validate_session_or_test,
 )
+
+
+class TestFormatLapTime:
+    def test_valid_timedelta_formats_correctly(self):
+        td = pd.Timedelta(seconds=89.456)
+        assert format_lap_time(td) == "1:29.456"
+
+    def test_sub_minute_lap_time(self):
+        td = pd.Timedelta(seconds=59.123)
+        assert format_lap_time(td) == "0:59.123"
+
+    def test_nat_returns_none(self):
+        assert format_lap_time(pd.NaT) is None
+
+    def test_none_returns_none(self):
+        assert format_lap_time(None) is None
+
+    def test_three_decimal_places(self):
+        td = pd.Timedelta(seconds=90.001)
+        result = format_lap_time(td)
+        assert result.endswith(".001")
+
+
+class TestFormatSectorTime:
+    def test_sub_minute_sector_no_minutes_prefix(self):
+        td = pd.Timedelta(seconds=28.341)
+        assert format_sector_time(td) == "28.341"
+
+    def test_over_minute_sector_includes_minutes(self):
+        td = pd.Timedelta(seconds=75.5)
+        assert format_sector_time(td) == "1:15.500"
+
+    def test_nat_returns_none(self):
+        assert format_sector_time(pd.NaT) is None
+
+    def test_none_returns_none(self):
+        assert format_sector_time(None) is None
+
+    def test_three_decimal_places(self):
+        td = pd.Timedelta(seconds=30.007)
+        assert format_sector_time(td) == "30.007"
 
 
 class TestGetMergedTelemetry:

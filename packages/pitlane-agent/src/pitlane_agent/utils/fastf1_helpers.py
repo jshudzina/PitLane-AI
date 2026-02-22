@@ -8,6 +8,7 @@ from pathlib import Path
 
 import click
 import fastf1
+import pandas as pd
 from fastf1.core import Lap, Session, Telemetry
 
 from pitlane_agent.utils.fastf1_cache import get_fastf1_cache_dir
@@ -260,6 +261,35 @@ def build_data_path(
 
     filename = "_".join(parts) + ".json"
     return workspace_dir / "data" / filename
+
+
+def format_lap_time(lap_time: pd.Timedelta | None) -> str | None:
+    """Format a lap time Timedelta as M:SS.mmm, or None if not available.
+
+    Uses explicit arithmetic instead of the str()[10:18] slice hack so the
+    result is always 3 decimal places with no leading zero on minutes.
+    """
+    if lap_time is None or pd.isna(lap_time):
+        return None
+    total_seconds = lap_time.total_seconds()
+    minutes = int(total_seconds // 60)
+    seconds = total_seconds % 60
+    return f"{minutes}:{seconds:06.3f}"
+
+
+def format_sector_time(sector_time: pd.Timedelta | None) -> str | None:
+    """Format a sector time Timedelta as SS.mmm or M:SS.mmm, or None if not available.
+
+    Sectors under one minute are returned without a minutes prefix (e.g. "28.341").
+    """
+    if sector_time is None or pd.isna(sector_time):
+        return None
+    total_seconds = sector_time.total_seconds()
+    minutes = int(total_seconds // 60)
+    secs = total_seconds % 60
+    if minutes > 0:
+        return f"{minutes}:{secs:06.3f}"
+    return f"{secs:.3f}"
 
 
 def pick_lap_by_spec(driver_laps, spec: str | int) -> Lap:

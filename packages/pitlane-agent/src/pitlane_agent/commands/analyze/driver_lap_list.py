@@ -9,17 +9,9 @@ import logging
 
 import pandas as pd
 
-from pitlane_agent.commands.analyze.telemetry import _format_sector_time
-from pitlane_agent.utils.fastf1_helpers import load_session_or_testing
+from pitlane_agent.utils.fastf1_helpers import format_lap_time, format_sector_time, load_session_or_testing
 
 _log = logging.getLogger(__name__)
-
-
-def _format_lap_time(lap_time: pd.Timedelta) -> str | None:
-    """Format a lap time as M:SS.mmm, or None if not available."""
-    if pd.isna(lap_time):
-        return None
-    return str(lap_time)[10:18]
 
 
 def _safe_int(value) -> int | None:
@@ -118,7 +110,7 @@ def generate_driver_lap_list(
 
     for i, (_, lap) in enumerate(driver_laps.iterrows()):
         lap_time_td = lap.get("LapTime")
-        lap_time_str = _format_lap_time(lap_time_td)
+        lap_time_str = format_lap_time(lap_time_td)
         lap_time_sec = None if pd.isna(lap_time_td) else float(lap_time_td.total_seconds())
 
         compound = lap.get("Compound")
@@ -155,9 +147,9 @@ def generate_driver_lap_list(
                 "is_accurate": is_accurate,
                 "position": position,
                 "position_change": position_change,
-                "sector_1_time": _format_sector_time(lap.get("Sector1Time")),
-                "sector_2_time": _format_sector_time(lap.get("Sector2Time")),
-                "sector_3_time": _format_sector_time(lap.get("Sector3Time")),
+                "sector_1_time": format_sector_time(lap.get("Sector1Time")),
+                "sector_2_time": format_sector_time(lap.get("Sector2Time")),
+                "sector_3_time": format_sector_time(lap.get("Sector3Time")),
             }
         )
 
