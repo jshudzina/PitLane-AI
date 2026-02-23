@@ -7,6 +7,7 @@ Usage:
 
 import logging
 from pathlib import Path
+from typing import TypedDict
 
 import fastf1
 import pandas as pd
@@ -18,11 +19,20 @@ from pitlane_agent.utils.fastf1_helpers import setup_fastf1_cache
 logger = logging.getLogger(__name__)
 
 
+class CompetitorSummary(TypedDict):
+    """Championship standing entry for a single competitor."""
+
+    name: str
+    championship_position: int
+    points: float
+    team: str
+
+
 def _fetch_per_round_points(
     year: int,
     schedule: pd.DataFrame,
     summary_type: str,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, list[str]]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, list[str], pd.Series]:
     """Fetch per-round points (and finishing positions) via FastF1.
 
     Args:
@@ -38,6 +48,8 @@ def _fetch_per_round_points(
           mode only; empty DataFrame for constructors)
         - total_points: Series of total season points per competitor, same order
         - short_event_names: short race name strings in round-number order
+        - competitor_teams: Series mapping competitor name → team name
+          (for drivers mode: driver abbreviation → team; for constructors: name → name)
     """
     rows: list[dict] = []
     short_event_names: list[str] = []
@@ -86,6 +98,7 @@ def _fetch_per_round_points(
                 {
                     "RoundNumber": round_number,
                     "Competitor": competitor,
+                    "TeamName": team_name,
                     "Points": race_points + sprint_points,
                     "Position": position,
                 }
@@ -93,7 +106,7 @@ def _fetch_per_round_points(
 
     df = pd.DataFrame(rows)
     if df.empty:
-        return pd.DataFrame(), pd.DataFrame(), pd.Series(dtype=float), short_event_names
+        return pd.DataFrame(), pd.DataFrame(), pd.Series(dtype=float), short_event_names, pd.Series(dtype=str)
 
     if summary_type == "constructors":
         points_df = df.groupby(["Competitor", "RoundNumber"])["Points"].sum().unstack(fill_value=0)
@@ -114,7 +127,10 @@ def _fetch_per_round_points(
     if not position_df.empty:
         position_df = position_df.loc[sorted_idx, sorted(position_df.columns)]
 
-    return points_df, position_df, total_points, short_event_names
+    # Build competitor → team mapping (most recent entry wins for a driver)
+    competitor_teams: pd.Series = df.groupby("Competitor")["TeamName"].last()
+
+    return points_df, position_df, total_points, short_event_names, competitor_teams
 
 
 def _build_season_heatmap(
@@ -226,7 +242,9 @@ def generate_season_summary_chart(
     schedule = fastf1.get_event_schedule(year, include_testing=False)
     total_race_events = int((schedule["RoundNumber"] > 0).sum())
 
-    points_df, position_df, total_points, short_event_names = _fetch_per_round_points(year, schedule, summary_type)
+    points_df, position_df, total_points, short_event_names, competitor_teams = _fetch_per_round_points(
+        year, schedule, summary_type
+    )
 
     if points_df.empty:
         raise ValueError(f"No standings data available for {year} {summary_type} championship.")
@@ -235,15 +253,16 @@ def generate_season_summary_chart(
     season_complete = completed_round >= total_race_events
 
     # Build competitor list — champion is last in the ascending-sorted index
-    competitors = [
+    competitors: list[CompetitorSummary] = [
         {
             "name": competitor,
             "championship_position": rank,
             "points": float(total_points[competitor]),
+            "team": str(competitor_teams.get(competitor, competitor)),
         }
         for rank, competitor in enumerate(reversed(list(total_points.index)), start=1)
     ]
-    leader = competitors[0] if competitors else {}
+    leader = competitors[0] if competitors else None
 
     fig = _build_season_heatmap(points_df, position_df, total_points, short_event_names, year, summary_type)
 
@@ -264,8 +283,9 @@ def generate_season_summary_chart(
         "total_races": total_race_events,
         "season_complete": season_complete,
         "leader": {
-            "name": leader.get("name"),
-            "points": leader.get("points"),
+            "name": leader["name"] if leader else None,
+            "points": leader["points"] if leader else None,
+            "team": leader["team"] if leader else None,
             "position": 1,
         },
         "statistics": {

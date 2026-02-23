@@ -74,7 +74,9 @@ class TestFetchPerRoundPoints:
 
         monkeypatch.setattr("pitlane_agent.commands.analyze.season_summary.fastf1.get_session", fake_get_session)
 
-        points_df, position_df, total_points, short_names = _fetch_per_round_points(2024, schedule, "drivers")
+        points_df, position_df, total_points, short_names, competitor_teams = _fetch_per_round_points(
+            2024, schedule, "drivers"
+        )
 
         assert set(points_df.index) == {"VER", "LEC"}
         assert list(points_df.columns) == [1, 2]
@@ -88,6 +90,9 @@ class TestFetchPerRoundPoints:
         # position_df should be populated for drivers mode
         assert not position_df.empty
         assert position_df.at["VER", 1] == 1
+        # competitor_teams should map driver → team
+        assert competitor_teams["VER"] == "Red Bull Racing"
+        assert competitor_teams["LEC"] == "Ferrari"
 
     def test_sorted_ascending_by_total(self, monkeypatch):
         """Champion (most points) should be last in the ascending-sorted index."""
@@ -105,7 +110,7 @@ class TestFetchPerRoundPoints:
             lambda *a: _make_session_mock(results),
         )
 
-        points_df, _position_df, total_points, _ = _fetch_per_round_points(2024, schedule, "drivers")
+        points_df, _position_df, total_points, _, _teams = _fetch_per_round_points(2024, schedule, "drivers")
 
         # Ascending sort: lowest points first, highest (champion) last
         assert list(total_points.index)[-1] == "VER"
@@ -138,7 +143,7 @@ class TestFetchPerRoundPoints:
 
         monkeypatch.setattr("pitlane_agent.commands.analyze.season_summary.fastf1.get_session", fake_get_session)
 
-        points_df, _position_df, total_points, _ = _fetch_per_round_points(2024, schedule, "drivers")
+        points_df, _position_df, total_points, _, _teams = _fetch_per_round_points(2024, schedule, "drivers")
 
         assert points_df.at["VER", 1] == 33.0
         assert total_points["VER"] == 33.0
@@ -160,7 +165,7 @@ class TestFetchPerRoundPoints:
             lambda *a: _make_session_mock(results),
         )
 
-        points_df, position_df, total_points, _ = _fetch_per_round_points(2024, schedule, "constructors")
+        points_df, position_df, total_points, _, _teams = _fetch_per_round_points(2024, schedule, "constructors")
 
         assert points_df.at["Red Bull Racing", 1] == 43.0
         assert points_df.at["Ferrari", 1] == 15.0
@@ -209,7 +214,7 @@ class TestFetchPerRoundPoints:
 
         monkeypatch.setattr("pitlane_agent.commands.analyze.season_summary.fastf1.get_session", fake_get_session)
 
-        points_df, _position_df, total_points, _ = _fetch_per_round_points(2024, schedule, "drivers")
+        points_df, _position_df, total_points, _, _teams = _fetch_per_round_points(2024, schedule, "drivers")
 
         assert list(points_df.columns) == [2]
         assert points_df.at["VER", 2] == 25.0
@@ -224,12 +229,15 @@ class TestFetchPerRoundPoints:
             lambda *a: (_ for _ in ()).throw(AssertionError("should not be called")),
         )
 
-        points_df, position_df, total_points, short_names = _fetch_per_round_points(2024, schedule, "drivers")
+        points_df, position_df, total_points, short_names, competitor_teams = _fetch_per_round_points(
+            2024, schedule, "drivers"
+        )
 
         assert points_df.empty
         assert position_df.empty
         assert total_points.empty
         assert short_names == []
+        assert competitor_teams.empty
 
 
 # ---------------------------------------------------------------------------
@@ -615,6 +623,7 @@ class TestGetSeasonSummary:
             {
                 "Position": [1.0, 2.0, 3.0],
                 "Abbreviation": ["VER", "NOR", "LEC"],
+                "TeamName": ["Red Bull Racing", "McLaren", "Ferrari"],
             }
         )
         mock_load_session.return_value = mock_session
@@ -651,8 +660,12 @@ class TestGetSeasonSummary:
         # Race 1: 20/57=0.351, Race 2: 50/50=1.0 → avg = 0.675 → round = 0.68
         assert result["season_averages"]["overtakes_per_lap"] == round((20 / 57 + 50 / 50) / 2, 2)
         assert result["season_averages"]["mean_pit_stops"] == 1.75
-        # Podium should be extracted
-        assert result["races"][0]["podium"] == ["VER", "NOR", "LEC"]
+        # Podium should be extracted with driver and team
+        assert result["races"][0]["podium"] == [
+            {"driver": "VER", "team": "Red Bull Racing"},
+            {"driver": "NOR", "team": "McLaren"},
+            {"driver": "LEC", "team": "Ferrari"},
+        ]
         # Circuit length should be present
         assert result["races"][0]["circuit_length_km"] == 5.412
         # All entries should be race sessions
