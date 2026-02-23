@@ -43,7 +43,7 @@ pitlane analyze championship-possibilities \
 - `statistics`:
   - `total_competitors`: Total in standings
   - `still_possible`: Count who can mathematically win
-  - `eliminated`: Count who are eliminated
+  - `eliminated`: Count who are mathematically eliminated
   - `competitors`: Per-competitor breakdown with:
     - `name`: Driver/constructor name
     - `position`: Current championship position
@@ -77,18 +77,20 @@ pitlane analyze championship-possibilities \
 - Chart title shows "(After Round X)" when analyzing historical data
 - Filename includes round number (e.g., `championship_possibilities_2024_drivers_round_10.png`) for historical analysis
 
-### 2. Season Summary (Analyze)
+---
 
-Visualize championship statistics aggregated across the entire season: points, wins, podiums, poles, fastest laps, and DNFs per driver or constructor. Generates a multi-panel bar chart.
+### 2. Season Summary — Championship Heatmap (Analyze)
+
+Visualize championship points scored per competitor at each round of the season as an interactive Plotly heatmap. Covers both driver and constructor championships.
 
 **Command:**
 ```bash
-# Drivers season summary (default)
+# Drivers championship heatmap (default)
 pitlane analyze season-summary \
   --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024
 
-# Constructors season summary
+# Constructors championship heatmap
 pitlane analyze season-summary \
   --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
@@ -101,48 +103,110 @@ pitlane analyze season-summary \
 - `--type`: Summary type — `drivers` or `constructors` (default: `drivers`)
 
 **Returns:**
-- `chart_path`: Path to multi-panel visualization
+- `chart_path`: Path to interactive HTML heatmap
 - `workspace`: Workspace directory
 - `year`: Championship year
 - `summary_type`: `"drivers"` or `"constructors"`
 - `analysis_round`: Last completed race round
 - `total_races`: Total races scheduled in the season
 - `season_complete`: Boolean — whether all races have been run
-- `leader`: Current leader `{name, points, position}`
+- `leader`: `{name, points, team, position}`
 - `statistics`:
   - `total_competitors`: Number of drivers/constructors in standings
   - `competitors`: Per-competitor breakdown with:
-    - `name`, `championship_position`, `points`, `wins`, `podiums`, `poles`, `fastest_laps`, `dnfs`, `avg_finish_position`
+    - `name`, `championship_position`, `points`, `team`
 
 **Visualization:**
-- Top panel: Championship points (horizontal bar, all competitors)
-- Bottom row: Race Wins | Podiums (P1–P3) | Pole Positions
+- Left panel (85%): Per-round points heatmap — each cell shows points scored at that race; hover shows finishing position (drivers mode)
+- Right panel (15%): Total season points per competitor
+- Championship leader sits at the top of the heatmap (sorted ascending by total)
+- Sprint points are added to the same round as the race weekend
+- Saved as an interactive HTML file (hover tooltips preserved)
 
 **Example Questions:**
 - "Summarize the 2024 season"
-- "Who had the most podiums in 2024?"
-- "Who scored the most pole positions this year?"
+- "Show me the championship standings heatmap"
 - "Show me season statistics for all drivers"
 - "Give me a constructors' season overview"
 - "Season overview for 2023"
-- "How many wins does each driver have?"
+- "How many points did each driver score at each race?"
 
 **Example Analysis Response:**
-"Here's the 2024 season summary after round [analysis_round]. [Leader] leads the championship with [points] points from [wins] wins and [podiums] podiums. [Driver 2] has been the most consistent with [podiums] podiums despite only [wins] wins. [Driver N] has the most pole positions ([poles]). The chart shows the full breakdown across all [total_competitors] drivers."
+"Here's the 2024 drivers' championship heatmap after round [analysis_round]. [Leader] leads with [points] points. The heatmap shows points scored at each round — hover over any cell to see the finishing position. [Driver 2] has been consistent with points at almost every round, while [Driver N] had a strong mid-season run."
 
 **Interpretation:**
-- Points panel ranks all competitors by their final/current championship standing
-- Podiums = P1 + P2 + P3 finishes across all races
-- For partial seasons, the suptitle shows "After Round X"; for complete seasons it shows "Final — N Races"
+- Darker cells = more points scored at that round
+- Sprint points are included in the same round column as the race
+- For partial seasons, the title shows "After Round X"; for complete seasons it shows "Final — N Races"
 - `season_complete: false` means the season is still in progress
 
-**Note:** First run fetches data from FastF1's Ergast API (per-round cached). Subsequent calls are fast.
+**Note:** Loads results data only (no telemetry), so this command is fast. Results are saved as an HTML file to `charts/season_summary_<year>_<type>.html` in the workspace.
+
+---
+
+### 3. Season Race Excitement Ranking (Fetch)
+
+Rank all races in a season by a composite "wildness" score derived from overtakes, position volatility, safety cars, and red flags. Also provides season-wide per-lap averages.
+
+**Command:**
+```bash
+pitlane fetch season-summary \
+  --workspace-id $PITLANE_WORKSPACE_ID \
+  --year 2024
+```
+
+**Parameters:**
+- `--workspace-id`: Workspace ID (required)
+- `--year`: Championship year (required)
+
+**Returns:**
+- `data_file`: Path to JSON file saved in workspace (`data/season_summary_<year>.json`)
+- `year`: Championship year
+- `total_races`: Number of races loaded
+
+The saved JSON contains:
+- `races`: List sorted by `wildness_score` descending, each entry with:
+  - `round`, `event_name`, `country`, `date`, `session_type` (`"R"` or `"S"`)
+  - `circuit_length_km`, `race_distance_km`
+  - `podium`: List of top 3 finishers — each is `{driver, team}` (driver abbreviation + team name)
+  - `race_summary`: `{total_overtakes, total_position_changes, average_volatility, mean_pit_stops, total_laps}`
+  - `num_safety_cars`, `num_virtual_safety_cars`, `num_red_flags`
+  - `wildness_score`: 0–1 composite score (40% overtake density, 30% volatility, 20% safety cars, 10% red flags)
+- `season_averages`: Per-lap normalized averages — `overtakes_per_lap`, `position_changes_per_lap`, `average_volatility`, `mean_pit_stops`
+
+After running, read the JSON from the workspace to interpret results:
+```bash
+# The CLI prints data_file path; read it with the Read tool
+```
+
+**Example Questions:**
+- "Which was the craziest race of 2024?"
+- "Rank the 2024 races by how wild they were"
+- "Which race had the most overtakes this year?"
+- "What were the average pit stops per race in 2023?"
+- "Which sprint race was the most exciting?"
+
+**Note:** This command loads every race session in the season (including sprints), which can be slow on first run. Subsequent calls benefit from FastF1's cache. Sprint weekends produce two entries — one for the Sprint (`S`) and one for the Race (`R`).
+
+---
+
+## When to Use Fetch vs Analyze for Season Summary
+
+| Question type | Command |
+|---|---|
+| "Summarize the season" / "Show championship standings" | `pitlane analyze season-summary` |
+| "Which race was craziest?" / "Rank races by excitement/wildness" | `pitlane fetch season-summary` |
+| "Who scored the most points?" / "Show points per race" | `pitlane analyze season-summary` |
+| "Which race had the most overtakes/safety cars?" | `pitlane fetch season-summary` |
+| Comprehensive season overview (championship + excitement) | Run both — they complement each other |
+
+The two commands are independent: `analyze` focuses on **who scored points when** (championship context), while `fetch` focuses on **how exciting each race was** (action metrics). For a full season debrief, run both.
 
 ---
 
 ## Planned Analysis Types
 
-### 3. Driver Standings Heatmap (Not Yet Implemented)
+### 4. Driver Standings Heatmap (Not Yet Implemented)
 **What it would do:**
 - Visualize driver standings evolution throughout the season
 - Show position changes race-by-race in a heatmap format
@@ -152,44 +216,3 @@ pitlane analyze season-summary \
 - "Show me how the championship battle has evolved this season"
 - "Visualize the top 10 standings progression"
 - "How has McLaren's position changed throughout the year?"
-
-### 4. Season Race Excitement Ranking (Fetch)
-
-Rank all races in a season by a composite "wildness" score derived from overtakes, position volatility, safety cars, and red flags. Also provides season-wide averages.
-
-**Command:**
-```bash
-pitlane fetch season-summary --workspace-id $PITLANE_WORKSPACE_ID --year 2024
-```
-
-**Parameters:**
-- `--workspace-id`: Workspace ID (required)
-- `--year`: Championship year (required)
-
-**Returns:**
-- `year`: Championship year
-- `total_races`: Number of races loaded
-- `races`: List sorted by `wildness_score` (descending), each containing:
-  - `round`, `event_name`, `country`, `date`, `session_type` (`"R"` or `"S"`), `podium` (list of top 3 driver abbreviations)
-  - `race_summary`: `total_overtakes`, `total_position_changes`, `average_volatility`, `mean_pit_stops`, `total_laps`
-  - `num_safety_cars`, `num_virtual_safety_cars`, `num_red_flags`
-  - `wildness_score`: 0–1 composite score
-- `season_averages`: Per-lap normalized averages — `overtakes_per_lap`, `position_changes_per_lap`, `average_volatility`, `mean_pit_stops`
-
-**Example Questions:**
-- "Which was the craziest race of 2024?"
-- "Rank the 2024 races by how wild they were"
-- "Which race had the most overtakes this year?"
-- "What were the average pit stops per race in 2023?"
-
-**Note:** This command loads every race in the season, which can be slow on first run. Subsequent calls benefit from FastF1's cache.
-
-### 5. Season Summary Heatmap (Not Yet Implemented)
-**What it would do:**
-- Visualize points scored by each driver at each race in a heatmap
-- Show at a glance which drivers scored big at which rounds
-- Complement the season summary data with a visual breakdown
-
-**Example Questions:**
-- "Show me a heatmap of points scored across the season"
-- "Visualize each driver's points at every race in 2024"
