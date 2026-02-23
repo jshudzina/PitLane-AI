@@ -357,6 +357,32 @@ class TestGenerateSeasonSummaryChart:
         assert result["analysis_round"] == 1
         assert result["total_races"] == 3
 
+    def test_gap_in_rounds_not_flagged_complete(self, monkeypatch, tmp_path):
+        """Round 2 fails but round 3 succeeds — should NOT be marked complete."""
+        schedule = _make_ff1_schedule(
+            [
+                {"RoundNumber": 1, "EventName": "Bahrain Grand Prix"},
+                {"RoundNumber": 2, "EventName": "Saudi Arabian Grand Prix"},
+                {"RoundNumber": 3, "EventName": "Australian Grand Prix"},
+            ]
+        )
+        results = _make_ff1_results([{"Abbreviation": "VER", "Points": 25.0}])
+
+        def fake_get_session(year, event_name, session_type):
+            if "Saudi" in event_name:
+                raise RuntimeError("not available")
+            return _make_session_mock(results)
+
+        self._setup_patches(monkeypatch, schedule, fake_get_session)
+
+        from pitlane_agent.commands.analyze.season_summary import generate_season_summary_chart
+
+        result = generate_season_summary_chart(year=2024, summary_type="drivers", workspace_dir=tmp_path)
+
+        assert result["season_complete"] is False
+        assert result["analysis_round"] == 3
+        assert result["total_races"] == 3
+
     def test_complete_season_flagged(self, monkeypatch, tmp_path):
         schedule = self._single_round_schedule()
         self._setup_patches(

@@ -216,8 +216,8 @@ def _build_season_heatmap(
 
 def generate_season_summary_chart(
     year: int,
+    workspace_dir: Path,
     summary_type: str = "drivers",
-    workspace_dir: Path | None = None,
 ) -> dict:
     """Generate an interactive season summary heatmap with per-round points.
 
@@ -250,7 +250,7 @@ def generate_season_summary_chart(
         raise ValueError(f"No standings data available for {year} {summary_type} championship.")
 
     completed_round = int(points_df.columns.max())
-    season_complete = completed_round >= total_race_events
+    season_complete = len(points_df.columns) >= total_race_events
 
     # Build competitor list — champion is last in the ascending-sorted index
     competitors: list[CompetitorSummary] = [

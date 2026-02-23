@@ -780,10 +780,10 @@ def driver_laps(
     help="Summary type: drivers or constructors (default: drivers)",
 )
 def season_summary(workspace_id: str, year: int, summary_type: str):
-    """Generate season summary visualization with championship statistics.
+    """Generate season summary visualization with per-round championship points.
 
-    Aggregates points, wins, podiums, poles, fastest laps, and DNFs across
-    all completed races and produces a multi-panel bar chart.
+    Loads results for each completed race (and sprint) via FastF1 and produces
+    an interactive two-panel Plotly heatmap saved as an HTML file.
 
     Example:
       pitlane analyze season-summary --workspace-id $PITLANE_WORKSPACE_ID --year 2024
