@@ -31,6 +31,13 @@ from pitlane_agent.utils.race_stats import (
 logger = logging.getLogger(__name__)
 
 
+class PodiumEntry(TypedDict):
+    """A single podium finisher with driver and team."""
+
+    driver: str
+    team: str
+
+
 class SeasonRaceSummary(TypedDict):
     """Summary statistics for a single race in a season."""
 
@@ -41,7 +48,7 @@ class SeasonRaceSummary(TypedDict):
     session_type: str
     circuit_length_km: float | None
     race_distance_km: float
-    podium: list[str]
+    podium: list[PodiumEntry]
     race_summary: RaceSummaryStats
     num_safety_cars: int
     num_virtual_safety_cars: int
@@ -181,12 +188,18 @@ def get_season_summary(year: int) -> SeasonSummary:
             safety_cars, vscs, red_flags = _count_track_interruptions(session)
 
             # Extract podium (top 3 finishers) from results
-            podium: list[str] = []
+            podium: list[PodiumEntry] = []
             try:
                 results = session.results.sort_values("Position")
                 for _, driver in results.head(3).iterrows():
                     if pd.notna(driver["Position"]):
-                        podium.append(driver["Abbreviation"])
+                        team_name = driver.get("TeamName")
+                        podium.append(
+                            {
+                                "driver": str(driver["Abbreviation"]),
+                                "team": str(team_name) if pd.notna(team_name) else "Unknown",
+                            }
+                        )
             except Exception:
                 pass
 

@@ -17,6 +17,7 @@ from pitlane_agent.commands.analyze import (
     generate_lap_times_distribution_chart,
     generate_multi_lap_chart,
     generate_position_changes_chart,
+    generate_season_summary_chart,
     generate_speed_trace_chart,
     generate_telemetry_chart,
     generate_track_map_chart,
@@ -759,6 +760,49 @@ def driver_laps(
             driver=driver,
             test_number=test_number,
             session_number=session_number,
+        )
+        result["workspace_id"] = workspace_id
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@analyze.command("season-summary")
+@click.option("--workspace-id", required=True, help="Workspace ID")
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option(
+    "--type",
+    "summary_type",
+    type=click.Choice(["drivers", "constructors"], case_sensitive=False),
+    default="drivers",
+    help="Summary type: drivers or constructors (default: drivers)",
+)
+def season_summary(workspace_id: str, year: int, summary_type: str):
+    """Generate season summary visualization with per-round championship points.
+
+    Loads results for each completed race (and sprint) via FastF1 and produces
+    an interactive two-panel Plotly heatmap saved as an HTML file.
+
+    Example:
+      pitlane analyze season-summary --workspace-id $PITLANE_WORKSPACE_ID --year 2024
+      pitlane analyze season-summary --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --type constructors
+    """
+    if not workspace_exists(workspace_id):
+        click.echo(
+            json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(workspace_id)
+
+    try:
+        result = generate_season_summary_chart(
+            year=year,
+            summary_type=summary_type,
+            workspace_dir=workspace_path,
         )
         result["workspace_id"] = workspace_id
         click.echo(json.dumps(result, indent=2))
