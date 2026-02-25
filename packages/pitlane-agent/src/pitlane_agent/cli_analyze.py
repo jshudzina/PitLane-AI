@@ -17,6 +17,7 @@ from pitlane_agent.commands.analyze import (
     generate_lap_times_distribution_chart,
     generate_multi_lap_chart,
     generate_position_changes_chart,
+    generate_qualifying_results_chart,
     generate_season_summary_chart,
     generate_speed_trace_chart,
     generate_team_pace_chart,
@@ -831,6 +832,79 @@ def team_pace(
             gp=gp,
             session_type=session,
             teams=teams_list,
+            workspace_dir=workspace_path,
+            test_number=test_number,
+            session_number=session_number,
+        )
+        result["workspace_id"] = workspace_id
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+_QUALIFYING_SESSION_TYPES = {"Q", "SQ", "SS"}
+
+
+@analyze.command("qualifying-results")
+@click.option("--workspace-id", required=True, help="Workspace ID")
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
+@click.option(
+    "--session",
+    type=str,
+    default=None,
+    help="Session type: Q (Qualifying), SQ (Sprint Qualifying), or SS (Sprint Shootout). "
+    "Defaults to Q when --gp is used.",
+)
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
+def qualifying_results(
+    workspace_id: str,
+    year: int,
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+):
+    """Generate qualifying results bar chart showing each driver's gap to pole.
+
+    Drivers are colored by qualifying phase: Q3 finishers use their team color,
+    Q2 eliminees use a dimmed team color, and Q1 eliminees are shown in gray.
+    Section dividers separate qualifying phases. Supports 20-car (≤2025) and
+    22-car (2026+) qualifying formats automatically.
+
+    Example (standard qualifying):
+      pitlane analyze qualifying-results --year 2024 --gp Monaco --session Q
+
+    Example (sprint shootout):
+      pitlane analyze qualifying-results --year 2024 --gp China --session SS
+    """
+    # Default session to "Q" when only --gp is provided
+    if gp is not None and session is None and test_number is None:
+        session = "Q"
+
+    if session is not None and session not in _QUALIFYING_SESSION_TYPES:
+        click.echo(
+            json.dumps({"error": f"Invalid session type '{session}'. Must be one of: Q, SQ, SS"}),
+            err=True,
+        )
+        sys.exit(1)
+
+    validate_session_or_test(gp, session, test_number, session_number)
+
+    if not workspace_exists(workspace_id):
+        click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(workspace_id)
+
+    try:
+        result = generate_qualifying_results_chart(
+            year=year,
+            gp=gp,
+            session_type=session,
             workspace_dir=workspace_path,
             test_number=test_number,
             session_number=session_number,
