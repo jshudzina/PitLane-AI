@@ -17,23 +17,35 @@ _Q1_GRAY = "#888888"
 
 
 def _assign_qualifying_phases(results: pd.DataFrame) -> pd.DataFrame:
-    """Assign each driver to their highest qualifying phase reached.
+    """Assign each driver to their qualifying phase using classification position.
 
-    Uses NaT inspection on Q1/Q2/Q3 columns — inherently handles both 20-car
-    (≤2025) and 22-car (2026+) formats without year-conditional logic.
+    Uses final position rather than NaT inspection, which is more robust for
+    drivers who participated in a session but didn't set a time (e.g. a driver
+    who advanced to Q2 but stalled before setting a time, or one who crashed
+    in Q1 but was still classified in the Q2 zone by the stewards).
+
+    Phase boundaries are derived from grid size:
+      - Top 10 positions → Q3  (always 10, per sporting regulations)
+      - Next (n−10)//2 positions → Q2  (5 for 20-car, 6 for 22-car)
+      - Remaining → Q1
 
     Args:
-        results: session.results DataFrame with Q1, Q2, Q3 Timedelta columns
+        results: session.results DataFrame sorted by Position, with a
+                 'Position' column
 
     Returns:
         results with a new 'Phase' column: "Q3", "Q2", or "Q1"
     """
     results = results.copy()
+    n = len(results)
+    n_q3 = 10
+    n_q2 = (n - n_q3) // 2  # 5 for 20-car grid, 6 for 22-car grid
 
     def _phase(row: pd.Series) -> str:
-        if not pd.isna(row["Q3"]):
+        pos = int(row["Position"])
+        if pos <= n_q3:
             return "Q3"
-        if not pd.isna(row["Q2"]):
+        if pos <= n_q3 + n_q2:
             return "Q2"
         return "Q1"
 
@@ -192,7 +204,7 @@ def generate_qualifying_results_chart(
             ax.axhline(y=boundary_idx - 0.5, color="#aaaaaa", linestyle="--", linewidth=1.0, alpha=0.6)
             ax.text(
                 0.002,
-                (boundary_idx - 0.5) / n,
+                1 - boundary_idx / n,
                 divider_label,
                 transform=ax.transAxes,
                 va="bottom",

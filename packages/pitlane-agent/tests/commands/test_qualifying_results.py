@@ -174,6 +174,66 @@ class TestQualifyingResultsChart:
     @patch("pitlane_agent.commands.analyze.qualifying_results.ensure_color_contrast")
     @patch("pitlane_agent.commands.analyze.qualifying_results.plt")
     @patch("pitlane_agent.commands.analyze.qualifying_results.load_session_or_testing")
+    def test_phase_assignment_nat_q2_driver_classified_by_position(
+        self, mock_load, mock_plt, mock_contrast, mock_color, tmp_output_dir
+    ):
+        """Driver at P14 with NaT Q2 (e.g. stalled in Q2) should still be Q2 by position."""
+        session = _make_qualifying_session(20)
+        results = session.results.copy()
+        results.loc[results["Position"] == 14.0, "Q2"] = pd.NaT
+        session.results = results
+        mock_load.return_value = session
+        _setup_plt_mock(mock_plt, mock_color, mock_contrast)
+
+        result = generate_qualifying_results_chart(
+            year=2025,
+            gp="Monaco",
+            session_type="Q",
+            workspace_dir=tmp_output_dir,
+        )
+
+        p14_stat = next(s for s in result["statistics"] if s["position"] == 14)
+        assert p14_stat["phase"] == "Q2"
+
+    def test_get_driver_color_safe_team_color_fallback(self):
+        """When driver color lookup fails, team color is used as secondary fallback."""
+        from unittest.mock import patch as upatch
+
+        from pitlane_agent.utils.plotting import get_driver_color_safe
+
+        session = MagicMock()
+        session.results = pd.DataFrame({"Abbreviation": ["OCO"], "TeamName": ["Haas F1 Team"]})
+
+        with (
+            upatch("fastf1.plotting.get_driver_color", side_effect=KeyError("OCO")),
+            upatch("fastf1.plotting.get_team_color", return_value="#ffffff") as mock_team,
+        ):
+            color = get_driver_color_safe("OCO", session, fallback="#888888")
+
+        assert color == "#ffffff"
+        mock_team.assert_called_once_with("Haas F1 Team", session)
+
+    def test_get_driver_color_safe_fallback_when_both_fail(self):
+        """When both driver and team color lookups fail, the fallback color is returned."""
+        from unittest.mock import patch as upatch
+
+        from pitlane_agent.utils.plotting import get_driver_color_safe
+
+        session = MagicMock()
+        session.results = pd.DataFrame({"Abbreviation": [], "TeamName": []})
+
+        with (
+            upatch("fastf1.plotting.get_driver_color", side_effect=KeyError("not found")),
+            upatch("fastf1.plotting.get_team_color", side_effect=KeyError("team not found")),
+        ):
+            color = get_driver_color_safe("XXX", session, fallback="#888888")
+
+        assert color == "#888888"
+
+    @patch("pitlane_agent.commands.analyze.qualifying_results.get_driver_color_safe")
+    @patch("pitlane_agent.commands.analyze.qualifying_results.ensure_color_contrast")
+    @patch("pitlane_agent.commands.analyze.qualifying_results.plt")
+    @patch("pitlane_agent.commands.analyze.qualifying_results.load_session_or_testing")
     def test_gap_to_pole_calculation(self, mock_load, mock_plt, mock_contrast, mock_color, tmp_output_dir):
         """P1 gap=0.0, all others positive; Q3 gaps increase monotonically."""
         mock_load.return_value = _make_qualifying_session(20)
