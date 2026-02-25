@@ -68,13 +68,15 @@ def get_driver_color_safe(
 ) -> str | None:
     """Get driver color with exception handling.
 
-    Attempts to retrieve the official FastF1 driver color, falling back
-    to a specified color or None if not available.
+    Attempts to retrieve the official FastF1 driver color. If that fails
+    (e.g. a new driver whose abbreviation isn't yet in FastF1's color table),
+    falls back to the team color from session.results. Returns the fallback
+    value only if both lookups fail.
 
     Args:
         driver_abbr: Driver abbreviation (e.g., "VER", "HAM")
         session: FastF1 session object
-        fallback: Optional fallback color if driver color not found
+        fallback: Optional fallback color if all lookups fail
 
     Returns:
         Driver color hex code or fallback value
@@ -82,7 +84,16 @@ def get_driver_color_safe(
     try:
         return fastf1.plotting.get_driver_color(driver_abbr, session)
     except Exception:
-        return fallback
+        pass
+    # Secondary fallback: look up team color via session.results
+    try:
+        row = session.results[session.results["Abbreviation"] == driver_abbr]
+        if not row.empty:
+            team = row.iloc[0]["TeamName"]
+            return fastf1.plotting.get_team_color(team, session)
+    except Exception:
+        pass
+    return fallback
 
 
 def get_driver_team(driver_abbr: str, session: fastf1.core.Session) -> str | None:

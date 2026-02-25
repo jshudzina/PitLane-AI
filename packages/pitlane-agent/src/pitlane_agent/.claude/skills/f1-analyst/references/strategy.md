@@ -285,8 +285,103 @@ of Ferrari. McLaren showed the strongest consistency with a std_dev of 0.31s").
 
 Use the full `chart_path` value returned by the command.
 
-## Future Analysis Types
+### 4. Qualifying Results Overview
 
-The following strategy analysis types are planned for future implementation:
+Show each driver's final qualifying classification and gap to pole, colored by which phase they reached (Q3/Q2/Q1).
 
-- **Qualifying Results Overview**: Summarize qualifying session results
+**Command:**
+```bash
+pitlane analyze qualifying-results \
+  --workspace-id $PITLANE_WORKSPACE_ID \
+  --year 2024 \
+  --gp Monaco \
+  --session Q
+```
+
+**What it does:**
+- Creates a horizontal bar chart: bar length = gap to pole position in seconds
+- P1 (pole sitter) at the top; last-placed qualifier at the bottom
+- Q3 finishers shown in team color; Q2 eliminees in dimmed team color; Q1 eliminees in gray
+- Dashed section dividers separate Q3 finishers from Q2 and Q1 eliminees
+- Returns JSON with pole driver, pole time, and per-driver statistics
+- Automatically handles both 20-car (≤2025) and 22-car (2026+) qualifying formats
+
+**Parameters:**
+- `--year`: Season year (e.g., 2024)
+- `--gp`: Grand Prix name (e.g., "Monaco", "Silverstone")
+- `--session`: `Q` (Qualifying), `SQ` (Sprint Qualifying), or `SS` (Sprint Shootout); defaults to `Q` when only `--gp` is provided
+
+**Statistics Returned (per driver, sorted P1 to last):**
+- `position`: Final qualifying classification position
+- `abbreviation`: 3-letter driver code
+- `team`: Team name
+- `phase`: `"Q3"`, `"Q2"`, or `"Q1"` — highest phase reached
+- `best_time_s`: Best lap time in seconds (from highest phase reached)
+- `best_time_str`: Best lap time formatted as M:SS.mmm
+- `gap_to_pole_s`: Gap to pole position in seconds (0.0 for P1)
+
+**Example Questions:**
+- "Who took pole at Monaco 2024?"
+- "Show me the qualifying gap between Verstappen and Hamilton"
+- "Which drivers made it to Q3 at Silverstone?"
+- "Who was knocked out in Q1?"
+- "How large was the gap between Q3 and Q2?"
+
+## Qualifying Results Analysis Workflow
+
+### Step 1: Identify Parameters
+- Year and Grand Prix
+- Session type (Q for standard qualifying, SQ for sprint qualifying, SS for sprint shootout)
+
+### Step 2: Generate Visualization
+Run `pitlane analyze qualifying-results` with appropriate parameters.
+
+### Step 3: Interpret Results
+The command returns JSON with:
+- `pole_driver`: Abbreviation of the pole sitter
+- `pole_time_str`: Pole lap time in M:SS.mmm
+- `statistics`: Per-driver data sorted by classification position (P1 first)
+
+### Step 4: Format Response
+
+#### Summary
+2-3 sentences directly answering the question. Lead with the pole sitter and margin
+(e.g., "Verstappen took pole at Monaco 2024 with a 1:10.270, 0.084s ahead of Leclerc.
+Ten drivers made Q3, with Alonso the highest-profile Q2 elimination at +0.31s from the cutoff").
+
+#### Key Insights
+- State the pole time and who set it
+- Note the P1-P10 Q3 spread (competitive vs dominant)
+- Highlight any notable eliminations in Q2 or Q1
+- Compare teammate qualifying head-to-head results
+- Note unusually large or small inter-phase gaps
+
+#### Visualization
+**YOU MUST include the chart using markdown image syntax:**
+
+```markdown
+![Qualifying Results Monaco 2024](/path/to/workspace/charts/qualifying_results_2024_monaco_Q.png)
+```
+
+Use the full `chart_path` value returned by the command.
+
+## Example Qualifying Results Analysis
+
+**User:** "Show me qualifying results from Monaco 2024"
+
+**Response:**
+
+### Summary
+Verstappen claimed pole at Monaco 2024 in 1:10.270, with Leclerc 0.084s behind in P2 and Norris completing a tight top 3 at +0.232s. Alonso was the highest-profile Q2 elimination (P11), just 0.31s from the Q3 cutoff.
+
+### Key Insights
+- Verstappen (P1, 1:10.270): Dominant in the final sector; 0.084s margin over Leclerc
+- Ferrari showed strong single-lap pace: both Leclerc (P2) and Sainz (P4) made Q3
+- Russell (P7) and Hamilton (P8): Mercedes found more pace in Q3 relative to practice
+- The Q3/Q2 gap at P10/P11 was 0.23s — closer than the historical Monaco average
+- Alonso (P11) and Ocon (P13) were the notable Aston Martin and Alpine Q2 eliminees
+
+### Visualization
+![Qualifying Results Monaco 2024](/Users/user/.pitlane/workspaces/abc123/charts/qualifying_results_2024_monaco_Q.png)
+
+*The chart shows gap to pole for all 20 drivers. Colored bars indicate Q3 finishers by team, dimmed bars are Q2 eliminees, and gray bars are Q1 eliminees. Dashed lines separate qualifying phases.*
