@@ -4,6 +4,7 @@ Usage:
     pitlane analyze team-pace --year 2024 --gp Monaco --session R
 """
 
+import hashlib
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -52,7 +53,12 @@ def generate_team_pace_chart(
         session_number=session_number,
     )
     if teams is not None:
-        teams_slug = "_".join(sanitize_filename(t) for t in sorted(teams[:5]))
+        sorted_for_slug = sorted(teams)
+        if len(sorted_for_slug) <= 5:
+            teams_slug = "_".join(sanitize_filename(t) for t in sorted_for_slug)
+        else:
+            teams_hash = hashlib.md5(",".join(sorted_for_slug).encode()).hexdigest()[:8]
+            teams_slug = f"filtered_{teams_hash}"
         output_path = base_path.parent / base_path.name.replace(".png", f"_{teams_slug}.png")
     else:
         output_path = base_path
@@ -64,7 +70,13 @@ def generate_team_pace_chart(
     teams_in_session = (
         session.results[["Abbreviation", "TeamName"]].drop_duplicates(subset="TeamName")["TeamName"].tolist()
     )
-    selected_teams = [t for t in teams_in_session if t in teams] if teams is not None else teams_in_session
+    if teams is not None:
+        teams_set = set(teams)
+        selected_teams = [t for t in teams_in_session if t in teams_set]
+        unmatched_teams = [t for t in teams if t not in set(teams_in_session)]
+    else:
+        selected_teams = teams_in_session
+        unmatched_teams = []
 
     # Collect quick laps per team
     team_lap_data = {}
@@ -148,5 +160,6 @@ def generate_team_pace_chart(
         "session_name": session.name,
         "year": year,
         "teams_plotted": sorted_teams,
+        "unmatched_teams": unmatched_teams,
         "statistics": statistics,
     }

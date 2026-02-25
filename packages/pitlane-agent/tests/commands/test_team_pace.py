@@ -299,3 +299,80 @@ class TestTeamPaceChart:
                 teams=None,
                 workspace_dir=tmp_output_dir,
             )
+
+    @patch("pitlane_agent.commands.analyze.team_pace.get_driver_color_safe")
+    @patch("pitlane_agent.commands.analyze.team_pace.ensure_color_contrast")
+    @patch("pitlane_agent.commands.analyze.team_pace.plt")
+    @patch("pitlane_agent.commands.analyze.team_pace.load_session_or_testing")
+    def test_unmatched_teams_reported(
+        self,
+        mock_load_session,
+        mock_plt,
+        mock_ensure_contrast,
+        mock_get_color,
+        tmp_output_dir,
+        two_team_session,
+    ):
+        """Unrecognized team names in the filter appear in unmatched_teams; matched teams are plotted."""
+        mock_load_session.return_value = two_team_session
+
+        mock_laps = _make_mock_laps({"VER": [85.0, 85.1], "PER": [85.2, 85.3]})
+        two_team_session.laps.pick_drivers.return_value.pick_quicklaps.return_value = mock_laps
+
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+        mock_ax.boxplot.return_value = _make_boxplot_return(1)
+        mock_get_color.return_value = "#0600EF"
+        mock_ensure_contrast.return_value = "#0600EF"
+
+        result = generate_team_pace_chart(
+            year=2024,
+            gp="Monaco",
+            session_type="R",
+            teams=["Red Bull Racing", "Haas F1 Team"],  # Haas not in two_team_session
+            workspace_dir=tmp_output_dir,
+        )
+
+        assert result["teams_plotted"] == ["Red Bull Racing"]
+        assert result["unmatched_teams"] == ["Haas F1 Team"]
+
+    @patch("pitlane_agent.commands.analyze.team_pace.get_driver_color_safe")
+    @patch("pitlane_agent.commands.analyze.team_pace.ensure_color_contrast")
+    @patch("pitlane_agent.commands.analyze.team_pace.plt")
+    @patch("pitlane_agent.commands.analyze.team_pace.load_session_or_testing")
+    def test_many_teams_filter_uses_hash_filename(
+        self,
+        mock_load_session,
+        mock_plt,
+        mock_ensure_contrast,
+        mock_get_color,
+        tmp_output_dir,
+        mock_fastf1_session,
+    ):
+        """When more than 5 teams are requested, the filename uses a hash instead of a slug."""
+        mock_load_session.return_value = mock_fastf1_session
+
+        mock_laps = _make_mock_laps({"VER": [85.0, 85.1]})
+        mock_fastf1_session.laps.pick_drivers.return_value.pick_quicklaps.return_value = mock_laps
+
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+        mock_ax.boxplot.return_value = _make_boxplot_return(4)
+        mock_get_color.return_value = "#0600EF"
+        mock_ensure_contrast.return_value = "#0600EF"
+
+        six_teams = ["Ferrari", "Mercedes", "Red Bull Racing", "McLaren", "Aston Martin", "Williams"]
+        result = generate_team_pace_chart(
+            year=2024,
+            gp="Monaco",
+            session_type="R",
+            teams=six_teams,
+            workspace_dir=tmp_output_dir,
+        )
+
+        assert "filtered_" in result["chart_path"]
+        # No individual team name should appear as a slug in the path
+        for team in six_teams:
+            assert team.lower().replace(" ", "_") not in result["chart_path"]
