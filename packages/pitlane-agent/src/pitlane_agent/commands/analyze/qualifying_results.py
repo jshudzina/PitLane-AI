@@ -80,7 +80,8 @@ def generate_qualifying_results_chart(
 
     Supports standard qualifying (Q), sprint qualifying (SQ), and sprint
     shootout (SS) sessions. Handles both 20-car (≤2025) and 22-car (2026+)
-    qualifying formats via NaT inspection — no year-conditional logic needed.
+    qualifying formats via position-based phase assignment — robust to drivers
+    who advanced to a phase but didn't set a time (crash, mechanical failure).
 
     Args:
         year: Season year
@@ -120,7 +121,8 @@ def generate_qualifying_results_chart(
     # Sort by final classification position (P1 first)
     results = results.sort_values("Position").reset_index(drop=True)
 
-    # Assign qualifying phases via NaT inspection
+    # Assign qualifying phases by classification position (not NaT inspection,
+    # which fails for drivers who advanced but didn't set a time)
     results = _assign_qualifying_phases(results)
 
     # Compute best time per driver (highest phase reached)
