@@ -26,12 +26,15 @@ Based on the user's question, read the appropriate reference file for detailed i
 **Read:** [references/lap_times.md](references/lap_times.md)
 
 ### Strategy and Results Analysis
-**When to use:** Questions about tyre strategy, pit stops, race strategy, or race results.
+**When to use:** Questions about tyre strategy, pit stops, race strategy, team pace comparison, or race results.
 
 **Examples:**
 - "Show me Ferrari's tyre strategy"
 - "What compounds did the front runners use?"
 - "Who did a one-stop vs two-stop strategy?"
+- "Compare team pace at Monaco"
+- "Which team was most consistent in the race?"
+- "Show me the pace gap between Red Bull and Mercedes"
 
 **Read:** [references/strategy.md](references/strategy.md)
 

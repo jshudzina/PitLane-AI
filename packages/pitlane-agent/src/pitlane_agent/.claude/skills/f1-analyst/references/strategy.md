@@ -197,9 +197,96 @@ Total overtakes in top 5: 12 position changes across 78 laps
 
 *The visualization shows position evolution with pit stops marked by downward triangles. Notice Leclerc's aggressive climb and the stability of Verstappen's lead.*
 
+### 3. Team Pace Comparison
+
+Compare lap time distributions between teams to identify pace hierarchy and consistency.
+
+**Command:**
+```bash
+pitlane analyze team-pace \
+  --workspace-id $PITLANE_WORKSPACE_ID \
+  --year 2024 \
+  --gp Monaco \
+  --session R
+```
+
+**With team filter:**
+```bash
+pitlane analyze team-pace \
+  --workspace-id $PITLANE_WORKSPACE_ID \
+  --year 2024 \
+  --gp Monaco \
+  --session R \
+  --teams Ferrari \
+  --teams Mercedes
+```
+
+**What it does:**
+- Creates a box plot showing lap time distribution for each team
+- Teams sorted left-to-right from fastest median to slowest
+- Uses quick laps only (excludes pit in/out, safety car, formation laps)
+- Returns JSON with chart path and per-team statistics
+
+**Parameters:**
+- `--year`: Season year (e.g., 2024)
+- `--gp`: Grand Prix name (e.g., "Monaco", "Silverstone")
+- `--session`: Session type (R, Q, FP1, FP2, FP3, S, SQ; defaults to R when only `--gp` is provided)
+- `--teams`: (Optional) Specific teams to compare, specify multiple times
+
+**Statistics Returned (per team, sorted fastest first):**
+- `team`: Team name
+- `median_s`: Median lap time in seconds
+- `mean_s`: Mean lap time in seconds
+- `std_dev_s`: Standard deviation — lower means more consistent
+- `pace_delta_s`: Seconds behind the fastest team's median (0.0 for fastest team)
+- `lap_count`: Number of quick laps analyzed
+
+**Example Questions:**
+- "Compare team pace at Monaco"
+- "Which team was most consistent in the race?"
+- "How far behind Ferrari was McLaren at Silverstone?"
+- "Show me the pace gap between Red Bull and Mercedes in qualifying"
+
+## Team Pace Analysis Workflow
+
+### Step 1: Identify Parameters
+- Year and Grand Prix
+- Session type (R for race pace, Q for one-lap pace, FP sessions for long-run comparisons)
+- Optional: Specific teams to highlight
+
+### Step 2: Generate Visualization
+Run `pitlane analyze team-pace` with appropriate parameters.
+
+### Step 3: Interpret Results
+The command returns JSON with:
+- `chart_path`: Path to the saved PNG
+- `teams_plotted`: List of teams sorted fastest to slowest by median
+- `statistics`: Per-team data (median, mean, std_dev, pace_delta, lap_count)
+
+### Step 4: Format Response
+
+#### Summary
+2-3 sentences directly answering the question. Lead with the pace hierarchy
+(e.g., "Red Bull led the race pace at Monaco with a median of 85.2s, 0.8s ahead
+of Ferrari. McLaren showed the strongest consistency with a std_dev of 0.31s").
+
+#### Key Insights
+- Identify the fastest team by median pace and their `pace_delta_s` advantage
+- Highlight consistency differences (`std_dev_s` — lower is better)
+- Note teams with low `lap_count` (possible DNF, DNS, or few representative laps)
+- Compare gaps between teams fighting for the same championship positions
+
+#### Visualization
+**YOU MUST include the chart using markdown image syntax:**
+
+```markdown
+![Team Pace at Monaco 2024 Race](/path/to/workspace/charts/team_pace_2024_monaco_R.png)
+```
+
+Use the full `chart_path` value returned by the command.
+
 ## Future Analysis Types
 
 The following strategy analysis types are planned for future implementation:
 
-- **Team Pace Comparison**: Compare average pace between teams
 - **Qualifying Results Overview**: Summarize qualifying session results
