@@ -8,6 +8,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.transforms import blended_transform_factory
 
 from pitlane_agent.utils.constants import FIGURE_HEIGHT, FIGURE_WIDTH
 from pitlane_agent.utils.fastf1_helpers import build_chart_path, format_lap_time, load_session_or_testing
@@ -188,22 +189,24 @@ def generate_qualifying_results_chart(
     ax.set_yticklabels(y_labels, fontsize=9)
     ax.invert_yaxis()
 
-    # Section dividers between Q3/Q2 and Q2/Q1 phases
+    # Section dividers between Q3/Q2 and Q2/Q1 phases.
+    # Use a blended transform (x in axes coords, y in data coords) so the label
+    # aligns exactly with the axhline regardless of axis padding.
     phase_list = results["Phase"].tolist()
     section_boundaries = [
         ("Q2", "Eliminated in Q2"),
         ("Q1", "Eliminated in Q1"),
     ]
-    n = len(results)
+    label_transform = blended_transform_factory(ax.transAxes, ax.transData)
     for phase_key, divider_label in section_boundaries:
         if phase_key in phase_list:
             boundary_idx = phase_list.index(phase_key)
             ax.axhline(y=boundary_idx - 0.5, color="#aaaaaa", linestyle="--", linewidth=1.0, alpha=0.6)
             ax.text(
                 0.002,
-                1 - boundary_idx / n,
+                boundary_idx - 0.5,
                 divider_label,
-                transform=ax.transAxes,
+                transform=label_transform,
                 va="bottom",
                 ha="left",
                 fontsize=8,
