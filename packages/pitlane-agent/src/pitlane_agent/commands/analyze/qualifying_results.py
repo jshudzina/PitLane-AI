@@ -39,6 +39,8 @@ def _assign_qualifying_phases(results: pd.DataFrame) -> pd.DataFrame:
     """
     results = results.copy()
     n = len(results)
+    if n < 10:
+        raise ValueError(f"Expected at least 10 classified drivers, got {n}")
     n_q3 = 10
     n_q2 = (n - n_q3) // 2  # 5 for 20-car grid, 6 for 22-car grid
 
@@ -130,9 +132,13 @@ def generate_qualifying_results_chart(
     results["BestTime"] = results.apply(_get_best_time, axis=1)
 
     pole_time = results.iloc[0]["BestTime"]
+    if pole_time is None or pd.isna(pole_time):
+        raise ValueError("Pole sitter has no recorded lap time; cannot compute gaps.")
     pole_time_s = pole_time.total_seconds()
 
-    results["GapToPole"] = results["BestTime"].apply(lambda t: t.total_seconds() - pole_time_s)
+    results["GapToPole"] = results["BestTime"].apply(
+        lambda t: t.total_seconds() - pole_time_s if t is not None and not pd.isna(t) else float("nan")
+    )
 
     # Build per-driver color and alpha
     driver_colors: dict[str, str] = {}
@@ -224,16 +230,18 @@ def generate_qualifying_results_chart(
     pole_row = results.iloc[0]
     statistics = []
     for _, row in results.iterrows():
-        best_s = row["BestTime"].total_seconds()
+        best_time = row["BestTime"]
+        best_s = best_time.total_seconds() if best_time is not None and not pd.isna(best_time) else None
+        gap = float(row["GapToPole"])
         statistics.append(
             {
                 "position": int(row["Position"]),
                 "abbreviation": row["Abbreviation"],
                 "team": row["TeamName"],
                 "phase": row["Phase"],
-                "best_time_s": round(best_s, 3),
-                "best_time_str": format_lap_time(row["BestTime"]),
-                "gap_to_pole_s": round(float(row["GapToPole"]), 3),
+                "best_time_s": round(best_s, 3) if best_s is not None else None,
+                "best_time_str": format_lap_time(best_time),
+                "gap_to_pole_s": round(gap, 3) if not pd.isna(gap) else None,
             }
         )
 
