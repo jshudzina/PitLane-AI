@@ -19,6 +19,7 @@ from pitlane_agent.commands.analyze import (
     generate_position_changes_chart,
     generate_season_summary_chart,
     generate_speed_trace_chart,
+    generate_team_pace_chart,
     generate_telemetry_chart,
     generate_track_map_chart,
     generate_tyre_strategy_chart,
@@ -758,6 +759,79 @@ def driver_laps(
             gp=gp,
             session_type=session_type,
             driver=driver,
+            test_number=test_number,
+            session_number=session_number,
+        )
+        result["workspace_id"] = workspace_id
+        click.echo(json.dumps(result, indent=2))
+
+    except Exception as e:
+        click.echo(json.dumps({"error": str(e)}), err=True)
+        sys.exit(1)
+
+
+@analyze.command("team-pace")
+@click.option("--workspace-id", required=True, help="Workspace ID")
+@click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
+@click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
+@click.option(
+    "--session",
+    type=str,
+    default=None,
+    help="Session type: R, Q, FP1, FP2, FP3, S, SQ (defaults to R when --gp is used)",
+)
+@click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
+@click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
+@click.option(
+    "--teams",
+    multiple=True,
+    required=False,
+    help="Team names to include (optional; defaults to all teams). "
+    "Specify multiple times: --teams Ferrari --teams Mercedes",
+)
+def team_pace(
+    workspace_id: str,
+    year: int,
+    gp: str | None,
+    session: str | None,
+    test_number: int | None,
+    session_number: int | None,
+    teams: tuple[str, ...],
+):
+    """Generate team pace comparison box plot showing lap time distributions per team.
+
+    Teams are sorted by median lap time (fastest first). Uses quick laps only,
+    which excludes pit in/out laps, safety car laps, and formation laps.
+
+    Example (GP session):
+      pitlane analyze team-pace --year 2024 --gp Monaco --session R
+
+    Example (with team filter):
+      pitlane analyze team-pace --year 2024 --gp Monaco --session R
+        --teams Ferrari --teams Mercedes
+
+    Example (testing session):
+      pitlane analyze team-pace --year 2024 --test 1 --day 2
+    """
+    # Default session to "R" when only --gp is provided
+    if gp is not None and session is None and test_number is None:
+        session = "R"
+    validate_session_or_test(gp, session, test_number, session_number)
+
+    if not workspace_exists(workspace_id):
+        click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
+        sys.exit(1)
+
+    workspace_path = get_workspace_path(workspace_id)
+
+    try:
+        teams_list = list(teams) if teams else None
+        result = generate_team_pace_chart(
+            year=year,
+            gp=gp,
+            session_type=session,
+            teams=teams_list,
+            workspace_dir=workspace_path,
             test_number=test_number,
             session_number=session_number,
         )

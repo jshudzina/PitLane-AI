@@ -16,7 +16,7 @@ Your workspace ID is in `$PITLANE_WORKSPACE_ID`. Use it in all pitlane commands.
 Based on the user's question, read the appropriate reference file for detailed instructions:
 
 ### Lap Time Analysis
-**When to use:** Questions about lap times, pace comparison, driver consistency, or qualifying performance.
+**When to use:** Questions about lap times, individual driver pace comparison, driver consistency, or qualifying performance. For team-level pace comparisons (e.g., Red Bull vs Ferrari), use Strategy and Results Analysis instead.
 
 **Examples:**
 - "Compare Verstappen and Norris lap times"
@@ -26,12 +26,16 @@ Based on the user's question, read the appropriate reference file for detailed i
 **Read:** [references/lap_times.md](references/lap_times.md)
 
 ### Strategy and Results Analysis
-**When to use:** Questions about tyre strategy, pit stops, race strategy, or race results.
+**When to use:** Questions about tyre strategy, pit stops, race strategy, team pace comparison, or race results.
 
 **Examples:**
 - "Show me Ferrari's tyre strategy"
 - "What compounds did the front runners use?"
 - "Who did a one-stop vs two-stop strategy?"
+- "Compare team pace at Monaco"
+- "Which team was most consistent in the race?"
+- "Show me the pace gap between Red Bull and Mercedes"
+- "How does Red Bull's pace compare to Ferrari's?"
 
 **Read:** [references/strategy.md](references/strategy.md)
 
