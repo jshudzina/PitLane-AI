@@ -128,11 +128,6 @@ def generate_qualifying_results_chart(
     # Compute best time per driver (highest phase reached)
     results["BestTime"] = results.apply(_get_best_time, axis=1)
 
-    # Drop drivers with no valid time (DNQ edge case)
-    results = results[results["BestTime"].notna()].reset_index(drop=True)
-    if results.empty:
-        raise ValueError("No valid qualifying times found in session.results")
-
     pole_time = results.iloc[0]["BestTime"]
     pole_time_s = pole_time.total_seconds()
 
