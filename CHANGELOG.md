@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-02-27
+
+### Bug Fixes
+
+- Cast Brake boolean to int for telemetry delta computation
+
+- Set fixed tick intervals for RPM and Gear axes
+
+- Sandbox iframe embeds for interactive HTML charts
+
+- Deduplicate iframe styles and double chart height
+
+- Adjust iframe chart height to 1000px
+
+- Log warning instead of silently swallowing corner annotation errors
+
+- Correct iframe dimension test to match CSS-based sizing
+
+- Persist and reload message history on chat resume ([#108](https://github.com/jshudzina/PitLane-AI/pull/108))
+
+
+### Documentation
+
+- Add Claude/Anthropic API key setup instructions ([#106](https://github.com/jshudzina/PitLane-AI/pull/106))
+
+- Document new analysis features and CLI commands ([#112](https://github.com/jshudzina/PitLane-AI/pull/112))
+
+
+### Features
+
+- Add interactive telemetry comparison chart
+
+- Support interactive HTML telemetry charts in pitlane-web
+
+- Add telemetry analysis with sector times, lift-and-coast & super clipping detection ([#105](https://github.com/jshudzina/PitLane-AI/pull/105))
+
+- Flexible telemetry lap selection with multi-lap and year-compare commands ([#107](https://github.com/jshudzina/PitLane-AI/pull/107))
+
+- Add season summary visualization ([#58](https://github.com/jshudzina/PitLane-AI/pull/58)) ([#109](https://github.com/jshudzina/PitLane-AI/pull/109))
+
+- Add team pace comparison analysis ([#52](https://github.com/jshudzina/PitLane-AI/pull/52)) ([#110](https://github.com/jshudzina/PitLane-AI/pull/110))
+
+- Add qualifying results overview chart ([#53](https://github.com/jshudzina/PitLane-AI/pull/53)) ([#111](https://github.com/jshudzina/PitLane-AI/pull/111))
+
+
+### Testing
+
+- Add unit tests for telemetry chart generation helpers
+
 ## [0.3.1] - 2026-02-16
 
 ### Bug Fixes
