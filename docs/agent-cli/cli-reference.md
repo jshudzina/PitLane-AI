@@ -337,6 +337,53 @@ pitlane analyze tyre-strategy --workspace-id abc123 --year 2024 --gp Monaco --se
 }
 ```
 
+### `pitlane analyze qualifying-results`
+
+Generate a horizontal bar chart showing each driver's gap to pole position.
+
+**Usage:**
+```bash
+pitlane analyze qualifying-results --workspace-id ID --year YEAR --gp GP_NAME [--session SESSION_TYPE]
+```
+
+**Options:**
+- `--workspace-id` (required) - Workspace ID
+- `--year` (required) - Season year
+- `--gp` (required) - Grand Prix name (e.g., Monaco, Silverstone)
+- `--session` - Session type: `Q` (Qualifying), `SQ` (Sprint Qualifying), or `SS` (Sprint Shootout). Defaults to `Q` when `--gp` is used.
+
+**Examples:**
+```bash
+# Standard qualifying
+pitlane analyze qualifying-results --workspace-id abc123 --year 2024 --gp Monaco --session Q
+
+# Sprint shootout
+pitlane analyze qualifying-results --workspace-id abc123 --year 2024 --gp China --session SS
+```
+
+**Output:**
+```json
+{
+  "chart_path": "~/.pitlane/workspaces/abc123/charts/qualifying_results_2024_monaco_Q.png",
+  "pole_driver": "VER",
+  "pole_time_str": "1:10.270",
+  "statistics": [
+    {
+      "position": 1,
+      "abbreviation": "VER",
+      "team": "Red Bull Racing",
+      "phase": "Q3",
+      "best_time_s": 70.27,
+      "best_time_str": "1:10.270",
+      "gap_to_pole_s": 0.0
+    }
+  ],
+  "workspace_id": "abc123"
+}
+```
+
+Drivers are colored by qualifying phase: Q3 finishers use their team color, Q2 eliminees use a dimmed team color, and Q1 eliminees appear in gray. Automatically handles both 20-car (≤2025) and 22-car (2026+) qualifying formats.
+
 ## Temporal Context Command
 
 Show current F1 calendar context.
@@ -399,6 +446,7 @@ Next Race: Monaco Grand Prix (in 3 days)
 | `Q` | Qualifying |
 | `S` | Sprint Race |
 | `SQ` | Sprint Qualifying |
+| `SS` | Sprint Shootout |
 | `FP1` | Free Practice 1 |
 | `FP2` | Free Practice 2 |
 | `FP3` | Free Practice 3 |

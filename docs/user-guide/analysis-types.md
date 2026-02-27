@@ -56,6 +56,35 @@ The agent will generate a horizontal timeline visualization showing:
 - Pit stop timing markers
 - Strategy comparison across the field
 
+## Qualifying Results
+
+View the final qualifying classification and each driver's gap to pole, colored by qualifying phase.
+
+### What It Provides
+
+- Horizontal bar chart: bar length = gap to pole position in seconds
+- Q3 finishers shown in team color; Q2 eliminees in dimmed team color; Q1 eliminees in gray
+- Dashed section dividers separating Q3, Q2, and Q1 phases
+- Automatic support for 20-car (≤2025) and 22-car (2026+) qualifying formats
+
+### Use Cases
+
+- "Who took pole at Monaco 2024?"
+- "Which drivers made it to Q3?"
+- "Show me the qualifying gap between Verstappen and Hamilton"
+- "Who was knocked out in Q1?"
+- "Show me the sprint shootout results from China"
+
+### What You'll Get
+
+The agent generates a horizontal bar chart showing:
+- Each driver's gap to pole (P1 at top, last qualifier at bottom)
+- Color coding by phase: full team color for Q3 finishers, dimmed for Q2 eliminees, gray for Q1 eliminees
+- Dashed dividers marking the Q3/Q2 and Q2/Q1 cutoffs
+- Pole sitter name and lap time in the response
+
+Works for standard qualifying (`Q`), sprint qualifying (`SQ`), and sprint shootout (`SS`) sessions.
+
 ## Driver Information
 
 Query driver details, codes, and career information.
