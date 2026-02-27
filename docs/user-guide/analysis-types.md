@@ -85,6 +85,62 @@ The agent generates a horizontal bar chart showing:
 
 Works for standard qualifying (`Q`), sprint qualifying (`SQ`), and sprint shootout (`SS`) sessions.
 
+## Season Summary
+
+Visualize the championship standings across an entire season as an interactive points heatmap.
+
+### What It Provides
+
+- Interactive HTML heatmap with per-round points for each driver or constructor
+- Two-panel layout: per-round points grid (left) and total season points bar (right)
+- Championship order sorting (leader at top)
+- Sprint race points included automatically
+- Hover tooltips showing finishing positions per round (drivers mode)
+
+### Use Cases
+
+- "Show me the 2024 drivers championship standings"
+- "How did the constructors points evolve across the season?"
+- "Which rounds did Verstappen dominate?"
+- "Show me the championship picture after round 10"
+
+### What You'll Get
+
+The agent generates an interactive HTML chart showing:
+- A color-coded heatmap (YlGnBu scale) of points earned each round, sorted by total championship points
+- A bar chart alongside it showing each competitor's season total
+- Hover for per-round finishing position (drivers mode)
+- Works for both in-progress and completed seasons
+
+## Team Pace Comparison
+
+Compare lap time distributions across all teams in a session using a box plot.
+
+### What It Provides
+
+- Box plot of lap time distributions, one box per team
+- Teams sorted fastest-to-slowest by median pace
+- Team colors from FastF1 color scheme
+- Pace delta vs fastest team (in seconds)
+- Per-team statistics: median, mean, std dev, lap count
+- Outlier filtering (pit in/out, safety car, formation laps excluded)
+- Optional team filtering to focus on a subset
+
+### Use Cases
+
+- "Compare team pace in Monaco 2024"
+- "How did Ferrari and Mercedes compare on race pace at Silverstone?"
+- "Show me team pace from pre-season testing day 2"
+- "Which team was most consistent in the race?"
+
+### What You'll Get
+
+The agent generates a PNG chart showing:
+- A box plot per team, sorted by fastest median pace (left = fastest)
+- Whiskers extending to 1.5× IQ range with individual outliers
+- Pace delta vs fastest team labeled per box
+- Covers any session type: race, qualifying, practice, or pre-season testing
+
 ## Driver Information
 
 Query driver details, codes, and career information.
@@ -274,6 +330,9 @@ The agent automatically:
 |---------------|-------------|
 | Lap Times | FastF1 API |
 | Tyre Strategy | FastF1 API |
+| Qualifying Results | FastF1 API |
+| Season Summary | FastF1 API |
+| Team Pace | FastF1 API |
 | Telemetry | FastF1 API |
 | Driver Info | Ergast API |
 | Schedule | FastF1 Schedule |

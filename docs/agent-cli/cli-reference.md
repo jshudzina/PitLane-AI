@@ -601,6 +601,123 @@ pitlane analyze qualifying-results --workspace-id abc123 --year 2024 --gp China 
 
 Drivers are colored by qualifying phase: Q3 finishers use their team color, Q2 eliminees use a dimmed team color, and Q1 eliminees appear in gray. Automatically handles both 20-car (≤2025) and 22-car (2026+) qualifying formats.
 
+### `pitlane analyze season-summary`
+
+Generate an interactive championship points heatmap for an entire season.
+
+**Usage:**
+```bash
+pitlane analyze season-summary --workspace-id ID --year YEAR [--type TYPE]
+```
+
+**Options:**
+- `--workspace-id` (required) - Workspace ID
+- `--year` (required) - Season year (e.g., 2024)
+- `--type` - Summary type: `drivers` (default) or `constructors`
+
+**Examples:**
+```bash
+# Drivers championship heatmap
+pitlane analyze season-summary --workspace-id abc123 --year 2024
+
+# Constructors championship heatmap
+pitlane analyze season-summary --workspace-id abc123 --year 2024 --type constructors
+```
+
+**Output:**
+```json
+{
+  "chart_path": "~/.pitlane/workspaces/abc123/charts/season_summary_2024_drivers.html",
+  "workspace": "abc123",
+  "year": 2024,
+  "summary_type": "drivers",
+  "analysis_round": 7,
+  "total_races": 24,
+  "season_complete": false,
+  "leader": {
+    "name": "VER",
+    "points": 201.0,
+    "team": "Red Bull Racing",
+    "position": 1
+  },
+  "statistics": {
+    "total_competitors": 20,
+    "competitors": [
+      {"name": "VER", "championship_position": 1, "points": 201.0, "team": "Red Bull Racing"}
+    ]
+  }
+}
+```
+
+The chart is an interactive HTML file. Hover over any cell to see the driver's finishing position for that round.
+
+### `pitlane analyze team-pace`
+
+Generate a box plot comparing lap time distributions across teams in a session.
+
+**Usage:**
+```bash
+pitlane analyze team-pace --workspace-id ID --year YEAR
+  [--gp GP_NAME | --test N --day N]
+  [--session SESSION_TYPE]
+  [--teams TEAM ...]
+```
+
+**Options:**
+- `--workspace-id` (required) - Workspace ID
+- `--year` (required) - Season year
+- `--gp` - Grand Prix name (mutually exclusive with `--test`/`--day`)
+- `--session` - Session type (R, Q, FP1, FP2, FP3, S, SQ). Defaults to `R` when `--gp` is provided
+- `--test` - Pre-season testing event number (e.g., 1 or 2)
+- `--day` - Day/session within testing event (1–3)
+- `--teams` (optional, repeatable) - Team names to include (e.g., `--teams Ferrari --teams Mercedes`). If omitted, all teams are included
+
+**Examples:**
+```bash
+# All teams in a race session
+pitlane analyze team-pace --workspace-id abc123 --year 2024 --gp Monaco --session R
+
+# Filter to specific teams
+pitlane analyze team-pace --workspace-id abc123 --year 2024 --gp Monaco \
+  --teams Ferrari --teams McLaren --teams Mercedes
+
+# Pre-season testing
+pitlane analyze team-pace --workspace-id abc123 --year 2024 --test 1 --day 2
+```
+
+**Output:**
+```json
+{
+  "chart_path": "~/.pitlane/workspaces/abc123/charts/team_pace_2024_monaco_R.png",
+  "workspace": "abc123",
+  "event_name": "Monaco Grand Prix",
+  "session_name": "Race",
+  "year": 2024,
+  "teams_plotted": ["Red Bull Racing", "McLaren", "Ferrari"],
+  "unmatched_teams": [],
+  "statistics": [
+    {
+      "team": "Red Bull Racing",
+      "median_s": 73.234,
+      "mean_s": 73.456,
+      "std_dev_s": 0.345,
+      "pace_delta_s": 0.0,
+      "lap_count": 48
+    },
+    {
+      "team": "McLaren",
+      "median_s": 73.567,
+      "mean_s": 73.712,
+      "std_dev_s": 0.412,
+      "pace_delta_s": 0.333,
+      "lap_count": 51
+    }
+  ]
+}
+```
+
+Only quick laps are included (pit in/out, safety car, and formation laps are excluded). Teams are sorted fastest-to-slowest by median pace.
+
 ## Temporal Context Command
 
 Show current F1 calendar context.
