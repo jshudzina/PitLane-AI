@@ -337,6 +337,223 @@ pitlane analyze tyre-strategy --workspace-id abc123 --year 2024 --gp Monaco --se
 }
 ```
 
+### `pitlane analyze telemetry`
+
+Generate an interactive telemetry chart (speed, RPM, gear, throttle, brake, super clipping) comparing drivers on their fastest laps.
+
+**Usage:**
+```bash
+pitlane analyze telemetry --workspace-id ID --year YEAR
+  [--gp GP_NAME | --test N --day N]
+  [--session SESSION_TYPE]
+  --drivers DRIVER [--drivers DRIVER2 ...]
+  [--annotate-corners]
+```
+
+**Options:**
+- `--workspace-id` (required) - Workspace ID
+- `--year` (required) - Season year
+- `--gp` - Grand Prix name (mutually exclusive with `--test`/`--day`)
+- `--session` - Session type (R, Q, FP1, FP2, FP3, S, SQ)
+- `--test` - Pre-season testing event number (e.g., 1 or 2)
+- `--day` - Day/session within testing event (1–3)
+- `--drivers` (required, 2–5 times) - Driver abbreviations to compare
+- `--annotate-corners` - Add corner number markers to the distance axis
+
+**Examples:**
+```bash
+# Compare two drivers in qualifying
+pitlane analyze telemetry --workspace-id abc123 --year 2024 --gp Monaco --session Q \
+  --drivers VER --drivers NOR
+
+# With corner annotations
+pitlane analyze telemetry --workspace-id abc123 --year 2024 --gp Monaco --session Q \
+  --drivers VER --drivers NOR --annotate-corners
+
+# Pre-season testing session
+pitlane analyze telemetry --workspace-id abc123 --year 2024 --test 1 --day 2 \
+  --drivers VER --drivers HAM
+```
+
+**Output:**
+```json
+{
+  "chart_path": "~/.pitlane/workspaces/abc123/charts/telemetry_2024_monaco_Q.html",
+  "statistics": {
+    "VER": {
+      "lap_time": "1:10.270",
+      "sector_1": "18.456",
+      "sector_2": "36.123",
+      "sector_3": "15.691",
+      "speed_trap_kmh": 287.3,
+      "finish_speed_kmh": 210.4,
+      "lift_coast_zones": 3,
+      "super_clipping_zones": 2
+    }
+  },
+  "workspace_id": "abc123"
+}
+```
+
+The chart is an interactive HTML file rendered as an iframe in the web interface. All six subplots (Speed, RPM, Gear, Throttle, Brake, Super Clipping) share a zoom/pan axis. Hover over any point to see per-driver values and deltas.
+
+### `pitlane analyze multi-lap`
+
+Compare multiple laps for a single driver within one session. Useful for analyzing qualifying run differences, stint pace evolution, or any lap-to-lap comparison.
+
+**Usage:**
+```bash
+pitlane analyze multi-lap --workspace-id ID --year YEAR
+  [--gp GP_NAME | --test N --day N]
+  [--session SESSION_TYPE]
+  --driver DRIVER
+  --lap SPEC [--lap SPEC ...]
+  [--annotate-corners]
+```
+
+**Options:**
+- `--workspace-id` (required) - Workspace ID
+- `--year` (required) - Season year
+- `--gp` - Grand Prix name (mutually exclusive with `--test`/`--day`)
+- `--session` - Session type (R, Q, FP1, FP2, FP3, S, SQ)
+- `--test` - Pre-season testing event number
+- `--day` - Day/session within testing event
+- `--driver` (required) - Single driver abbreviation
+- `--lap` (required, 2–6 times) - Lap specifier: `best` for fastest lap, or an integer lap number
+- `--annotate-corners` - Add corner number markers
+
+**Examples:**
+```bash
+# Compare fastest lap vs lap 3 in qualifying
+pitlane analyze multi-lap --workspace-id abc123 --year 2024 --gp Monaco --session Q \
+  --driver VER --lap best --lap 3
+
+# Compare multiple race laps to analyze stint pace
+pitlane analyze multi-lap --workspace-id abc123 --year 2024 --gp Bahrain --session R \
+  --driver LEC --lap 5 --lap 20 --lap 45
+
+# Pre-season testing session
+pitlane analyze multi-lap --workspace-id abc123 --year 2024 --test 1 --day 2 \
+  --driver VER --lap best --lap 5
+```
+
+**Output:**
+```json
+{
+  "chart_path": "~/.pitlane/workspaces/abc123/charts/multi_lap_VER_2024_monaco_Q.html",
+  "statistics": {
+    "Lap 1 (best)": {"lap_time": "1:10.270", "sector_1": "18.456", ...},
+    "Lap 3": {"lap_time": "1:10.589", "sector_1": "18.712", ...}
+  },
+  "workspace_id": "abc123"
+}
+```
+
+### `pitlane analyze year-compare`
+
+Compare a driver's fastest lap at the same circuit across multiple seasons. Useful for visualizing the impact of regulation changes on braking, speed profiles, and driving technique.
+
+**Usage:**
+```bash
+pitlane analyze year-compare --workspace-id ID
+  [--gp GP_NAME | --test N --day N]
+  [--session SESSION_TYPE]
+  --driver DRIVER
+  --years YEAR [--years YEAR ...]
+  [--annotate-corners]
+```
+
+**Options:**
+- `--workspace-id` (required) - Workspace ID
+- `--gp` - Grand Prix name (must exist in all specified years; mutually exclusive with `--test`/`--day`)
+- `--session` - Session type (R, Q, FP1, FP2, FP3, S, SQ)
+- `--test` - Pre-season testing event number
+- `--day` - Day/session within testing event
+- `--driver` (required) - Single driver abbreviation
+- `--years` (required, 2–6 times) - Seasons to include (note: `--years` not `--year`)
+- `--annotate-corners` - Add corner number markers
+
+**Examples:**
+```bash
+# Compare VER's best qualifying lap at Monza across two seasons
+pitlane analyze year-compare --workspace-id abc123 --gp Monza --session Q \
+  --driver VER --years 2022 --years 2024
+
+# Three-season comparison for regulation impact analysis
+pitlane analyze year-compare --workspace-id abc123 --gp Silverstone --session Q \
+  --driver HAM --years 2021 --years 2022 --years 2024
+```
+
+**Output:**
+```json
+{
+  "chart_path": "~/.pitlane/workspaces/abc123/charts/year_compare_VER_monza_Q.html",
+  "statistics": {
+    "2022": {"lap_time": "1:20.161", "sector_1": "25.347", ...},
+    "2024": {"lap_time": "1:18.927", "sector_1": "24.815", ...}
+  },
+  "workspace_id": "abc123"
+}
+```
+
+### `pitlane analyze driver-laps`
+
+Fetch per-lap data for a single driver without generating a chart. Returns structured JSON covering all laps in the session — useful for identifying which lap numbers are worth comparing before running `multi-lap`.
+
+**Usage:**
+```bash
+pitlane analyze driver-laps --workspace-id ID --year YEAR
+  [--gp GP_NAME | --test N --day N]
+  [--session SESSION_TYPE]
+  --driver DRIVER
+```
+
+**Options:**
+- `--workspace-id` (required) - Workspace ID
+- `--year` (required) - Season year
+- `--gp` - Grand Prix name (mutually exclusive with `--test`/`--day`)
+- `--session` - Session type (R, Q, FP1, FP2, FP3, S, SQ)
+- `--test` - Pre-season testing event number
+- `--day` - Day/session within testing event
+- `--driver` (required) - Single driver abbreviation
+
+**Examples:**
+```bash
+# List all race laps for VER to find which laps to compare
+pitlane analyze driver-laps --workspace-id abc123 --year 2024 --gp Monaco --session R \
+  --driver VER
+
+# Testing session lap data
+pitlane analyze driver-laps --workspace-id abc123 --year 2024 --test 1 --day 2 \
+  --driver VER
+```
+
+**Output:**
+```json
+{
+  "driver": "VER",
+  "session": "Race",
+  "laps": [
+    {
+      "lap_number": 1,
+      "lap_time": "1:32.456",
+      "sector_1": "28.123",
+      "sector_2": "42.456",
+      "sector_3": "21.877",
+      "compound": "SOFT",
+      "stint": 1,
+      "pit_in": false,
+      "pit_out": false,
+      "position": 1,
+      "is_accurate": true
+    }
+  ],
+  "workspace_id": "abc123"
+}
+```
+
+The `is_accurate` flag indicates whether FastF1 considers the lap race-representative (excludes pit in/out laps, safety car laps, and formation laps).
+
 ### `pitlane analyze qualifying-results`
 
 Generate a horizontal bar chart showing each driver's gap to pole position.

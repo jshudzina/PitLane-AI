@@ -139,29 +139,84 @@ The agent will provide schedule information including:
 
 ## Telemetry Analysis
 
-Compare detailed car telemetry between laps (speed, throttle, brake, gear).
+Compare detailed car telemetry between drivers on their fastest laps (speed, RPM, gear, throttle, brake, super clipping).
 
 ### What It Provides
 
-- Speed traces across lap distance
-- Throttle and brake application
-- Gear shifts visualization
-- Corner-by-corner comparison
+- **Interactive HTML chart** with 6 synchronized subplots (Speed, RPM, Gear, Throttle, Brake, Super Clipping) — all panels share zoom and pan
+- **Hover tooltips** showing each driver's value at a given distance, plus deltas vs the other drivers
+- **Sector times** (S1, S2, S3), speed trap speed, and finish-line speed per driver
+- **Lift-and-coast zone detection**: counts and distance ranges where a driver coasts off throttle before braking
+- **Super clipping detection**: counts zones where a driver is full-throttle under DRS (potential aero inefficiency)
+- Optional corner annotations (corner numbers on track distance axis)
+- Accepts 2–5 drivers for comparison
 
 ### Use Cases
 
-- "Compare speed traces for Verstappen and Hamilton"
+- "Compare Verstappen and Norris telemetry in Silverstone 2024 qualifying"
 - "Show me braking points in Monaco Turn 1"
-- "Where do drivers go flat out?"
-- "Analyze gear shifts around the lap"
+- "Where does Verstappen lift and coast at Monza?"
+- "Show me sector time differences between Norris and Piastri in Bahrain"
+- "Who carries more speed through the final sector?"
 
 ### What You'll Get
 
-The agent will generate a multi-panel telemetry plot showing:
-- Speed traces across lap distance
-- Throttle and brake application patterns
-- Gear shift visualization
-- Corner-by-corner driver comparison overlay
+The agent generates an interactive HTML chart (displayed inline in the chat) showing:
+- Speed, RPM, Gear, Throttle, Brake, and Super Clipping traces across lap distance
+- Hover for per-driver values and deltas at any point on track
+- Per-driver statistics: lap time, sector times (S1/S2/S3), speed trap, finish speed, lift-coast zones, super clipping zones
+- Optional corner number annotations along the distance axis
+
+## Multi-Lap Comparison
+
+Compare multiple laps for a **single driver** within one session — useful for understanding lap-to-lap variation, qualifying run comparisons, or stint pace evolution.
+
+### What It Provides
+
+- Same interactive Plotly chart as Telemetry Analysis, but each trace is a different lap rather than a different driver
+- Lap specifiers: `best` (fastest lap in session) or a specific lap number
+- Accepts 2–6 laps per comparison
+
+### Use Cases
+
+- "Compare Verstappen's Q1 and Q3 laps in Monaco"
+- "Show me how Leclerc's pace changed across his stints in Bahrain"
+- "Compare Norris's best lap vs lap 12 in practice"
+
+### What You'll Get
+
+An interactive telemetry chart overlaying the selected laps, with hover deltas between laps and per-lap statistics (lap time, sector times).
+
+## Year-Over-Year Comparison
+
+Compare a **single driver's fastest lap at the same circuit across multiple seasons** — ideal for visualizing the impact of regulation changes on braking points, speed profiles, and driving technique.
+
+### What It Provides
+
+- Same interactive Plotly chart, with each trace representing the driver's best lap in a given year
+- Accepts 2–6 seasons per comparison
+- Works for any session type (qualifying, race, practice)
+
+### Use Cases
+
+- "How does Verstappen's Monza lap compare between 2022 and 2024?"
+- "Show the impact of the 2022 regulation change on Leclerc's speed profile at Silverstone"
+- "Compare Hamilton's Monaco qualifying laps across 2019, 2021, and 2023"
+
+### What You'll Get
+
+An interactive telemetry chart showing the driver's best lap from each selected season overlaid on a common distance axis, with year labels on each trace and per-year statistics.
+
+## Pre-Season Testing
+
+Several analysis types support pre-season testing sessions in addition to race weekends. Instead of specifying a Grand Prix name and session type, ask about a testing event by number and day.
+
+### Use Cases
+
+- "Show me Verstappen's telemetry from day 2 of pre-season testing 2024"
+- "Compare lap times for VER and NOR in testing event 1 day 3"
+
+The agent maps these to the `--test N --day N` flags on the CLI instead of `--gp`/`--session`.
 
 ## How to Use
 
