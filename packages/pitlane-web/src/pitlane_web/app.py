@@ -112,7 +112,8 @@ async def index(
         session_id = generate_workspace_id()
         needs_new_session = True
         logger.info(f"Index page loaded, creating new session: {session_id}")
-        create_workspace(session_id)
+        if not workspace_exists(session_id):
+            create_workspace(session_id)
 
     # Create the template response
     template_response = templates.TemplateResponse(request, "index.html", {"session_id": session_id})

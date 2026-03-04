@@ -91,6 +91,9 @@ def mock_workspace_functions(monkeypatch, test_session_id, tmp_workspace):
     monkeypatch.setattr("pitlane_web.session.workspace_exists", MagicMock(return_value=True))
     monkeypatch.setattr("pitlane_web.session.generate_workspace_id", MagicMock(return_value=test_session_id))
     monkeypatch.setattr("pitlane_web.app.generate_workspace_id", MagicMock(return_value=test_session_id))
+    # app.py imports workspace_exists by name, so patch its bound reference directly.
+    # Returns False so the create_workspace guard passes in new-session test paths.
+    monkeypatch.setattr("pitlane_web.app.workspace_exists", MagicMock(return_value=False))
     monkeypatch.setattr(
         "pitlane_web.app.create_workspace",
         MagicMock(
