@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pitlane_agent.commands.workspace import (
     create_conversation,
+    create_workspace,
     get_active_conversation,
     get_workspace_path,
     load_conversations,
@@ -111,6 +112,7 @@ async def index(
         session_id = generate_workspace_id()
         needs_new_session = True
         logger.info(f"Index page loaded, creating new session: {session_id}")
+        create_workspace(session_id)
 
     # Create the template response
     template_response = templates.TemplateResponse(request, "index.html", {"session_id": session_id})
