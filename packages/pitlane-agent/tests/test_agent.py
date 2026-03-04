@@ -411,8 +411,9 @@ class TestF1AgentTracing:
             async for _ in agent.chat("Test"):
                 pass
 
-            # Verify hooks were not registered
+            # Verify PreToolUse is always registered; PostToolUse absent without tracing
             call_args = mock_sdk_client.call_args
             options = call_args.kwargs["options"]
 
-            assert options.hooks is None
+            assert "PreToolUse" in options.hooks
+            assert "PostToolUse" not in options.hooks

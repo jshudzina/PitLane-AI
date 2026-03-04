@@ -12,7 +12,6 @@ from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
 from claude_agent_sdk.types import (
     AssistantMessage,
     HookMatcher,
-    PermissionResultDeny,
     SystemMessage,
     TextBlock,
 )
@@ -25,7 +24,7 @@ from pitlane_agent.commands.workspace import (
     workspace_exists,
 )
 from pitlane_agent.temporal import format_for_system_prompt, get_temporal_context
-from pitlane_agent.tool_permissions import can_use_tool
+from pitlane_agent.tool_permissions import make_can_use_tool_callback, make_pre_tool_use_hook
 
 from . import tracing
 
@@ -99,6 +98,16 @@ class F1Agent:
         """
         return self._agent_session_id
 
+    def _build_system_prompt(self) -> str | None:
+        """Build the system prompt append string with optional temporal context."""
+        if not self.inject_temporal_context:
+            return None
+        try:
+            temporal_ctx = get_temporal_context()
+            return format_for_system_prompt(temporal_ctx, verbosity="normal")
+        except Exception:
+            return None
+
     async def chat(self, message: str, resume_session_id: str | None = None) -> AsyncIterator[str]:
         """Process a chat message and yield response text chunks.
 
@@ -114,82 +123,23 @@ class F1Agent:
         # Set workspace ID as environment variable so skills can access it
         os.environ["PITLANE_WORKSPACE_ID"] = self.workspace_id
 
-        # Create a wrapper for can_use_tool that has access to workspace context
         workspace_dir = str(self.workspace_dir)
-        workspace_id = self.workspace_id
 
-        async def can_use_tool_with_context(tool_name, input_params, context):
-            # Note: for tools in allowed_tools, the CLI pre-approves them and never
-            # sends a can_use_tool request — so this callback only fires for tools
-            # NOT in allowed_tools. Domain filtering for WebFetch/WebSearch is
-            # enforced via the PreToolUse hook below instead.
-            context_with_workspace = {
-                "workspace_dir": workspace_dir,
-                "workspace_id": workspace_id,
-            }
-            return await can_use_tool(tool_name, input_params, context_with_workspace)
-
-        # PreToolUse hook: enforces domain permissions + optional tracing.
-        # This is always registered (not just when tracing is enabled) because
-        # can_use_tool is never called for tools in allowed_tools — hooks are the
-        # only mechanism that can block them.
-        async def permission_and_tracing_hook(hook_input, tool_use_id, hook_context):
-            tool_name = hook_input["tool_name"]
-            tool_input = hook_input["tool_input"]
-            key_param = tracing._extract_key_param(tool_name, tool_input)
-
-            result = await can_use_tool(
-                tool_name, tool_input, {"workspace_dir": workspace_dir, "workspace_id": workspace_id}
-            )
-            if isinstance(result, PermissionResultDeny):
-                logger.warning("Tool use denied: %s %s — %s", tool_name, key_param, result.message)
-                if tracing.is_tracing_enabled():
-                    tracing._log_tool_call(
-                        tool_name,
-                        {
-                            "tool.key_param": key_param,
-                            "tool.permission": "denied",
-                            "tool.denial_reason": result.message,
-                        },
-                    )
-                return {
-                    "continue_": False,
-                    "hookSpecificOutput": {
-                        "hookEventName": "PreToolUse",
-                        "permissionDecision": "deny",
-                        "permissionDecisionReason": result.message,
-                    },
-                }
-
-            if tracing.is_tracing_enabled():
-                tracing._log_tool_call(tool_name, {"tool.key_param": key_param})
-            return {"continue_": True}
-
+        # PreToolUse is always registered — it's the only mechanism that can block
+        # tools listed in allowed_tools (the SDK skips can_use_tool for those).
         hooks: dict = {
-            "PreToolUse": [HookMatcher(matcher=None, hooks=[permission_and_tracing_hook])],
+            "PreToolUse": [HookMatcher(matcher=None, hooks=[make_pre_tool_use_hook(workspace_dir, self.workspace_id)])],
         }
         if tracing.is_tracing_enabled():
             hooks["PostToolUse"] = [HookMatcher(matcher=None, hooks=[tracing.post_tool_use_hook])]
 
-        # Build system prompt with temporal context
-        system_prompt_parts = []
-
-        if self.inject_temporal_context:
-            try:
-                temporal_ctx = get_temporal_context()
-                temporal_prompt = format_for_system_prompt(temporal_ctx, verbosity="normal")
-                system_prompt_parts.append(temporal_prompt)
-            except Exception:
-                # If temporal context fails, continue without it
-                pass
-
-        system_prompt_append = "\n\n".join(system_prompt_parts) if system_prompt_parts else None
+        system_prompt_append = self._build_system_prompt()
 
         options = ClaudeAgentOptions(
             cwd=str(PACKAGE_DIR),
             setting_sources=["project"],
             allowed_tools=["Skill", "Bash", "Read", "Write", "WebFetch", "WebSearch"],
-            can_use_tool=can_use_tool_with_context,
+            can_use_tool=make_can_use_tool_callback(workspace_dir, self.workspace_id),
             hooks=hooks,
             resume=resume_session_id,
             system_prompt={
