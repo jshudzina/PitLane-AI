@@ -124,7 +124,7 @@ class TestF1AgentChat:
 
             assert options.cwd == str(PACKAGE_DIR)
             assert options.setting_sources == ["project"]
-            assert options.allowed_tools == ["Skill", "Bash", "Read", "Write", "WebFetch"]
+            assert options.allowed_tools == ["Skill", "Bash", "Read", "Write", "WebFetch", "WebSearch"]
             assert options.can_use_tool is not None
 
     @pytest.mark.asyncio
