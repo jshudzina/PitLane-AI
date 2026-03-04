@@ -8,6 +8,7 @@ from claude_agent_sdk.types import (
 )
 from pitlane_agent.tool_permissions import (
     ALLOWED_WEBFETCH_DOMAINS,
+    ALLOWED_WEBSEARCH_DOMAINS,
     _is_allowed_bash_command,
     can_use_tool,
 )
@@ -289,7 +290,133 @@ class TestAllowedDomains:
 
     def test_allowed_domains_count(self):
         """Test that we have the expected number of allowed domains."""
-        assert len(ALLOWED_WEBFETCH_DOMAINS) == 6
+        assert len(ALLOWED_WEBFETCH_DOMAINS) == 8
+
+
+class TestCanUseToolWebSearchAllowed:
+    """Tests for can_use_tool with allowed WebSearch domains."""
+
+    @pytest.mark.asyncio
+    async def test_websearch_formula1_allowed(self):
+        """Test that formula1.com is allowed."""
+        result = await can_use_tool(
+            "WebSearch",
+            {"query": "2024 Monaco GP incident", "allowed_domains": ["formula1.com"]},
+            ToolPermissionContext(),
+        )
+        assert isinstance(result, PermissionResultAllow)
+
+    @pytest.mark.asyncio
+    async def test_websearch_fia_allowed(self):
+        """Test that www.fia.com is allowed."""
+        result = await can_use_tool(
+            "WebSearch",
+            {"query": "FIA sporting regulations", "allowed_domains": ["www.fia.com"]},
+            ToolPermissionContext(),
+        )
+        assert isinstance(result, PermissionResultAllow)
+
+    @pytest.mark.asyncio
+    async def test_websearch_api_fia_allowed(self):
+        """Test that api.fia.com is allowed."""
+        result = await can_use_tool(
+            "WebSearch",
+            {"query": "F1 technical regulations article 3", "allowed_domains": ["api.fia.com"]},
+            ToolPermissionContext(),
+        )
+        assert isinstance(result, PermissionResultAllow)
+
+    @pytest.mark.asyncio
+    async def test_websearch_wikipedia_allowed(self):
+        """Test that wikipedia.org is allowed."""
+        result = await can_use_tool(
+            "WebSearch",
+            {"query": "Max Verstappen", "allowed_domains": ["wikipedia.org"]},
+            ToolPermissionContext(),
+        )
+        assert isinstance(result, PermissionResultAllow)
+
+    @pytest.mark.asyncio
+    async def test_websearch_multiple_allowed_domains(self):
+        """Test that multiple allowed domains are accepted."""
+        result = await can_use_tool(
+            "WebSearch",
+            {
+                "query": "2024 Belgian GP disqualification",
+                "allowed_domains": ["formula1.com", "www.fia.com", "api.fia.com"],
+            },
+            ToolPermissionContext(),
+        )
+        assert isinstance(result, PermissionResultAllow)
+
+
+class TestCanUseToolWebSearchDenied:
+    """Tests for can_use_tool denying WebSearch requests."""
+
+    @pytest.mark.asyncio
+    async def test_websearch_missing_allowed_domains_denied(self):
+        """Test that WebSearch without allowed_domains is denied."""
+        result = await can_use_tool(
+            "WebSearch",
+            {"query": "F1 news"},
+            ToolPermissionContext(),
+        )
+        assert isinstance(result, PermissionResultDeny)
+        assert "allowed_domains" in result.message
+
+    @pytest.mark.asyncio
+    async def test_websearch_empty_allowed_domains_denied(self):
+        """Test that WebSearch with empty allowed_domains list is denied."""
+        result = await can_use_tool(
+            "WebSearch",
+            {"query": "F1 news", "allowed_domains": []},
+            ToolPermissionContext(),
+        )
+        assert isinstance(result, PermissionResultDeny)
+
+    @pytest.mark.asyncio
+    async def test_websearch_disallowed_domain_denied(self):
+        """Test that an unapproved domain is denied."""
+        result = await can_use_tool(
+            "WebSearch",
+            {"query": "F1 news", "allowed_domains": ["espn.com"]},
+            ToolPermissionContext(),
+        )
+        assert isinstance(result, PermissionResultDeny)
+        assert "espn.com" in result.message
+
+    @pytest.mark.asyncio
+    async def test_websearch_mixed_domains_denied(self):
+        """Test that a mix of allowed and disallowed domains is denied."""
+        result = await can_use_tool(
+            "WebSearch",
+            {"query": "F1 news", "allowed_domains": ["formula1.com", "espn.com"]},
+            ToolPermissionContext(),
+        )
+        assert isinstance(result, PermissionResultDeny)
+        assert "espn.com" in result.message
+
+
+class TestWebSearchAllowedDomainsConstant:
+    """Tests for ALLOWED_WEBSEARCH_DOMAINS constant."""
+
+    def test_allowed_domains_is_set(self):
+        """Test that ALLOWED_WEBSEARCH_DOMAINS is a set."""
+        assert isinstance(ALLOWED_WEBSEARCH_DOMAINS, set)
+
+    def test_allowed_domains_count(self):
+        """Test that we have the expected number of allowed domains."""
+        assert len(ALLOWED_WEBSEARCH_DOMAINS) == 6
+
+    def test_fia_domains_included(self):
+        """Test that FIA domains are included."""
+        assert "www.fia.com" in ALLOWED_WEBSEARCH_DOMAINS
+        assert "api.fia.com" in ALLOWED_WEBSEARCH_DOMAINS
+
+    def test_formula1_domains_included(self):
+        """Test that formula1.com domains are included."""
+        assert "formula1.com" in ALLOWED_WEBSEARCH_DOMAINS
+        assert "www.formula1.com" in ALLOWED_WEBSEARCH_DOMAINS
 
 
 class TestPermissionDenialLogging:

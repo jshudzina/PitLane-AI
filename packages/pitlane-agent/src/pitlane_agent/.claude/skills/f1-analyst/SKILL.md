@@ -175,6 +175,10 @@ Testing sessions use `--test N --day N` instead of `--gp` and `--session` (mutua
 
 For detailed guidance on interpreting testing data, see the [Testing Session Analysis reference](references/testing.md).
 
+## Notes
+
+- **Post-race disqualifications**: The pitlane CLI returns results as-raced. Post-race DSQs and penalties issued by stewards after the chequered flag are not reflected in the data. If standings look unexpected or a driver's points total seems inconsistent, use the `web-search` skill to check formula1.com or fia.com for steward decisions.
+
 ## Security Note
 
 You only have access to `pitlane` CLI commands for Bash operations. Read and Write tools are restricted to the workspace directory. This ensures data isolation and security.
