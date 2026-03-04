@@ -151,7 +151,7 @@ class F1Agent:
         options = ClaudeAgentOptions(
             cwd=str(PACKAGE_DIR),
             setting_sources=["project"],
-            allowed_tools=["Skill", "Bash", "Read", "Write", "WebFetch"],
+            allowed_tools=["Skill", "Bash", "Read", "Write", "WebFetch", "WebSearch"],
             can_use_tool=can_use_tool_with_context,
             hooks=hooks,
             resume=resume_session_id,

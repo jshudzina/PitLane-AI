@@ -22,6 +22,18 @@ ALLOWED_WEBFETCH_DOMAINS = {
     "api.ergast.com",
     "formula1.com",
     "www.formula1.com",
+    "www.fia.com",
+    "api.fia.com",
+}
+
+# Allowed domains for WebSearch tool
+ALLOWED_WEBSEARCH_DOMAINS = {
+    "wikipedia.org",
+    "en.wikipedia.org",
+    "formula1.com",
+    "www.formula1.com",
+    "www.fia.com",
+    "api.fia.com",
 }
 
 # Allowed environment variables for Bash commands
@@ -105,7 +117,7 @@ async def can_use_tool(
     input_params: dict[str, Any],
     context: ToolPermissionContext | dict[str, Any],
 ) -> PermissionResultAllow | PermissionResultDeny:
-    """Validate tool usage with restrictions for Bash, Read, Write, and WebFetch.
+    """Validate tool usage with restrictions for Bash, Read, Write, WebFetch, and WebSearch.
 
     Args:
         tool_name: Name of the tool being invoked.
@@ -176,6 +188,41 @@ async def can_use_tool(
                     "file_path": file_path,
                     "workspace_dir": workspace_dir,
                     "reason": "outside_workspace",
+                },
+            )
+            tracing.log_permission_check(tool_name, False, denial_msg)
+            return PermissionResultDeny(message=denial_msg)
+
+        return PermissionResultAllow()
+
+    # WebSearch domain restrictions
+    if tool_name == "WebSearch":
+        allowed_domains = input_params.get("allowed_domains")
+
+        if not allowed_domains:
+            denial_msg = (
+                "WebSearch requires 'allowed_domains' to be specified. "
+                f"Allowed domains: {', '.join(sorted(ALLOWED_WEBSEARCH_DOMAINS))}"
+            )
+            logger.warning(
+                "WebSearch permission denied: allowed_domains not specified",
+                extra={"tool": tool_name, "reason": "missing_allowed_domains"},
+            )
+            tracing.log_permission_check(tool_name, False, denial_msg)
+            return PermissionResultDeny(message=denial_msg)
+
+        disallowed = [d for d in allowed_domains if d not in ALLOWED_WEBSEARCH_DOMAINS]
+        if disallowed:
+            denial_msg = (
+                f"WebSearch domain(s) not allowed: {', '.join(disallowed)}. "
+                f"Allowed domains: {', '.join(sorted(ALLOWED_WEBSEARCH_DOMAINS))}"
+            )
+            logger.warning(
+                "WebSearch permission denied: domain not allowed",
+                extra={
+                    "tool": tool_name,
+                    "disallowed_domains": disallowed,
+                    "reason": "domain_not_allowed",
                 },
             )
             tracing.log_permission_check(tool_name, False, denial_msg)
