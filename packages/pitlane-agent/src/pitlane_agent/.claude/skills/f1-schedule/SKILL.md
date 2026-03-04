@@ -183,3 +183,4 @@ The script returns events with these fields:
 - **Time Zones**: Always provide both local and UTC times when available
 - **Event Names**: Use official event names when referencing specific races
 - **Testing Sessions**: Pre-season testing has RoundNumber of 0 and EventFormat of "testing". To access testing session data (lap times, telemetry), use `--test` and `--day` options in fetch/analyze commands instead of `--gp` and `--session`. Do NOT pass "Pre-Season Testing" as a GP name — FastF1 will match it to the wrong event.
+- **Schedule changes**: The pitlane CLI returns the official published calendar, which may not reflect last-minute cancellations or rescheduling caused by external events (weather, geopolitical situations, etc.). If a round number seems inconsistent or a race appears missing from a season, use the `web-search` skill to check formula1.com for any schedule amendments.

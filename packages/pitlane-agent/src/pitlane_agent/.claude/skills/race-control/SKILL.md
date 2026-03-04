@@ -176,6 +176,24 @@ pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --gp
 **Analysis**: Chronologically list all significant events from race start
 
 
+## Limitations and When to Use Web Search
+
+### Simultaneous Incident Blind Spot (Critical)
+
+When multiple incidents occur on the same lap, race control messages are ambiguous — the `racing_number` field alone cannot reliably establish which driver caused which incident. The messages do not describe the sequence of events or causal relationships between concurrent incidents.
+
+**Trigger condition:** Two or more incident or investigation messages on the same lap, even if they show different sector numbers or driver numbers.
+
+**Resolution:** Do not restrict the search to a single driver. Use the `web-search` skill to search formula1.com and fia.com for the full incident report for that lap and GP. The report will describe all involved drivers and the sequence of events. Cross-reference all mentioned driver names against the racing numbers in the race control data to build a complete picture.
+
+### Post-Race Steward Decisions
+
+Race control data ends at the chequered flag. Post-race DSQs, time penalties, and grid penalties for the next race are not captured. Use the `web-search` skill (formula1.com / fia.com) to check for decisions issued after the race.
+
+### Steward Reasoning
+
+Race control messages are terse (e.g., "INCIDENT NOTED - WILL BE INVESTIGATED"). The full steward decision document — which explains the reasoning, evidence reviewed, and regulation citations — is published separately on fia.com. Use the `web-search` skill when the user asks *why* a penalty was or wasn't given.
+
 ## Notes
 
 - Races before 2018 don't have race control messages
