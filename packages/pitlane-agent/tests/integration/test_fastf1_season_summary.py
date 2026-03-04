@@ -47,8 +47,12 @@ class TestSeasonSummaryIntegration:
             assert len(race["podium"]) <= 3
             assert len(race["podium"]) >= 1
             for driver in race["podium"]:
-                assert isinstance(driver, str)
-                assert len(driver) == 3  # Driver abbreviations are 3 chars
+                assert isinstance(driver, dict)
+                assert "driver" in driver
+                assert "team" in driver
+                assert isinstance(driver["driver"], str)
+                assert len(driver["driver"]) == 3  # Driver abbreviations are 3 chars
+                assert isinstance(driver["team"], str)
 
             # Race summary stats should be non-negative
             summary = race["race_summary"]
