@@ -48,13 +48,18 @@ from .session import (
 # Logging Configuration
 # ============================================================================
 
-# Allow log level override via environment variable
-_log_level = os.getenv("PITLANE_LOG_LEVEL", "INFO").upper()
+# Allow log level override via environment variable.
+# logging.basicConfig() is a no-op when uvicorn has already added root handlers,
+# so we set the level directly on the loggers we care about.
+_log_level_str = os.getenv("PITLANE_LOG_LEVEL", "INFO").upper()
+_log_level = getattr(logging, _log_level_str, logging.INFO)
 logging.basicConfig(
-    level=getattr(logging, _log_level, logging.INFO),
+    level=_log_level,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+logging.getLogger("pitlane_agent").setLevel(_log_level)
+logging.getLogger("pitlane_web").setLevel(_log_level)
 
 logger = logging.getLogger(__name__)
 
