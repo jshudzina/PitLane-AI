@@ -83,8 +83,24 @@ def mock_agent():
 @pytest.fixture
 def mock_workspace_functions(monkeypatch, test_session_id, tmp_workspace):
     """Mock workspace management functions."""
+    # Ensure pitlane_web.app is imported before patching its bound names.
+    # app.py imports generate_workspace_id and create_workspace by name at module
+    # load, so patching pitlane_web.session.* has no effect after first import.
+    import pitlane_web.app  # noqa: F401
+
     monkeypatch.setattr("pitlane_web.session.workspace_exists", MagicMock(return_value=True))
     monkeypatch.setattr("pitlane_web.session.generate_workspace_id", MagicMock(return_value=test_session_id))
+    monkeypatch.setattr("pitlane_web.app.generate_workspace_id", MagicMock(return_value=test_session_id))
+    monkeypatch.setattr(
+        "pitlane_web.app.create_workspace",
+        MagicMock(
+            return_value={
+                "workspace_id": test_session_id,
+                "workspace_path": str(tmp_workspace),
+                "created_at": "2024-01-01T00:00:00Z",
+            }
+        ),
+    )
     monkeypatch.setattr(
         "pitlane_agent.commands.workspace.get_workspace_path",
         MagicMock(return_value=tmp_workspace),
