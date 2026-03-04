@@ -15,6 +15,7 @@ Thread Safety:
     global set_tracer_provider() handles this safely by using the last one set.
 """
 
+import logging
 import os
 import sys
 from contextlib import contextmanager
@@ -30,6 +31,47 @@ from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
+
+# ANSI color codes
+_RESET = "\033[0m"
+_CYAN = "\033[36m"
+_YELLOW = "\033[33m"
+
+
+class _TraceFormatter(logging.Formatter):
+    """Uvicorn-style colored formatter for trace output."""
+
+    _LABEL_COLORS = {
+        "TOOL": _CYAN,
+        "DENIED": _YELLOW,
+    }
+
+    def format(self, record: logging.LogRecord) -> str:
+        label = getattr(record, "trace_label", "TRACE")
+        use_color = hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
+        if use_color:
+            color = self._LABEL_COLORS.get(label, "")
+            colored_label = f"{color}{label:<9}{_RESET}"
+        else:
+            colored_label = f"{label:<9}"
+        return f"{colored_label}  {record.getMessage()}"
+
+
+class _DynamicStderrHandler(logging.StreamHandler):
+    """StreamHandler that re-evaluates sys.stderr on each emit (test-compatible)."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.stream = sys.stderr
+        super().emit(record)
+
+
+# Module-level trace logger — separate from app loggers, no propagation
+_trace_logger = logging.getLogger("pitlane.trace")
+_trace_logger.setLevel(logging.DEBUG)
+_trace_logger.propagate = False
+_trace_handler = _DynamicStderrHandler()
+_trace_handler.setFormatter(_TraceFormatter())
+_trace_logger.addHandler(_trace_handler)
 
 # Global tracer instance
 _tracer = None
@@ -190,14 +232,13 @@ def _log_tool_call(tool_name: str, attributes: dict[str, Any]) -> None:
 
     # Build output message
     if permission == "denied":
-        msg = f"[TOOL] {tool_name}: {key_param} → DENIED"
+        msg = f"{tool_name}: {key_param} → DENIED"
         if denial_reason:
             msg += f" ({denial_reason})"
+        _trace_logger.warning(msg, extra={"trace_label": "DENIED"})
     else:
-        msg = f"[TOOL] {tool_name}: {key_param}"
-
-    # Write to stderr
-    print(msg, file=sys.stderr, flush=True)
+        msg = f"{tool_name}: {key_param}"
+        _trace_logger.info(msg, extra={"trace_label": "TOOL"})
 
 
 def log_permission_check(tool_name: str, allowed: bool, reason: str = "") -> None:
@@ -215,10 +256,10 @@ def log_permission_check(tool_name: str, allowed: bool, reason: str = "") -> Non
         return
 
     if not allowed:
-        msg = f"[PERMISSION] {tool_name} → DENIED"
+        msg = f"{tool_name} → DENIED"
         if reason:
             msg += f": {reason}"
-        print(msg, file=sys.stderr, flush=True)
+        _trace_logger.warning(msg, extra={"trace_label": "DENIED"})
 
 
 # Hook callbacks for Claude Agent SDK

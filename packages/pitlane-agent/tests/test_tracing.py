@@ -139,7 +139,7 @@ class TestToolSpan:
 
             # Should have logged to stderr
             output = mock_stderr.getvalue()
-            assert "[TOOL]" in output
+            assert "TOOL" in output
             assert "Bash" in output
             assert "ls -la" in output
 
@@ -181,7 +181,7 @@ class TestLogToolCall:
             tracing._log_tool_call("Bash", {"tool.key_param": "python script.py"})
 
             output = mock_stderr.getvalue()
-            assert "[TOOL]" in output
+            assert "TOOL" in output
             assert "Bash" in output
             assert "python script.py" in output
 
@@ -198,9 +198,8 @@ class TestLogToolCall:
             )
 
             output = mock_stderr.getvalue()
-            assert "[TOOL]" in output
-            assert "WebFetch" in output
             assert "DENIED" in output
+            assert "WebFetch" in output
             assert "Domain not allowed" in output
 
     def test_log_tool_call_empty_params(self):
@@ -209,7 +208,7 @@ class TestLogToolCall:
             tracing._log_tool_call("Skill", {})
 
             output = mock_stderr.getvalue()
-            assert "[TOOL]" in output
+            assert "TOOL" in output
             assert "Skill" in output
 
 
@@ -236,9 +235,8 @@ class TestLogPermissionCheck:
             tracing.log_permission_check("WebFetch", False, "Domain not in allowed list")
 
             output = mock_stderr.getvalue()
-            assert "[PERMISSION]" in output
-            assert "WebFetch" in output
             assert "DENIED" in output
+            assert "WebFetch" in output
             assert "Domain not in allowed list" in output
 
     def test_log_permission_check_allowed(self, monkeypatch):
