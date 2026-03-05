@@ -24,7 +24,7 @@ from pitlane_agent.commands.workspace import (
     workspace_exists,
 )
 from pitlane_agent.temporal import format_for_system_prompt, get_temporal_context
-from pitlane_agent.tool_permissions import can_use_tool
+from pitlane_agent.tool_permissions import make_can_use_tool_callback, make_pre_tool_use_hook
 
 from . import tracing
 
@@ -98,6 +98,16 @@ class F1Agent:
         """
         return self._agent_session_id
 
+    def _build_system_prompt(self) -> str | None:
+        """Build the system prompt append string with optional temporal context."""
+        if not self.inject_temporal_context:
+            return None
+        try:
+            temporal_ctx = get_temporal_context()
+            return format_for_system_prompt(temporal_ctx, verbosity="normal")
+        except Exception:
+            return None
+
     async def chat(self, message: str, resume_session_id: str | None = None) -> AsyncIterator[str]:
         """Process a chat message and yield response text chunks.
 
@@ -113,46 +123,32 @@ class F1Agent:
         # Set workspace ID as environment variable so skills can access it
         os.environ["PITLANE_WORKSPACE_ID"] = self.workspace_id
 
-        # Configure hooks for tracing
-        hooks = None
-        if tracing.is_tracing_enabled():
-            hooks = {
-                "PreToolUse": [HookMatcher(matcher=None, hooks=[tracing.pre_tool_use_hook])],
-                "PostToolUse": [HookMatcher(matcher=None, hooks=[tracing.post_tool_use_hook])],
-            }
-
-        # Create a wrapper for can_use_tool that has access to workspace context
         workspace_dir = str(self.workspace_dir)
-        workspace_id = self.workspace_id
 
-        async def can_use_tool_with_context(tool_name, input_params, context):
-            # Add workspace context to the permission context
-            context_with_workspace = {
-                **context,
-                "workspace_dir": workspace_dir,
-                "workspace_id": workspace_id,
-            }
-            return await can_use_tool(tool_name, input_params, context_with_workspace)
+        skills_dir = str(PACKAGE_DIR / ".claude")
 
-        # Build system prompt with temporal context
-        system_prompt_parts = []
+        # PreToolUse is always registered — it's the only mechanism that can block
+        # tools listed in allowed_tools (the SDK skips can_use_tool for those).
+        hooks: dict[str, list[HookMatcher]] = {
+            "PreToolUse": [
+                HookMatcher(
+                    matcher=None,
+                    hooks=[make_pre_tool_use_hook(workspace_dir, self.workspace_id, skills_dir)],
+                )
+            ],
+        }
+        if tracing.is_tracing_enabled():
+            hooks["PostToolUse"] = [HookMatcher(matcher=None, hooks=[tracing.post_tool_use_hook])]
 
-        if self.inject_temporal_context:
-            try:
-                temporal_ctx = get_temporal_context()
-                temporal_prompt = format_for_system_prompt(temporal_ctx, verbosity="normal")
-                system_prompt_parts.append(temporal_prompt)
-            except Exception:
-                # If temporal context fails, continue without it
-                pass
-
-        system_prompt_append = "\n\n".join(system_prompt_parts) if system_prompt_parts else None
+        system_prompt_append = self._build_system_prompt()
 
         options = ClaudeAgentOptions(
             cwd=str(PACKAGE_DIR),
             setting_sources=["project"],
             allowed_tools=["Skill", "Bash", "Read", "Write", "WebFetch", "WebSearch"],
-            can_use_tool=can_use_tool_with_context,
+            # can_use_tool handles tools NOT in allowed_tools; PreToolUse hook above
+            # handles the full list (SDK skips can_use_tool for allowed_tools).
+            can_use_tool=make_can_use_tool_callback(workspace_dir, self.workspace_id, skills_dir),
             hooks=hooks,
             resume=resume_session_id,
             system_prompt={

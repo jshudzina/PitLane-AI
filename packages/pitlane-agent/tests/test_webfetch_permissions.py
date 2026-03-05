@@ -246,6 +246,47 @@ class TestCanUseToolOtherTools:
         assert "workspace" in result.message.lower()
 
     @pytest.mark.asyncio
+    async def test_read_tool_allowed_within_skills_dir(self):
+        """Test that Read tool is allowed within the skills directory."""
+        result = await can_use_tool(
+            "Read",
+            {"file_path": "/app/skills/f1-analyst/references/strategy.md"},
+            {"workspace_dir": "/tmp/workspace", "skills_dir": "/app/skills"},
+        )
+        assert isinstance(result, PermissionResultAllow)
+
+    @pytest.mark.asyncio
+    async def test_read_tool_denied_outside_workspace_and_skills(self):
+        """Test that Read tool is denied when outside both workspace and skills dir."""
+        result = await can_use_tool(
+            "Read",
+            {"file_path": "/etc/passwd"},
+            {"workspace_dir": "/tmp/workspace", "skills_dir": "/app/skills"},
+        )
+        assert isinstance(result, PermissionResultDeny)
+        assert "workspace" in result.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_read_tool_denied_skills_dir_prefix_traversal(self):
+        """Test that /app/skills-extra/evil.txt is denied for skills_dir /app/skills."""
+        result = await can_use_tool(
+            "Read",
+            {"file_path": "/app/skills-extra/evil.txt"},
+            {"workspace_dir": "/tmp/workspace", "skills_dir": "/app/skills"},
+        )
+        assert isinstance(result, PermissionResultDeny)
+
+    @pytest.mark.asyncio
+    async def test_read_tool_denied_workspace_prefix_traversal(self):
+        """Test that /tmp/workspace2/evil.txt is denied for workspace /tmp/workspace."""
+        result = await can_use_tool(
+            "Read",
+            {"file_path": "/tmp/workspace2/evil.txt"},
+            {"workspace_dir": "/tmp/workspace"},
+        )
+        assert isinstance(result, PermissionResultDeny)
+
+    @pytest.mark.asyncio
     async def test_skill_tool_allowed(self):
         """Test that Skill tool is not restricted."""
         result = await can_use_tool(

@@ -15,6 +15,7 @@ Thread Safety:
     global set_tracer_provider() handles this safely by using the last one set.
 """
 
+import logging
 import os
 import sys
 from contextlib import contextmanager
@@ -23,13 +24,53 @@ from typing import Any
 from claude_agent_sdk.types import (
     HookContext,
     PostToolUseHookInput,
-    PreToolUseHookInput,
     SyncHookJSONOutput,
 )
 from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
+
+# ANSI color codes
+_RESET = "\033[0m"
+_CYAN = "\033[36m"
+_YELLOW = "\033[33m"
+
+
+class _TraceFormatter(logging.Formatter):
+    """Uvicorn-style colored formatter for trace output."""
+
+    _LABEL_COLORS = {
+        "TOOL": _CYAN,
+        "DENIED": _YELLOW,
+    }
+
+    def format(self, record: logging.LogRecord) -> str:
+        label = getattr(record, "trace_label", "TRACE")
+        use_color = hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
+        if use_color:
+            color = self._LABEL_COLORS.get(label, "")
+            colored_label = f"{color}{label:<9}{_RESET}"
+        else:
+            colored_label = f"{label:<9}"
+        return f"{colored_label}  {record.getMessage()}"
+
+
+class _DynamicStderrHandler(logging.StreamHandler):
+    """StreamHandler that re-evaluates sys.stderr on each emit (test-compatible)."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.stream = sys.stderr
+        super().emit(record)
+
+
+# Module-level trace logger — separate from app loggers, no propagation
+_trace_logger = logging.getLogger("pitlane.trace")
+_trace_logger.setLevel(logging.DEBUG)
+_trace_logger.propagate = False
+_trace_handler = _DynamicStderrHandler()
+_trace_handler.setFormatter(_TraceFormatter())
+_trace_logger.addHandler(_trace_handler)
 
 # Global tracer instance
 _tracer = None
@@ -170,12 +211,12 @@ def tool_span(tool_name: str, **attributes: Any):
                 span.set_attribute(key, str(value))
 
         # Log minimal console output
-        _log_tool_call(tool_name, attributes)
+        log_tool_call(tool_name, attributes)
 
         yield span
 
 
-def _log_tool_call(tool_name: str, attributes: dict[str, Any]) -> None:
+def log_tool_call(tool_name: str, attributes: dict[str, Any]) -> None:
     """Log a minimal tool call to stderr.
 
     Format: [TOOL] ToolName: key_parameter
@@ -190,14 +231,13 @@ def _log_tool_call(tool_name: str, attributes: dict[str, Any]) -> None:
 
     # Build output message
     if permission == "denied":
-        msg = f"[TOOL] {tool_name}: {key_param} → DENIED"
+        msg = f"{tool_name}: {key_param} → DENIED"
         if denial_reason:
             msg += f" ({denial_reason})"
+        _trace_logger.warning(msg, extra={"trace_label": "DENIED"})
     else:
-        msg = f"[TOOL] {tool_name}: {key_param}"
-
-    # Write to stderr
-    print(msg, file=sys.stderr, flush=True)
+        msg = f"{tool_name}: {key_param}"
+        _trace_logger.info(msg, extra={"trace_label": "TOOL"})
 
 
 def log_permission_check(tool_name: str, allowed: bool, reason: str = "") -> None:
@@ -215,45 +255,13 @@ def log_permission_check(tool_name: str, allowed: bool, reason: str = "") -> Non
         return
 
     if not allowed:
-        msg = f"[PERMISSION] {tool_name} → DENIED"
+        msg = f"{tool_name} → DENIED"
         if reason:
             msg += f": {reason}"
-        print(msg, file=sys.stderr, flush=True)
+        _trace_logger.warning(msg, extra={"trace_label": "DENIED"})
 
 
 # Hook callbacks for Claude Agent SDK
-
-
-async def pre_tool_use_hook(
-    hook_input: PreToolUseHookInput,
-    block_reason: str | None,
-    hook_context: HookContext,
-) -> SyncHookJSONOutput:
-    """Hook called before a tool is executed.
-
-    Logs the tool call to console if tracing is enabled.
-
-    Args:
-        hook_input: Input data including tool_name and tool_input.
-        block_reason: Reason if the tool was blocked (unused).
-        hook_context: Hook context (unused).
-
-    Returns:
-        SyncHookJSONOutput to continue execution.
-    """
-    if not is_tracing_enabled():
-        return SyncHookJSONOutput(continue_=True)
-
-    tool_name = hook_input["tool_name"]
-    tool_input = hook_input["tool_input"]
-
-    # Extract key parameter based on tool type
-    key_param = _extract_key_param(tool_name, tool_input)
-
-    # Log the tool call
-    _log_tool_call(tool_name, {"tool.key_param": key_param})
-
-    return SyncHookJSONOutput(continue_=True)
 
 
 async def post_tool_use_hook(
@@ -278,7 +286,7 @@ async def post_tool_use_hook(
     return SyncHookJSONOutput(continue_=True)
 
 
-def _extract_key_param(tool_name: str, tool_input: dict[str, Any]) -> str:
+def extract_key_param(tool_name: str, tool_input: dict[str, Any]) -> str:
     """Extract the most relevant parameter from tool input for logging.
 
     Args:

@@ -107,9 +107,83 @@ def _is_within_workspace(file_path: str, workspace_dir: str | None) -> bool:
         workspace_resolved = Path(workspace_dir).resolve()
 
         # Check if file_path is within workspace_dir
-        return str(file_resolved).startswith(str(workspace_resolved))
+        return file_resolved.is_relative_to(workspace_resolved)
     except Exception:
         return False
+
+
+def make_can_use_tool_callback(workspace_dir: str, workspace_id: str, skills_dir: str | None = None):
+    """Create a can_use_tool callback pre-loaded with workspace context.
+
+    Args:
+        workspace_dir: Absolute path to the workspace directory.
+        workspace_id: Workspace identifier.
+        skills_dir: Absolute path to the skills/package directory (read-only).
+
+    Returns:
+        Async callable suitable for ClaudeAgentOptions.can_use_tool.
+    """
+
+    async def can_use_tool_with_context(tool_name, input_params, _context):
+        return await can_use_tool(
+            tool_name,
+            input_params,
+            {"workspace_dir": workspace_dir, "workspace_id": workspace_id, "skills_dir": skills_dir},
+        )
+
+    return can_use_tool_with_context
+
+
+def make_pre_tool_use_hook(workspace_dir: str, workspace_id: str, skills_dir: str | None = None):
+    """Create a PreToolUse hook that enforces permissions and optional tracing.
+
+    This hook must be used (not can_use_tool alone) for tools listed in
+    allowed_tools, because the SDK skips the can_use_tool callback for them.
+
+    Args:
+        workspace_dir: Absolute path to the workspace directory.
+        workspace_id: Workspace identifier.
+        skills_dir: Absolute path to the skills/package directory (read-only).
+
+    Returns:
+        Async callable suitable for a PreToolUse HookMatcher.
+    """
+
+    async def permission_and_tracing_hook(hook_input, tool_use_id, hook_context):
+        tool_name = hook_input["tool_name"]
+        tool_input = hook_input["tool_input"]
+        key_param = tracing.extract_key_param(tool_name, tool_input)
+
+        result = await can_use_tool(
+            tool_name,
+            tool_input,
+            {"workspace_dir": workspace_dir, "workspace_id": workspace_id, "skills_dir": skills_dir},
+        )
+        if isinstance(result, PermissionResultDeny):
+            logger.warning("Tool use denied: %s %s — %s", tool_name, key_param, result.message)
+            if tracing.is_tracing_enabled():
+                tracing.log_tool_call(
+                    tool_name,
+                    {
+                        "tool.key_param": key_param,
+                        "tool.permission": "denied",
+                        "tool.denial_reason": result.message,
+                    },
+                )
+            return {
+                "continue_": False,
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": result.message,
+                },
+            }
+
+        if tracing.is_tracing_enabled():
+            tracing.log_tool_call(tool_name, {"tool.key_param": key_param})
+        return {"continue_": True}
+
+    return permission_and_tracing_hook
 
 
 async def can_use_tool(
@@ -153,26 +227,29 @@ async def can_use_tool(
 
         return PermissionResultAllow()
 
-    # Restrict Read to workspace paths
+    # Restrict Read to workspace paths or skills directory
     if tool_name == "Read":
         file_path = input_params.get("file_path", "")
         workspace_dir = context_dict.get("workspace_dir")
+        skills_dir = context_dict.get("skills_dir")
 
-        if not _is_within_workspace(file_path, workspace_dir):
-            denial_msg = f"Read access denied. File must be within workspace directory: {workspace_dir}"
-            logger.warning(
-                "Read permission denied: file outside workspace",
-                extra={
-                    "tool": tool_name,
-                    "file_path": file_path,
-                    "workspace_dir": workspace_dir,
-                    "reason": "outside_workspace",
-                },
-            )
-            tracing.log_permission_check(tool_name, False, denial_msg)
-            return PermissionResultDeny(message=denial_msg)
+        if _is_within_workspace(file_path, workspace_dir) or _is_within_workspace(file_path, skills_dir):
+            return PermissionResultAllow()
 
-        return PermissionResultAllow()
+        denial_msg = f"Read access denied. File must be within workspace directory ({workspace_dir})" + (
+            f" or skills directory ({skills_dir})" if skills_dir else ""
+        )
+        logger.warning(
+            "Read permission denied: file outside workspace",
+            extra={
+                "tool": tool_name,
+                "file_path": file_path,
+                "workspace_dir": workspace_dir,
+                "reason": "outside_workspace",
+            },
+        )
+        tracing.log_permission_check(tool_name, False, denial_msg)
+        return PermissionResultDeny(message=denial_msg)
 
     # Restrict Write to workspace paths
     if tool_name == "Write":
