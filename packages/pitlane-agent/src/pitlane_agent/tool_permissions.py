@@ -124,7 +124,7 @@ def make_can_use_tool_callback(workspace_dir: str, workspace_id: str, skills_dir
         Async callable suitable for ClaudeAgentOptions.can_use_tool.
     """
 
-    async def can_use_tool_with_context(tool_name, input_params, context):
+    async def can_use_tool_with_context(tool_name, input_params, _context):
         return await can_use_tool(
             tool_name,
             input_params,
@@ -152,7 +152,7 @@ def make_pre_tool_use_hook(workspace_dir: str, workspace_id: str, skills_dir: st
     async def permission_and_tracing_hook(hook_input, tool_use_id, hook_context):
         tool_name = hook_input["tool_name"]
         tool_input = hook_input["tool_input"]
-        key_param = tracing._extract_key_param(tool_name, tool_input)
+        key_param = tracing.extract_key_param(tool_name, tool_input)
 
         result = await can_use_tool(
             tool_name,
@@ -162,7 +162,7 @@ def make_pre_tool_use_hook(workspace_dir: str, workspace_id: str, skills_dir: st
         if isinstance(result, PermissionResultDeny):
             logger.warning("Tool use denied: %s %s — %s", tool_name, key_param, result.message)
             if tracing.is_tracing_enabled():
-                tracing._log_tool_call(
+                tracing.log_tool_call(
                     tool_name,
                     {
                         "tool.key_param": key_param,
@@ -180,7 +180,7 @@ def make_pre_tool_use_hook(workspace_dir: str, workspace_id: str, skills_dir: st
             }
 
         if tracing.is_tracing_enabled():
-            tracing._log_tool_call(tool_name, {"tool.key_param": key_param})
+            tracing.log_tool_call(tool_name, {"tool.key_param": key_param})
         return {"continue_": True}
 
     return permission_and_tracing_hook
@@ -236,7 +236,9 @@ async def can_use_tool(
         if _is_within_workspace(file_path, workspace_dir) or _is_within_workspace(file_path, skills_dir):
             return PermissionResultAllow()
 
-        denial_msg = f"Read access denied. File must be within workspace directory: {workspace_dir}"
+        denial_msg = f"Read access denied. File must be within workspace directory ({workspace_dir})" + (
+            f" or skills directory ({skills_dir})" if skills_dir else ""
+        )
         logger.warning(
             "Read permission denied: file outside workspace",
             extra={

@@ -212,12 +212,12 @@ def tool_span(tool_name: str, **attributes: Any):
                 span.set_attribute(key, str(value))
 
         # Log minimal console output
-        _log_tool_call(tool_name, attributes)
+        log_tool_call(tool_name, attributes)
 
         yield span
 
 
-def _log_tool_call(tool_name: str, attributes: dict[str, Any]) -> None:
+def log_tool_call(tool_name: str, attributes: dict[str, Any]) -> None:
     """Log a minimal tool call to stderr.
 
     Format: [TOOL] ToolName: key_parameter
@@ -289,10 +289,10 @@ async def pre_tool_use_hook(
     tool_input = hook_input["tool_input"]
 
     # Extract key parameter based on tool type
-    key_param = _extract_key_param(tool_name, tool_input)
+    key_param = extract_key_param(tool_name, tool_input)
 
     # Log the tool call
-    _log_tool_call(tool_name, {"tool.key_param": key_param})
+    log_tool_call(tool_name, {"tool.key_param": key_param})
 
     return SyncHookJSONOutput(continue_=True)
 
@@ -319,7 +319,7 @@ async def post_tool_use_hook(
     return SyncHookJSONOutput(continue_=True)
 
 
-def _extract_key_param(tool_name: str, tool_input: dict[str, Any]) -> str:
+def extract_key_param(tool_name: str, tool_input: dict[str, Any]) -> str:
     """Extract the most relevant parameter from tool input for logging.
 
     Args:

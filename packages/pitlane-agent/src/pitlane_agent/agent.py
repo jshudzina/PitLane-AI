@@ -125,11 +125,11 @@ class F1Agent:
 
         workspace_dir = str(self.workspace_dir)
 
-        skills_dir = str(PACKAGE_DIR)
+        skills_dir = str(PACKAGE_DIR / ".claude")
 
         # PreToolUse is always registered — it's the only mechanism that can block
         # tools listed in allowed_tools (the SDK skips can_use_tool for those).
-        hooks: dict = {
+        hooks: dict[str, list[HookMatcher]] = {
             "PreToolUse": [
                 HookMatcher(
                     matcher=None,
@@ -146,6 +146,8 @@ class F1Agent:
             cwd=str(PACKAGE_DIR),
             setting_sources=["project"],
             allowed_tools=["Skill", "Bash", "Read", "Write", "WebFetch", "WebSearch"],
+            # can_use_tool handles tools NOT in allowed_tools; PreToolUse hook above
+            # handles the full list (SDK skips can_use_tool for allowed_tools).
             can_use_tool=make_can_use_tool_callback(workspace_dir, self.workspace_id, skills_dir),
             hooks=hooks,
             resume=resume_session_id,

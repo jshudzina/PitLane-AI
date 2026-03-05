@@ -122,7 +122,7 @@ class TestMakePreToolUseHook:
     async def test_logs_tool_call_on_allow_when_tracing_enabled(self, hook, enable_tracing):
         with patch("pitlane_agent.tool_permissions.tracing") as mock_tracing:
             mock_tracing.is_tracing_enabled.return_value = True
-            mock_tracing._extract_key_param.return_value = "https://wikipedia.org"
+            mock_tracing.extract_key_param.return_value = "https://wikipedia.org"
 
             result = await hook(
                 {"tool_name": "WebFetch", "tool_input": {"url": "https://wikipedia.org/wiki/F1"}},
@@ -131,13 +131,13 @@ class TestMakePreToolUseHook:
             )
 
         assert result == {"continue_": True}
-        mock_tracing._log_tool_call.assert_called_once()
+        mock_tracing.log_tool_call.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_logs_tool_call_on_deny_when_tracing_enabled(self, hook, enable_tracing):
         with patch("pitlane_agent.tool_permissions.tracing") as mock_tracing:
             mock_tracing.is_tracing_enabled.return_value = True
-            mock_tracing._extract_key_param.return_value = "https://evil.com"
+            mock_tracing.extract_key_param.return_value = "https://evil.com"
 
             result = await hook(
                 {"tool_name": "WebFetch", "tool_input": {"url": "https://evil.com/data"}},
@@ -146,15 +146,15 @@ class TestMakePreToolUseHook:
             )
 
         assert result["continue_"] is False
-        mock_tracing._log_tool_call.assert_called_once()
-        call_kwargs = mock_tracing._log_tool_call.call_args[0][1]
+        mock_tracing.log_tool_call.assert_called_once()
+        call_kwargs = mock_tracing.log_tool_call.call_args[0][1]
         assert call_kwargs.get("tool.permission") == "denied"
 
     @pytest.mark.asyncio
     async def test_no_tracing_call_when_tracing_disabled(self, hook, disable_tracing):
         with patch("pitlane_agent.tool_permissions.tracing") as mock_tracing:
             mock_tracing.is_tracing_enabled.return_value = False
-            mock_tracing._extract_key_param.return_value = "https://wikipedia.org"
+            mock_tracing.extract_key_param.return_value = "https://wikipedia.org"
 
             await hook(
                 {"tool_name": "WebFetch", "tool_input": {"url": "https://wikipedia.org/wiki/F1"}},
@@ -162,7 +162,7 @@ class TestMakePreToolUseHook:
                 {},
             )
 
-        mock_tracing._log_tool_call.assert_not_called()
+        mock_tracing.log_tool_call.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_hook_captures_workspace_context_for_read(self):

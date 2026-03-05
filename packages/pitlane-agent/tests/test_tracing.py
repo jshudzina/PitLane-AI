@@ -173,12 +173,12 @@ class TestToolSpan:
 
 
 class TestLogToolCall:
-    """Tests for _log_tool_call function."""
+    """Tests for log_tool_call function."""
 
     def test_log_tool_call_basic(self):
-        """_log_tool_call should output tool name and key param."""
+        """log_tool_call should output tool name and key param."""
         with patch("sys.stderr", new=StringIO()) as mock_stderr:
-            tracing._log_tool_call("Bash", {"tool.key_param": "python script.py"})
+            tracing.log_tool_call("Bash", {"tool.key_param": "python script.py"})
 
             output = mock_stderr.getvalue()
             assert "TOOL" in output
@@ -186,9 +186,9 @@ class TestLogToolCall:
             assert "python script.py" in output
 
     def test_log_tool_call_denied(self):
-        """_log_tool_call should show DENIED for denied permissions."""
+        """log_tool_call should show DENIED for denied permissions."""
         with patch("sys.stderr", new=StringIO()) as mock_stderr:
-            tracing._log_tool_call(
+            tracing.log_tool_call(
                 "WebFetch",
                 {
                     "tool.key_param": "https://blocked.com",
@@ -203,9 +203,9 @@ class TestLogToolCall:
             assert "Domain not allowed" in output
 
     def test_log_tool_call_empty_params(self):
-        """_log_tool_call should handle empty parameters."""
+        """log_tool_call should handle empty parameters."""
         with patch("sys.stderr", new=StringIO()) as mock_stderr:
-            tracing._log_tool_call("Skill", {})
+            tracing.log_tool_call("Skill", {})
 
             output = mock_stderr.getvalue()
             assert "TOOL" in output
