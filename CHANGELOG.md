@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-03-05
+
+### Bug Fixes
+
+- Enforce domain restrictions for allowed_tools via PreToolUse hook ([#115](https://github.com/jshudzina/PitLane-AI/pull/115))
+
+
+### Features
+
+- Add WebSearch tool with domain-restricted F1 research skill ([#114](https://github.com/jshudzina/PitLane-AI/pull/114))
+
 ## [0.4.0] - 2026-02-27
 
 ### Bug Fixes
