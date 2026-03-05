@@ -125,10 +125,17 @@ class F1Agent:
 
         workspace_dir = str(self.workspace_dir)
 
+        skills_dir = str(PACKAGE_DIR)
+
         # PreToolUse is always registered — it's the only mechanism that can block
         # tools listed in allowed_tools (the SDK skips can_use_tool for those).
         hooks: dict = {
-            "PreToolUse": [HookMatcher(matcher=None, hooks=[make_pre_tool_use_hook(workspace_dir, self.workspace_id)])],
+            "PreToolUse": [
+                HookMatcher(
+                    matcher=None,
+                    hooks=[make_pre_tool_use_hook(workspace_dir, self.workspace_id, skills_dir)],
+                )
+            ],
         }
         if tracing.is_tracing_enabled():
             hooks["PostToolUse"] = [HookMatcher(matcher=None, hooks=[tracing.post_tool_use_hook])]
@@ -139,7 +146,7 @@ class F1Agent:
             cwd=str(PACKAGE_DIR),
             setting_sources=["project"],
             allowed_tools=["Skill", "Bash", "Read", "Write", "WebFetch", "WebSearch"],
-            can_use_tool=make_can_use_tool_callback(workspace_dir, self.workspace_id),
+            can_use_tool=make_can_use_tool_callback(workspace_dir, self.workspace_id, skills_dir),
             hooks=hooks,
             resume=resume_session_id,
             system_prompt={

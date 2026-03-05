@@ -112,12 +112,13 @@ def _is_within_workspace(file_path: str, workspace_dir: str | None) -> bool:
         return False
 
 
-def make_can_use_tool_callback(workspace_dir: str, workspace_id: str):
+def make_can_use_tool_callback(workspace_dir: str, workspace_id: str, skills_dir: str | None = None):
     """Create a can_use_tool callback pre-loaded with workspace context.
 
     Args:
         workspace_dir: Absolute path to the workspace directory.
         workspace_id: Workspace identifier.
+        skills_dir: Absolute path to the skills/package directory (read-only).
 
     Returns:
         Async callable suitable for ClaudeAgentOptions.can_use_tool.
@@ -127,13 +128,13 @@ def make_can_use_tool_callback(workspace_dir: str, workspace_id: str):
         return await can_use_tool(
             tool_name,
             input_params,
-            {"workspace_dir": workspace_dir, "workspace_id": workspace_id},
+            {"workspace_dir": workspace_dir, "workspace_id": workspace_id, "skills_dir": skills_dir},
         )
 
     return can_use_tool_with_context
 
 
-def make_pre_tool_use_hook(workspace_dir: str, workspace_id: str):
+def make_pre_tool_use_hook(workspace_dir: str, workspace_id: str, skills_dir: str | None = None):
     """Create a PreToolUse hook that enforces permissions and optional tracing.
 
     This hook must be used (not can_use_tool alone) for tools listed in
@@ -142,6 +143,7 @@ def make_pre_tool_use_hook(workspace_dir: str, workspace_id: str):
     Args:
         workspace_dir: Absolute path to the workspace directory.
         workspace_id: Workspace identifier.
+        skills_dir: Absolute path to the skills/package directory (read-only).
 
     Returns:
         Async callable suitable for a PreToolUse HookMatcher.
@@ -155,7 +157,7 @@ def make_pre_tool_use_hook(workspace_dir: str, workspace_id: str):
         result = await can_use_tool(
             tool_name,
             tool_input,
-            {"workspace_dir": workspace_dir, "workspace_id": workspace_id},
+            {"workspace_dir": workspace_dir, "workspace_id": workspace_id, "skills_dir": skills_dir},
         )
         if isinstance(result, PermissionResultDeny):
             logger.warning("Tool use denied: %s %s — %s", tool_name, key_param, result.message)
@@ -225,26 +227,27 @@ async def can_use_tool(
 
         return PermissionResultAllow()
 
-    # Restrict Read to workspace paths
+    # Restrict Read to workspace paths or skills directory
     if tool_name == "Read":
         file_path = input_params.get("file_path", "")
         workspace_dir = context_dict.get("workspace_dir")
+        skills_dir = context_dict.get("skills_dir")
 
-        if not _is_within_workspace(file_path, workspace_dir):
-            denial_msg = f"Read access denied. File must be within workspace directory: {workspace_dir}"
-            logger.warning(
-                "Read permission denied: file outside workspace",
-                extra={
-                    "tool": tool_name,
-                    "file_path": file_path,
-                    "workspace_dir": workspace_dir,
-                    "reason": "outside_workspace",
-                },
-            )
-            tracing.log_permission_check(tool_name, False, denial_msg)
-            return PermissionResultDeny(message=denial_msg)
+        if _is_within_workspace(file_path, workspace_dir) or _is_within_workspace(file_path, skills_dir):
+            return PermissionResultAllow()
 
-        return PermissionResultAllow()
+        denial_msg = f"Read access denied. File must be within workspace directory: {workspace_dir}"
+        logger.warning(
+            "Read permission denied: file outside workspace",
+            extra={
+                "tool": tool_name,
+                "file_path": file_path,
+                "workspace_dir": workspace_dir,
+                "reason": "outside_workspace",
+            },
+        )
+        tracing.log_permission_check(tool_name, False, denial_msg)
+        return PermissionResultDeny(message=denial_msg)
 
     # Restrict Write to workspace paths
     if tool_name == "Write":
