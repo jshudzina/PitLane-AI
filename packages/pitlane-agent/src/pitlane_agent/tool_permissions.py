@@ -107,7 +107,7 @@ def _is_within_workspace(file_path: str, workspace_dir: str | None) -> bool:
         workspace_resolved = Path(workspace_dir).resolve()
 
         # Check if file_path is within workspace_dir
-        return str(file_resolved).startswith(str(workspace_resolved))
+        return file_resolved.is_relative_to(workspace_resolved)
     except Exception:
         return False
 

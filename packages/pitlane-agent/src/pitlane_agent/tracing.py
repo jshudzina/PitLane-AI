@@ -24,7 +24,6 @@ from typing import Any
 from claude_agent_sdk.types import (
     HookContext,
     PostToolUseHookInput,
-    PreToolUseHookInput,
     SyncHookJSONOutput,
 )
 from opentelemetry import trace
@@ -263,38 +262,6 @@ def log_permission_check(tool_name: str, allowed: bool, reason: str = "") -> Non
 
 
 # Hook callbacks for Claude Agent SDK
-
-
-async def pre_tool_use_hook(
-    hook_input: PreToolUseHookInput,
-    block_reason: str | None,
-    hook_context: HookContext,
-) -> SyncHookJSONOutput:
-    """Hook called before a tool is executed.
-
-    Logs the tool call to console if tracing is enabled.
-
-    Args:
-        hook_input: Input data including tool_name and tool_input.
-        block_reason: Reason if the tool was blocked (unused).
-        hook_context: Hook context (unused).
-
-    Returns:
-        SyncHookJSONOutput to continue execution.
-    """
-    if not is_tracing_enabled():
-        return SyncHookJSONOutput(continue_=True)
-
-    tool_name = hook_input["tool_name"]
-    tool_input = hook_input["tool_input"]
-
-    # Extract key parameter based on tool type
-    key_param = extract_key_param(tool_name, tool_input)
-
-    # Log the tool call
-    log_tool_call(tool_name, {"tool.key_param": key_param})
-
-    return SyncHookJSONOutput(continue_=True)
 
 
 async def post_tool_use_hook(
