@@ -308,11 +308,12 @@ class TestF1AgentChatFull:
 class TestF1AgentEnvironment:
     """Tests for environment variable setup during agent initialization."""
 
-    def test_mplconfigdir_set_on_init(self, tmp_path):
+    def test_mplconfigdir_set_on_init(self, tmp_path, monkeypatch):
         """Test that MPLCONFIGDIR is set to ~/.pitlane/cache/matplotlib on init."""
         import os
         from pathlib import Path
 
+        monkeypatch.delenv("MPLCONFIGDIR", raising=False)
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir(parents=True)
 
@@ -321,10 +322,11 @@ class TestF1AgentEnvironment:
         expected = str(Path.home() / ".pitlane" / "cache" / "matplotlib")
         assert os.environ.get("MPLCONFIGDIR") == expected
 
-    def test_mplconfigdir_directory_created_on_init(self, tmp_path):
+    def test_mplconfigdir_directory_created_on_init(self, tmp_path, monkeypatch):
         """Test that the MPLCONFIGDIR directory is created on init."""
         from pathlib import Path
 
+        monkeypatch.delenv("MPLCONFIGDIR", raising=False)
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir(parents=True)
 

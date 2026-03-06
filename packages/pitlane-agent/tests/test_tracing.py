@@ -322,12 +322,13 @@ class TestShortenPath:
 
     def test_cwd_takes_priority_over_home(self, monkeypatch, tmp_path):
         """If cwd is under home, cwd prefix wins."""
-        home = os.path.expanduser("~")
-        # Use a real subdirectory of home as the fake cwd
-        fake_cwd = home + "/projects/myapp"
-        monkeypatch.chdir(fake_cwd if os.path.isdir(fake_cwd) else home)
-        cwd = os.getcwd()
-        result = tracing._shorten_path(cwd + "/src/main.py")
+        # Create a temp dir under a fake home so both prefixes match,
+        # then verify cwd shortening takes priority.
+        fake_cwd = tmp_path / "myapp"
+        fake_cwd.mkdir()
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.chdir(fake_cwd)
+        result = tracing._shorten_path(str(fake_cwd) + "/src/main.py")
         assert result.startswith("./")
         assert not result.startswith("~/")
 
