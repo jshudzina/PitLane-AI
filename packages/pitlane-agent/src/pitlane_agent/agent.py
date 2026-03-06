@@ -13,6 +13,7 @@ from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
 from claude_agent_sdk.types import (
     AssistantMessage,
     HookMatcher,
+    SandboxSettings,
     SystemMessage,
     TextBlock,
 )
@@ -44,6 +45,7 @@ class F1Agent:
         workspace_dir: Path | None = None,
         enable_tracing: bool | None = None,
         inject_temporal_context: bool = True,
+        disable_sandbox: bool = False,
     ):
         """Initialize the F1 agent.
 
@@ -52,10 +54,12 @@ class F1Agent:
             workspace_dir: Explicit workspace path. Derived from workspace_id if None.
             enable_tracing: Enable OpenTelemetry tracing. If None, uses PITLANE_TRACING_ENABLED env var.
             inject_temporal_context: Enable temporal context in system prompt. Default True.
+            disable_sandbox: Disable OS-level bash sandboxing. Default False (sandbox enabled).
         """
         self.workspace_id = workspace_id or generate_workspace_id()
         self.workspace_dir = workspace_dir or get_workspace_path(self.workspace_id)
         self.inject_temporal_context = inject_temporal_context
+        self.disable_sandbox = disable_sandbox
         self._agent_session_id: str | None = None  # Captured from Claude SDK
 
         # Verify workspace exists or create it
@@ -158,6 +162,7 @@ class F1Agent:
             }
             if system_prompt_append
             else None,
+            sandbox=None if self.disable_sandbox else SandboxSettings(enabled=True),
         )
 
         async with ClaudeSDKClient(options=options) as client:

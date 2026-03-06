@@ -14,6 +14,16 @@ from pitlane_agent import tracing
 # Module logger
 logger = logging.getLogger(__name__)
 
+# FastF1 makes direct HTTP calls (not via Claude tools). These domains cannot
+# be filtered by the SDK bash sandbox without a proxy (see follow-up issue).
+FASTF1_NETWORK_DOMAINS = [
+    "livetiming.formula1.com",  # F1 live timing primary source
+    "livetiming-static.formula1.com",  # Static live timing files
+    "api.formula1.com",  # F1 official API (fastf1 >= 3.4)
+    "api.ergast.com",  # Historical data (legacy, still used)
+    "raw.githubusercontent.com",  # fastf1 datasets (driver numbers, etc.)
+]
+
 # Allowed domains for WebFetch tool
 ALLOWED_WEBFETCH_DOMAINS = {
     "wikipedia.org",
@@ -221,7 +231,9 @@ async def can_use_tool(
         if not _is_allowed_bash_command(command):
             denial_msg = (
                 "Bash is restricted to 'pitlane' CLI commands only. "
-                "Use 'pitlane <subcommand>' to execute F1 data operations."
+                "The 'pitlane' binary is available directly in PATH — "
+                "use 'pitlane <subcommand>' without 'cd', 'uv run', or other wrappers. "
+                "Example: 'pitlane fetch session-info --year 2026 --gp Australia --session FP2'"
             )
             logger.warning(
                 "Bash permission denied: command not allowed",
