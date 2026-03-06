@@ -84,7 +84,15 @@ def _is_allowed_bash_command(command: str) -> bool:
         if env_var not in ALLOWED_ENV_VARS:
             return False
 
-    return cmd.startswith("pitlane ")
+    if cmd.startswith("pitlane "):
+        return True
+
+    # Allow echoing whitelisted environment variables
+    if cmd.startswith("echo $"):
+        var_name = cmd[6:].strip()
+        return var_name in ALLOWED_ENV_VARS
+
+    return False
 
 
 def _is_within_workspace(file_path: str, workspace_dir: str | None) -> bool:
