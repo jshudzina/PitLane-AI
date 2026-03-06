@@ -33,10 +33,6 @@ logger = logging.getLogger(__name__)
 # Package directory (contains .claude/skills/)
 PACKAGE_DIR = Path(__file__).parent
 
-# Deprecated: Charts directory constant (for backward compatibility with tests)
-# New code should use workspace_dir / "charts" instead
-CHARTS_DIR = Path("/tmp/pitlane_charts")
-
 
 class F1Agent:
     """AI agent for F1 data analysis using Claude Agent SDK."""
@@ -122,6 +118,11 @@ class F1Agent:
 
         # Set workspace ID as environment variable so skills can access it
         os.environ["PITLANE_WORKSPACE_ID"] = self.workspace_id
+
+        # Keep matplotlib writes within ~/.pitlane/ for sandbox compatibility
+        mpl_cache = Path.home() / ".pitlane" / "cache" / "matplotlib"
+        mpl_cache.mkdir(parents=True, exist_ok=True)
+        os.environ["MPLCONFIGDIR"] = str(mpl_cache)
 
         workspace_dir = str(self.workspace_dir)
 
