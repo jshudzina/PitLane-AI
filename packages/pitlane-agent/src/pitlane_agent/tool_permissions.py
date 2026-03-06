@@ -87,9 +87,10 @@ def _is_allowed_bash_command(command: str) -> bool:
     if cmd.startswith("pitlane "):
         return True
 
-    # Allow echoing whitelisted environment variables
-    if cmd.startswith("echo $"):
-        var_name = cmd[6:].strip()
+    # Allow echoing whitelisted environment variables (exactly: echo $VARNAME)
+    echo_parts = cmd.split()
+    if len(echo_parts) == 2 and echo_parts[0] == "echo" and echo_parts[1].startswith("$"):
+        var_name = echo_parts[1][1:]
         return var_name in ALLOWED_ENV_VARS
 
     return False

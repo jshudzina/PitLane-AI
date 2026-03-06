@@ -305,6 +305,35 @@ class TestF1AgentChatFull:
             assert response == "Chunk 1\nChunk 2"
 
 
+class TestF1AgentEnvironment:
+    """Tests for environment variable setup during agent initialization."""
+
+    def test_mplconfigdir_set_on_init(self, tmp_path):
+        """Test that MPLCONFIGDIR is set to ~/.pitlane/cache/matplotlib on init."""
+        import os
+        from pathlib import Path
+
+        workspace_dir = tmp_path / "workspace"
+        workspace_dir.mkdir(parents=True)
+
+        F1Agent(workspace_dir=workspace_dir)
+
+        expected = str(Path.home() / ".pitlane" / "cache" / "matplotlib")
+        assert os.environ.get("MPLCONFIGDIR") == expected
+
+    def test_mplconfigdir_directory_created_on_init(self, tmp_path):
+        """Test that the MPLCONFIGDIR directory is created on init."""
+        from pathlib import Path
+
+        workspace_dir = tmp_path / "workspace"
+        workspace_dir.mkdir(parents=True)
+
+        F1Agent(workspace_dir=workspace_dir)
+
+        mpl_cache = Path.home() / ".pitlane" / "cache" / "matplotlib"
+        assert mpl_cache.is_dir()
+
+
 class TestF1AgentConstants:
     """Tests for module-level constants."""
 
