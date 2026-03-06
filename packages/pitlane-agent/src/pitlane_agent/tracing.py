@@ -286,6 +286,19 @@ async def post_tool_use_hook(
     return SyncHookJSONOutput(continue_=True)
 
 
+def _shorten_path(path: str) -> str:
+    """Replace home and cwd prefixes in a path with ~ and . respectively."""
+    if not path:
+        return path
+    home = os.path.expanduser("~")
+    cwd = os.getcwd()
+    if path.startswith(cwd + os.sep):
+        return "." + path[len(cwd) :]
+    if path.startswith(home + os.sep):
+        return "~" + path[len(home) :]
+    return path
+
+
 def extract_key_param(tool_name: str, tool_input: dict[str, Any]) -> str:
     """Extract the most relevant parameter from tool input for logging.
 
@@ -303,7 +316,7 @@ def extract_key_param(tool_name: str, tool_input: dict[str, Any]) -> str:
     elif tool_name == "WebFetch":
         return tool_input.get("url", "")
     elif tool_name == "Read" or tool_name == "Write" or tool_name == "Edit":
-        return tool_input.get("file_path", "")
+        return _shorten_path(tool_input.get("file_path", ""))
     else:
         # For unknown tools, try to get a reasonable representation
         if tool_input:
