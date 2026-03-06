@@ -1,10 +1,9 @@
 """Tests for the F1Agent class."""
 
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from pitlane_agent.agent import CHARTS_DIR, PACKAGE_DIR, F1Agent
+from pitlane_agent.agent import PACKAGE_DIR, F1Agent
 
 
 class TestF1AgentInitialization:
@@ -306,6 +305,37 @@ class TestF1AgentChatFull:
             assert response == "Chunk 1\nChunk 2"
 
 
+class TestF1AgentEnvironment:
+    """Tests for environment variable setup during agent initialization."""
+
+    def test_mplconfigdir_set_on_init(self, tmp_path, monkeypatch):
+        """Test that MPLCONFIGDIR is set to ~/.pitlane/cache/matplotlib on init."""
+        import os
+        from pathlib import Path
+
+        monkeypatch.delenv("MPLCONFIGDIR", raising=False)
+        workspace_dir = tmp_path / "workspace"
+        workspace_dir.mkdir(parents=True)
+
+        F1Agent(workspace_dir=workspace_dir)
+
+        expected = str(Path.home() / ".pitlane" / "cache" / "matplotlib")
+        assert os.environ.get("MPLCONFIGDIR") == expected
+
+    def test_mplconfigdir_directory_created_on_init(self, tmp_path, monkeypatch):
+        """Test that the MPLCONFIGDIR directory is created on init."""
+        from pathlib import Path
+
+        monkeypatch.delenv("MPLCONFIGDIR", raising=False)
+        workspace_dir = tmp_path / "workspace"
+        workspace_dir.mkdir(parents=True)
+
+        F1Agent(workspace_dir=workspace_dir)
+
+        mpl_cache = Path.home() / ".pitlane" / "cache" / "matplotlib"
+        assert mpl_cache.is_dir()
+
+
 class TestF1AgentConstants:
     """Tests for module-level constants."""
 
@@ -315,11 +345,6 @@ class TestF1AgentConstants:
         assert PACKAGE_DIR.name == "pitlane_agent"
         assert PACKAGE_DIR.is_dir()
         assert (PACKAGE_DIR / "__init__.py").exists()
-
-    def test_charts_dir_constant(self):
-        """Test that CHARTS_DIR has expected value."""
-        expected_dir = Path("/tmp/pitlane_charts")
-        assert expected_dir == CHARTS_DIR
 
 
 class TestF1AgentTracing:

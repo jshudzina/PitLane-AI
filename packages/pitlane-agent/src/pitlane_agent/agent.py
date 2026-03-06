@@ -5,6 +5,7 @@ using the Claude Agent SDK with session management and skills support.
 """
 
 import logging
+import os
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -32,10 +33,6 @@ logger = logging.getLogger(__name__)
 
 # Package directory (contains .claude/skills/)
 PACKAGE_DIR = Path(__file__).parent
-
-# Deprecated: Charts directory constant (for backward compatibility with tests)
-# New code should use workspace_dir / "charts" instead
-CHARTS_DIR = Path("/tmp/pitlane_charts")
 
 
 class F1Agent:
@@ -67,6 +64,11 @@ class F1Agent:
         elif workspace_exists(self.workspace_id):
             # Update last accessed timestamp
             update_workspace_metadata(self.workspace_id)
+
+        # Keep matplotlib writes within ~/.pitlane/ for sandbox compatibility
+        mpl_cache = Path.home() / ".pitlane" / "cache" / "matplotlib"
+        mpl_cache.mkdir(parents=True, exist_ok=True)
+        os.environ["MPLCONFIGDIR"] = str(mpl_cache)
 
         # Configure tracing
         if enable_tracing is not None:
@@ -118,8 +120,6 @@ class F1Agent:
         Yields:
             Text chunks from the assistant's response.
         """
-        import os
-
         # Set workspace ID as environment variable so skills can access it
         os.environ["PITLANE_WORKSPACE_ID"] = self.workspace_id
 

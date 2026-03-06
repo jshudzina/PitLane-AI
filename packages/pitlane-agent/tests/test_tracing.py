@@ -1,5 +1,6 @@
 """Tests for the tracing module."""
 
+import os
 from io import StringIO
 from unittest.mock import patch
 
@@ -301,3 +302,72 @@ class TestSpanProcessorConfiguration:
         # Cleanup
         tracing._tracer = None
         tracing._provider_initialized = False
+
+
+class TestShortenPath:
+    """Tests for _shorten_path helper."""
+
+    def test_empty_string(self):
+        assert tracing._shorten_path("") == ""
+
+    def test_cwd_prefix_replaced(self):
+        cwd = os.getcwd()
+        result = tracing._shorten_path(cwd + "/some/file.py")
+        assert result == "./some/file.py"
+
+    def test_home_prefix_replaced(self):
+        home = os.path.expanduser("~")
+        result = tracing._shorten_path(home + "/some/file.py")
+        assert result == "~/some/file.py"
+
+    def test_cwd_takes_priority_over_home(self, monkeypatch, tmp_path):
+        """If cwd is under home, cwd prefix wins."""
+        # Create a temp dir under a fake home so both prefixes match,
+        # then verify cwd shortening takes priority.
+        fake_cwd = tmp_path / "myapp"
+        fake_cwd.mkdir()
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.chdir(fake_cwd)
+        result = tracing._shorten_path(str(fake_cwd) + "/src/main.py")
+        assert result.startswith("./")
+        assert not result.startswith("~/")
+
+    def test_unrelated_path_unchanged(self):
+        result = tracing._shorten_path("/etc/hosts")
+        assert result == "/etc/hosts"
+
+
+class TestExtractKeyParam:
+    """Tests for extract_key_param function."""
+
+    def test_bash(self):
+        assert tracing.extract_key_param("Bash", {"command": "ls -la"}) == "ls -la"
+
+    def test_skill(self):
+        assert tracing.extract_key_param("Skill", {"skill": "f1-analyst"}) == "f1-analyst"
+
+    def test_webfetch(self):
+        url = "https://en.wikipedia.org/wiki/Formula_One"
+        assert tracing.extract_key_param("WebFetch", {"url": url}) == url
+
+    def test_read_shortens_path(self):
+        cwd = os.getcwd()
+        result = tracing.extract_key_param("Read", {"file_path": cwd + "/src/agent.py"})
+        assert result == "./src/agent.py"
+
+    def test_write_shortens_path(self):
+        home = os.path.expanduser("~")
+        result = tracing.extract_key_param("Write", {"file_path": home + "/output.txt"})
+        assert result == "~/output.txt"
+
+    def test_edit_shortens_path(self):
+        cwd = os.getcwd()
+        result = tracing.extract_key_param("Edit", {"file_path": cwd + "/foo.py"})
+        assert result == "./foo.py"
+
+    def test_unknown_tool_returns_first_value(self):
+        result = tracing.extract_key_param("Glob", {"pattern": "**/*.py"})
+        assert result == "**/*.py"
+
+    def test_unknown_tool_empty_input(self):
+        assert tracing.extract_key_param("Unknown", {}) == ""

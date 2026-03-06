@@ -57,6 +57,34 @@ class TestMakePreToolUseHook:
         assert result == {"continue_": True}
 
     @pytest.mark.asyncio
+    async def test_allows_echo_whitelisted_env_var(self, hook):
+        result = await hook(
+            {"tool_name": "Bash", "tool_input": {"command": "echo $PITLANE_WORKSPACE_ID"}},
+            "tool-2",
+            {},
+        )
+        assert result == {"continue_": True}
+
+    @pytest.mark.asyncio
+    async def test_denies_echo_non_whitelisted_env_var(self, hook):
+        result = await hook(
+            {"tool_name": "Bash", "tool_input": {"command": "echo $HOME"}},
+            "tool-2",
+            {},
+        )
+        assert result["continue_"] is False
+
+    @pytest.mark.asyncio
+    async def test_denies_echo_whitelisted_var_with_trailing_tokens(self, hook):
+        """Trailing tokens after the var name must be blocked (injection guard)."""
+        result = await hook(
+            {"tool_name": "Bash", "tool_input": {"command": "echo $PITLANE_WORKSPACE_ID ; rm -rf ~"}},
+            "tool-2",
+            {},
+        )
+        assert result["continue_"] is False
+
+    @pytest.mark.asyncio
     async def test_denies_non_pitlane_bash_command(self, hook):
         result = await hook(
             {"tool_name": "Bash", "tool_input": {"command": "rm -rf /"}},
