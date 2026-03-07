@@ -15,7 +15,9 @@ from pitlane_agent import tracing
 logger = logging.getLogger(__name__)
 
 # FastF1 makes direct HTTP calls (not via Claude tools). These domains cannot
-# be filtered by the SDK bash sandbox without a proxy (see follow-up issue).
+# be filtered by the SDK bash sandbox without a proxy (tracked in #118).
+# This constant is not yet used — it documents the domains for the future
+# proxy-based filtering implementation.
 FASTF1_NETWORK_DOMAINS = [
     "livetiming.formula1.com",  # F1 live timing primary source
     "livetiming-static.formula1.com",  # Static live timing files
