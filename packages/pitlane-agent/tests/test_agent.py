@@ -442,3 +442,71 @@ class TestF1AgentTracing:
 
             assert "PreToolUse" in options.hooks
             assert "PostToolUse" not in options.hooks
+
+
+class TestF1AgentSandbox:
+    """Tests for F1Agent sandbox configuration."""
+
+    def test_sandbox_enabled_stored_on_init(self, tmp_path):
+        """Test that sandbox_enabled parameter is stored as instance attribute."""
+        workspace_dir = tmp_path / "workspace"
+        workspace_dir.mkdir(parents=True)
+
+        agent_default = F1Agent(workspace_dir=workspace_dir)
+        assert agent_default.sandbox_enabled is True
+
+        workspace_dir2 = tmp_path / "workspace2"
+        workspace_dir2.mkdir(parents=True)
+
+        agent_disabled = F1Agent(workspace_dir=workspace_dir2, sandbox_enabled=False)
+        assert agent_disabled.sandbox_enabled is False
+
+    @pytest.mark.asyncio
+    async def test_sandbox_enabled_by_default(self, disable_tracing):
+        """Test that sandbox is enabled by default in ClaudeAgentOptions."""
+        from claude_agent_sdk.types import SandboxSettings
+
+        mock_client = AsyncMock()
+        mock_client.query = AsyncMock()
+
+        async def mock_receive():
+            return
+            yield  # Make it an async generator
+
+        mock_client.receive_response = mock_receive
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("pitlane_agent.agent.ClaudeSDKClient") as mock_sdk_client:
+            mock_sdk_client.return_value = mock_client
+
+            agent = F1Agent()
+            async for _ in agent.chat("Test"):
+                pass
+
+            options = mock_sdk_client.call_args.kwargs["options"]
+            assert options.sandbox == SandboxSettings(enabled=True)
+
+    @pytest.mark.asyncio
+    async def test_sandbox_disabled_when_flag_set(self, disable_tracing):
+        """Test that sandbox is None when sandbox_enabled=False."""
+        mock_client = AsyncMock()
+        mock_client.query = AsyncMock()
+
+        async def mock_receive():
+            return
+            yield  # Make it an async generator
+
+        mock_client.receive_response = mock_receive
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("pitlane_agent.agent.ClaudeSDKClient") as mock_sdk_client:
+            mock_sdk_client.return_value = mock_client
+
+            agent = F1Agent(sandbox_enabled=False)
+            async for _ in agent.chat("Test"):
+                pass
+
+            options = mock_sdk_client.call_args.kwargs["options"]
+            assert options.sandbox is None

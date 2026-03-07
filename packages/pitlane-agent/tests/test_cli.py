@@ -25,7 +25,6 @@ class TestCLIGroup:
 
         assert result.exit_code == 0
         assert "Generate lap times chart" in result.output
-        assert "--workspace-id" in result.output
         assert "--year" in result.output
         assert "--gp" in result.output
         assert "--drivers" in result.output
@@ -37,7 +36,6 @@ class TestCLIGroup:
 
         assert result.exit_code == 0
         assert "Fetch session information" in result.output
-        assert "--workspace-id" in result.output
         assert "--year" in result.output
         assert "--gp" in result.output
         assert "--session" in result.output
@@ -49,7 +47,6 @@ class TestCLIGroup:
 
         assert result.exit_code == 0
         assert "Generate tyre strategy" in result.output
-        assert "--workspace-id" in result.output
         assert "--year" in result.output
         assert "--gp" in result.output
 
@@ -82,8 +79,6 @@ class TestTestingSessionCLI:
             [
                 "fetch",
                 "session-info",
-                "--workspace-id",
-                "test-ws",
                 "--year",
                 "2026",
             ],
@@ -100,8 +95,6 @@ class TestTestingSessionCLI:
             [
                 "fetch",
                 "session-info",
-                "--workspace-id",
-                "test-ws",
                 "--year",
                 "2026",
                 "--gp",

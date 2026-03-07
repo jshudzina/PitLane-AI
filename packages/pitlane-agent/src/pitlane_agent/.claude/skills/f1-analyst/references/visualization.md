@@ -11,7 +11,6 @@ Display a circuit layout with labeled corner positions, showing the track outlin
 **Command:**
 ```bash
 pitlane analyze track-map \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session Q

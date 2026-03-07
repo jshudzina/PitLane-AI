@@ -27,6 +27,7 @@ from pitlane_agent.commands.analyze import (
     generate_year_compare_chart,
 )
 from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
+from pitlane_agent.utils.cli_helpers import get_workspace_id as _get_workspace_id
 from pitlane_agent.utils.fastf1_helpers import validate_session_or_test
 
 
@@ -54,7 +55,6 @@ def analyze():
 
 
 @analyze.command()
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option("--session", type=str, default=None, help="Session type: R, Q, FP1, FP2, FP3, S, SQ")
@@ -67,7 +67,6 @@ def analyze():
     help="Driver abbreviation (can be specified multiple times: --drivers VER --drivers HAM)",
 )
 def lap_times(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session: str | None,
@@ -77,6 +76,8 @@ def lap_times(
 ):
     """Generate lap times chart for specified drivers."""
     validate_session_or_test(gp, session, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -103,7 +104,6 @@ def lap_times(
 
 
 @analyze.command("lap-times-distribution")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option("--session", type=str, default=None, help="Session type: R, Q, FP1, FP2, FP3, S, SQ")
@@ -116,7 +116,6 @@ def lap_times(
     help="Driver abbreviations (optional; defaults to top 10 finishers)",
 )
 def lap_times_distribution(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session: str | None,
@@ -126,6 +125,8 @@ def lap_times_distribution(
 ):
     """Generate lap times distribution chart showing statistical spread."""
     validate_session_or_test(gp, session, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -153,7 +154,6 @@ def lap_times_distribution(
 
 
 @analyze.command()
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -165,7 +165,6 @@ def lap_times_distribution(
 @click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
 @click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
 def tyre_strategy(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session: str | None,
@@ -177,6 +176,8 @@ def tyre_strategy(
     if gp is not None and session is None and test_number is None:
         session = "R"
     validate_session_or_test(gp, session, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -202,7 +203,6 @@ def tyre_strategy(
 
 
 @analyze.command("speed-trace")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option("--session", type=str, default=None, help="Session type: R, Q, FP1, FP2, FP3, S, SQ")
@@ -221,7 +221,6 @@ def tyre_strategy(
     help="Add corner markers and labels to the chart",
 )
 def speed_trace(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session: str | None,
@@ -232,6 +231,8 @@ def speed_trace(
 ):
     """Generate speed trace comparison for fastest laps of specified drivers."""
     validate_session_or_test(gp, session, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -266,7 +267,6 @@ def speed_trace(
 
 
 @analyze.command("telemetry")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option("--session", type=str, default=None, help="Session type: R, Q, FP1, FP2, FP3, S, SQ")
@@ -285,7 +285,6 @@ def speed_trace(
     help="Add corner markers and labels to the chart",
 )
 def telemetry(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session: str | None,
@@ -296,6 +295,8 @@ def telemetry(
 ):
     """Generate interactive telemetry chart (speed, RPM, gear, throttle, brake) for fastest laps."""
     validate_session_or_test(gp, session, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -330,7 +331,6 @@ def telemetry(
 
 
 @analyze.command("position-changes")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option("--session", type=str, default=None, help="Session type: R (Race), S (Sprint), SQ")
@@ -351,7 +351,6 @@ def telemetry(
     help="Show only top N finishers (optional, e.g., --top-n 10). Mutually exclusive with --drivers.",
 )
 def position_changes(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session: str | None,
@@ -362,6 +361,8 @@ def position_changes(
 ):
     """Generate position changes chart showing driver positions throughout the race."""
     validate_session_or_test(gp, session, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -390,14 +391,12 @@ def position_changes(
 
 
 @analyze.command("track-map")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option("--session", type=str, default=None, help="Session type: R, Q, FP1, FP2, FP3, S, SQ")
 @click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
 @click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
 def track_map(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session: str | None,
@@ -406,6 +405,8 @@ def track_map(
 ):
     """Generate track map with numbered corner labels."""
     validate_session_or_test(gp, session, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -431,7 +432,6 @@ def track_map(
 
 
 @analyze.command("gear-shifts-map")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option("--session", type=str, default=None, help="Session type: R, Q, FP1, FP2, FP3, S, SQ")
@@ -444,7 +444,6 @@ def track_map(
     help="Driver abbreviation (exactly 1 driver, e.g., VER)",
 )
 def gear_shifts_map(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session: str | None,
@@ -454,6 +453,8 @@ def gear_shifts_map(
 ):
     """Generate gear shift visualization on track map."""
     validate_session_or_test(gp, session, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -480,7 +481,6 @@ def gear_shifts_map(
 
 
 @analyze.command("championship-possibilities")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option(
     "--championship",
@@ -494,8 +494,10 @@ def gear_shifts_map(
     required=False,
     help="Analyze standings after a specific round for 'what if' scenarios (e.g., --after-round 10)",
 )
-def championship_possibilities(workspace_id: str, year: int, championship: str, after_round: int | None):
+def championship_possibilities(year: int, championship: str, after_round: int | None):
     """Calculate who can still mathematically win the championship."""
+    workspace_id = _get_workspace_id()
+
     # Verify workspace exists
     if not workspace_exists(workspace_id):
         click.echo(
@@ -526,7 +528,6 @@ def championship_possibilities(workspace_id: str, year: int, championship: str, 
 
 
 @analyze.command("multi-lap")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -553,7 +554,6 @@ def championship_possibilities(workspace_id: str, year: int, championship: str, 
     help="Add corner markers and labels to the chart",
 )
 def multi_lap(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session_type: str | None,
@@ -577,6 +577,8 @@ def multi_lap(
         --driver VER --lap best --lap 3
     """
     validate_session_or_test(gp, session_type, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -626,7 +628,6 @@ def multi_lap(
 
 
 @analyze.command("year-compare")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option(
     "--gp",
     type=str,
@@ -657,7 +658,6 @@ def multi_lap(
     help="Add corner markers and labels to the chart",
 )
 def year_compare(
-    workspace_id: str,
     gp: str | None,
     session_type: str | None,
     test_number: int | None,
@@ -680,6 +680,8 @@ def year_compare(
         --driver VER --years 2022 --years 2024
     """
     validate_session_or_test(gp, session_type, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -714,7 +716,6 @@ def year_compare(
 
 
 @analyze.command("driver-laps")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -728,7 +729,6 @@ def year_compare(
 @click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
 @click.option("--driver", required=True, help="Driver abbreviation (e.g., VER)")
 def driver_laps(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session_type: str | None,
@@ -749,6 +749,8 @@ def driver_laps(
       pitlane analyze driver-laps --year 2024 --test 1 --day 2 --driver VER
     """
     validate_session_or_test(gp, session_type, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -772,7 +774,6 @@ def driver_laps(
 
 
 @analyze.command("team-pace")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -791,7 +792,6 @@ def driver_laps(
     "Specify multiple times: --teams Ferrari --teams Mercedes",
 )
 def team_pace(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session: str | None,
@@ -818,6 +818,8 @@ def team_pace(
     if gp is not None and session is None and test_number is None:
         session = "R"
     validate_session_or_test(gp, session, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
@@ -848,7 +850,6 @@ _QUALIFYING_SESSION_TYPES = {"Q", "SQ", "SS"}
 
 
 @analyze.command("qualifying-results")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -861,7 +862,6 @@ _QUALIFYING_SESSION_TYPES = {"Q", "SQ", "SS"}
 @click.option("--test", "test_number", type=int, default=None, help="Testing event number (e.g., 1 or 2)")
 @click.option("--day", "session_number", type=int, default=None, help="Day/session within testing event (1-3)")
 def qualifying_results(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session: str | None,
@@ -894,6 +894,8 @@ def qualifying_results(
 
     validate_session_or_test(gp, session, test_number, session_number)
 
+    workspace_id = _get_workspace_id()
+
     if not workspace_exists(workspace_id):
         click.echo(json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}), err=True)
         sys.exit(1)
@@ -918,7 +920,6 @@ def qualifying_results(
 
 
 @analyze.command("season-summary")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option(
     "--type",
@@ -927,16 +928,18 @@ def qualifying_results(
     default="drivers",
     help="Summary type: drivers or constructors (default: drivers)",
 )
-def season_summary(workspace_id: str, year: int, summary_type: str):
+def season_summary(year: int, summary_type: str):
     """Generate season summary visualization with per-round championship points.
 
     Loads results for each completed race (and sprint) via FastF1 and produces
     an interactive two-panel Plotly heatmap saved as an HTML file.
 
     Example:
-      pitlane analyze season-summary --workspace-id $PITLANE_WORKSPACE_ID --year 2024
-      pitlane analyze season-summary --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --type constructors
+      pitlane analyze season-summary --year 2024
+      pitlane analyze season-summary --year 2024 --type constructors
     """
+    workspace_id = _get_workspace_id()
+
     if not workspace_exists(workspace_id):
         click.echo(
             json.dumps({"error": f"Workspace does not exist for workspace ID: {workspace_id}"}),
