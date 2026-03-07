@@ -133,11 +133,12 @@ class F1Agent:
 
         # PreToolUse is always registered — it's the only mechanism that can block
         # tools listed in allowed_tools (the SDK skips can_use_tool for those).
+        sandbox_enabled = not self.disable_sandbox
         hooks: dict[str, list[HookMatcher]] = {
             "PreToolUse": [
                 HookMatcher(
                     matcher=None,
-                    hooks=[make_pre_tool_use_hook(workspace_dir, self.workspace_id, skills_dir)],
+                    hooks=[make_pre_tool_use_hook(workspace_dir, self.workspace_id, skills_dir, sandbox_enabled)],
                 )
             ],
         }
@@ -152,7 +153,7 @@ class F1Agent:
             allowed_tools=["Skill", "Bash", "Read", "Write", "WebFetch", "WebSearch"],
             # can_use_tool handles tools NOT in allowed_tools; PreToolUse hook above
             # handles the full list (SDK skips can_use_tool for allowed_tools).
-            can_use_tool=make_can_use_tool_callback(workspace_dir, self.workspace_id, skills_dir),
+            can_use_tool=make_can_use_tool_callback(workspace_dir, self.workspace_id, skills_dir, sandbox_enabled),
             hooks=hooks,
             resume=resume_session_id,
             system_prompt={

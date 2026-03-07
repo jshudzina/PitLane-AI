@@ -13,6 +13,9 @@ from pitlane_agent.tool_permissions import (
     can_use_tool,
 )
 
+SANDBOX_OFF = {"sandbox_enabled": False}
+SANDBOX_ON = {"sandbox_enabled": True}
+
 
 class TestCanUseToolWebFetchAllowed:
     """Tests for _can_use_tool with allowed WebFetch domains."""
@@ -183,25 +186,45 @@ class TestCanUseToolOtherTools:
     """Tests for _can_use_tool with non-WebFetch tools."""
 
     @pytest.mark.asyncio
-    async def test_bash_tool_allowed(self):
-        """Test that Bash tool allows pitlane commands."""
+    async def test_bash_tool_allowed_sandbox_off(self):
+        """Test that Bash allows pitlane commands when sandbox is disabled."""
         result = await can_use_tool(
             "Bash",
             {"command": "pitlane workspace list"},
-            {},
+            SANDBOX_OFF,
         )
         assert isinstance(result, PermissionResultAllow)
 
     @pytest.mark.asyncio
-    async def test_bash_tool_denied(self):
-        """Test that Bash tool denies non-pitlane commands."""
+    async def test_bash_tool_denied_sandbox_off(self):
+        """Test that Bash denies non-pitlane commands when sandbox is disabled."""
         result = await can_use_tool(
             "Bash",
             {"command": "ls -la"},
-            {},
+            SANDBOX_OFF,
         )
         assert isinstance(result, PermissionResultDeny)
         assert "pitlane" in result.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_bash_tool_allowed_any_command_sandbox_on(self):
+        """Test that any Bash command is allowed when sandbox is enabled (OS provides isolation)."""
+        result = await can_use_tool(
+            "Bash",
+            {"command": "ls -la"},
+            SANDBOX_ON,
+        )
+        assert isinstance(result, PermissionResultAllow)
+
+    @pytest.mark.asyncio
+    async def test_bash_tool_allowed_pitlane_sandbox_on(self):
+        """Test that pitlane commands are allowed when sandbox is enabled."""
+        result = await can_use_tool(
+            "Bash",
+            {"command": "pitlane fetch session-info --year 2025 --gp Monaco --session R"},
+            SANDBOX_ON,
+        )
+        assert isinstance(result, PermissionResultAllow)
 
     @pytest.mark.asyncio
     async def test_read_tool_allowed(self):
@@ -534,73 +557,33 @@ class TestPermissionDenialLogging:
         assert len([r for r in caplog.records if r.levelname == "WARNING"]) == 0
 
 
-class TestBashEnvironmentVariableValidation:
-    """Tests for environment variable validation in Bash commands."""
+class TestIsAllowedBashCommand:
+    """Tests for _is_allowed_bash_command (used when sandbox is disabled)."""
 
-    def test_bash_allowed_env_vars_pitlane_session_id(self):
-        """Test that PITLANE_WORKSPACE_ID is allowed."""
-        assert _is_allowed_bash_command("PITLANE_WORKSPACE_ID=abc123 pitlane analyze")
+    def test_pitlane_subcommand_allowed(self):
+        assert _is_allowed_bash_command("pitlane fetch session-info --year 2025 --gp Monaco --session R")
 
-    def test_bash_allowed_env_vars_pitlane_cache_dir(self):
-        """Test that PITLANE_CACHE_DIR is allowed."""
-        assert _is_allowed_bash_command("PITLANE_CACHE_DIR=/tmp pitlane drivers")
+    def test_pitlane_analyze_allowed(self):
+        assert _is_allowed_bash_command("pitlane analyze lap-times --year 2025 --gp Monaco --session R")
 
-    def test_bash_allowed_env_vars_pitlane_tracing(self):
-        """Test that PITLANE_TRACING_ENABLED is allowed."""
-        assert _is_allowed_bash_command("PITLANE_TRACING_ENABLED=1 pitlane lap-times")
+    def test_pitlane_bare_allowed(self):
+        assert _is_allowed_bash_command("pitlane")
 
-    def test_bash_allowed_env_vars_pitlane_span_processor(self):
-        """Test that PITLANE_SPAN_PROCESSOR is allowed."""
-        assert _is_allowed_bash_command("PITLANE_SPAN_PROCESSOR=batch pitlane schedule")
+    def test_pitlane_with_whitespace_allowed(self):
+        assert _is_allowed_bash_command("  pitlane fetch driver-info  ")
 
-    def test_bash_multiple_allowed_env_vars(self):
-        """Test that multiple whitelisted env vars are allowed."""
-        assert _is_allowed_bash_command("PITLANE_WORKSPACE_ID=abc PITLANE_CACHE_DIR=/tmp pitlane analyze")
+    def test_ls_denied(self):
+        assert not _is_allowed_bash_command("ls -la")
 
-    def test_bash_blocked_env_var_pythonpath(self):
-        """Test that PYTHONPATH is blocked."""
-        assert not _is_allowed_bash_command("PYTHONPATH=/evil pitlane analyze")
+    def test_cat_denied(self):
+        assert not _is_allowed_bash_command("cat /etc/passwd")
 
-    def test_bash_blocked_env_var_ld_preload(self):
-        """Test that LD_PRELOAD is blocked."""
-        assert not _is_allowed_bash_command("LD_PRELOAD=/malicious.so pitlane drivers")
-
-    def test_bash_blocked_env_var_path(self):
-        """Test that PATH is blocked."""
-        assert not _is_allowed_bash_command("PATH=/tmp pitlane lap-times")
-
-    def test_bash_blocked_env_var_home(self):
-        """Test that HOME is blocked."""
-        assert not _is_allowed_bash_command("HOME=/tmp pitlane analyze")
-
-    def test_bash_blocked_env_var_ld_library_path(self):
-        """Test that LD_LIBRARY_PATH is blocked."""
-        assert not _is_allowed_bash_command("LD_LIBRARY_PATH=/evil pitlane schedule")
-
-    def test_bash_mixed_allowed_and_blocked_env_vars(self):
-        """Test commands with both allowed and blocked env vars are rejected."""
-        assert not _is_allowed_bash_command("PITLANE_WORKSPACE_ID=abc PYTHONPATH=/evil pitlane analyze")
-
-    def test_bash_mixed_blocked_and_allowed_env_vars(self):
-        """Test commands with blocked vars first are rejected."""
-        assert not _is_allowed_bash_command("PYTHONPATH=/evil PITLANE_WORKSPACE_ID=abc pitlane analyze")
-
-    def test_bash_no_env_vars(self):
-        """Test that commands without env vars still work."""
-        assert _is_allowed_bash_command("pitlane analyze")
-
-    def test_bash_only_env_vars_no_command(self):
-        """Test that only env vars without a command is rejected."""
-        assert not _is_allowed_bash_command("PITLANE_WORKSPACE_ID=abc")
-
-    def test_bash_env_var_with_non_pitlane_command(self):
-        """Test that allowed env vars with non-pitlane command are rejected."""
-        assert not _is_allowed_bash_command("PITLANE_WORKSPACE_ID=abc ls -la")
-
-    def test_bash_empty_command(self):
-        """Test that empty command is rejected."""
+    def test_empty_denied(self):
         assert not _is_allowed_bash_command("")
 
-    def test_bash_whitespace_only(self):
-        """Test that whitespace-only command is rejected."""
+    def test_whitespace_only_denied(self):
         assert not _is_allowed_bash_command("   ")
+
+    def test_env_var_prefix_denied(self):
+        """Env var prefixes are not supported — use pitlane directly."""
+        assert not _is_allowed_bash_command("PITLANE_TRACING_ENABLED=1 pitlane analyze")
