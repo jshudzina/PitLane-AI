@@ -19,32 +19,7 @@ Use this skill when users ask about:
 
 **Complementary with f1-analyst**: This skill provides "when and where" information. Use the f1-analyst skill for race results, lap times, and performance analysis.
 
-## Step 1: Create or Get Workspace Workspace ID
-
-**IMPORTANT**: Before running any fetch commands, you need a workspace ID.
-
-### If this is a new conversation:
-Create a new workspace and capture the workspace ID from the output:
-
-```bash
-pitlane workspace create
-```
-
-This returns JSON like:
-```json
-{
-  "workspace_id": "abc-123-def",
-  "workspace_path": "/Users/user/.pitlane/workspaces/abc-123-def",
-  "created_at": "2024-01-27T10:30:00Z"
-}
-```
-
-**Extract the `workspace_id` from this output - you'll use it in all subsequent commands.**
-
-### If continuing an existing conversation:
-Use the same workspace ID you created earlier in this conversation.
-
-## Step 2: Identify the Query Parameters
+## Step 1: Identify the Query Parameters
 
 Extract from the user's question:
 - **Year**: e.g., 2024, 2023 (required)
@@ -54,9 +29,7 @@ Extract from the user's question:
 
 If the user doesn't specify a year, default to the most recent completed or current season.
 
-## Step 3: Get Schedule Using PitLane CLI
-
-Use the PitLane CLI to fetch schedule data. The workspace is automatically resolved from the `PITLANE_WORKSPACE_ID` environment variable.
+## Step 2: Get Schedule Using PitLane CLI
 
 ### Get Full Season Calendar
 ```bash
@@ -82,9 +55,9 @@ pitlane fetch event-schedule --year 2024 --no-testing
 ```
 Returns only championship rounds without pre-season testing.
 
-After fetching, data is saved to the workspace at `{workspace}/data/schedule.json` which you can read using the Read tool.
+The CLI returns a JSON result with a `data_file` path. Use the Read tool to read that file for the full schedule data.
 
-## Step 4: Format Your Response
+## Step 3: Format Your Response
 
 Structure your response based on the question:
 

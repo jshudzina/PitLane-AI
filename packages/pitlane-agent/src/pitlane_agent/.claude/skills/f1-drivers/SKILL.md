@@ -19,32 +19,7 @@ Use this skill when users ask about:
 
 **Complementary with f1-analyst**: This skill provides driver reference data. Use f1-analyst for performance analysis (lap times, race results).
 
-## Step 1: Create or Get Workspace Workspace ID
-
-**IMPORTANT**: Before running any fetch commands, you need a workspace ID.
-
-### If this is a new conversation:
-Create a new workspace and capture the workspace ID from the output:
-
-```bash
-pitlane workspace create
-```
-
-This returns JSON like:
-```json
-{
-  "workspace_id": "abc-123-def",
-  "workspace_path": "/Users/user/.pitlane/workspaces/abc-123-def",
-  "created_at": "2024-01-27T10:30:00Z"
-}
-```
-
-**Extract the `workspace_id` from this output - you'll use it in all subsequent commands.**
-
-### If continuing an existing conversation:
-Use the same workspace ID you created earlier in this conversation.
-
-## Step 2: Identify Query Parameters
+## Step 1: Identify Query Parameters
 
 Extract from the user's question:
 - **Driver Code**: 3-letter abbreviation (e.g., "VER", "HAM", "LEC")
@@ -52,9 +27,7 @@ Extract from the user's question:
 - **Limit**: Number of results (default: 100)
 - **Offset**: Pagination offset (default: 0)
 
-## Step 3: Get Driver Data Using PitLane CLI
-
-The workspace is automatically resolved from the `PITLANE_WORKSPACE_ID` environment variable.
+## Step 2: Get Driver Data Using PitLane CLI
 
 ### Search by Driver Code
 ```bash
@@ -80,9 +53,9 @@ pitlane fetch driver-info --limit 100 --offset 100
 ```
 Gets drivers 101-200 from the complete dataset.
 
-After fetching, data is saved to the workspace at `{workspace}/data/drivers.json` which you can read using the Read tool.
+The CLI returns a JSON result with a `data_file` path. Use the Read tool to read that file for the full driver data.
 
-## Step 4: Format Your Response
+## Step 3: Format Your Response
 
 ### For Single Driver Queries
 ```markdown
