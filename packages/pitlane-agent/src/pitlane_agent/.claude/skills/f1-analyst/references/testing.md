@@ -39,34 +39,34 @@ All analysis commands work with `--test N --day N` instead of `--gp` and `--sess
 
 ```bash
 # Session overview
-pitlane fetch session-info --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 2
+pitlane fetch session-info --year 2026 --test 1 --day 2
 
 # Lap time scatter plot
-pitlane analyze lap-times --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 1 --drivers VER --drivers HAM
+pitlane analyze lap-times --year 2026 --test 1 --day 1 --drivers VER --drivers HAM
 
 # Lap time distributions
-pitlane analyze lap-times-distribution --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 2
+pitlane analyze lap-times-distribution --year 2026 --test 1 --day 2
 
 # Speed trace comparison
-pitlane analyze speed-trace --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 2 --day 3 --drivers VER --drivers LEC
+pitlane analyze speed-trace --year 2026 --test 2 --day 3 --drivers VER --drivers LEC
 
 # Gear shifts on track
-pitlane analyze gear-shifts-map --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 1 --drivers VER
+pitlane analyze gear-shifts-map --year 2026 --test 1 --day 1 --drivers VER
 
 # Track map
-pitlane analyze track-map --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 1
+pitlane analyze track-map --year 2026 --test 1 --day 1
 
 # Multi-lap comparison (one driver, multiple laps within the testing session)
-pitlane analyze multi-lap --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 2 --driver VER --lap best --lap 5
+pitlane analyze multi-lap --year 2026 --test 1 --day 2 --driver VER --lap best --lap 5
 
 # Year-over-year comparison at the same test (same test number and day, multiple seasons)
-pitlane analyze year-compare --workspace-id $PITLANE_WORKSPACE_ID --test 1 --day 2 --driver VER --years 2024 --years 2026
+pitlane analyze year-compare --test 1 --day 2 --driver VER --years 2024 --years 2026
 
 # Full telemetry comparison
-pitlane analyze telemetry --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 2 --drivers VER --drivers HAM
+pitlane analyze telemetry --year 2026 --test 1 --day 2 --drivers VER --drivers HAM
 
 # Race control messages (flags, stoppages)
-pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --year 2026 --test 1 --day 2
+pitlane fetch race-control --year 2026 --test 1 --day 2
 ```
 
 **Important:** Do NOT pass "Pre-Season Testing" as `--gp` — it will match the wrong event. Always use `--test`/`--day`.

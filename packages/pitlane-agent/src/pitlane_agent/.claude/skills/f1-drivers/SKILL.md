@@ -54,29 +54,29 @@ Extract from the user's question:
 
 ## Step 3: Get Driver Data Using PitLane CLI
 
-All commands require a `--workspace-id` parameter which is provided by the F1Agent managing your workspace.
+The workspace is automatically resolved from the `PITLANE_WORKSPACE_ID` environment variable.
 
 ### Search by Driver Code
 ```bash
-pitlane fetch driver-info --workspace-id $PITLANE_WORKSPACE_ID --driver-code VER
+pitlane fetch driver-info --driver-code VER
 ```
 Returns information for Max Verstappen and saves to workspace.
 
 ### Get All Drivers from a Season
 ```bash
-pitlane fetch driver-info --workspace-id $PITLANE_WORKSPACE_ID --season 2024
+pitlane fetch driver-info --season 2024
 ```
 Returns all drivers who participated in the 2024 season (~20 drivers).
 
 ### Get All F1 Drivers in History
 ```bash
-pitlane fetch driver-info --workspace-id $PITLANE_WORKSPACE_ID --limit 50
+pitlane fetch driver-info --limit 50
 ```
 Returns up to 50 drivers from F1 history (1950-present).
 
 ### Pagination for Large Results
 ```bash
-pitlane fetch driver-info --workspace-id $PITLANE_WORKSPACE_ID --limit 100 --offset 100
+pitlane fetch driver-info --limit 100 --offset 100
 ```
 Gets drivers 101-200 from the complete dataset.
 

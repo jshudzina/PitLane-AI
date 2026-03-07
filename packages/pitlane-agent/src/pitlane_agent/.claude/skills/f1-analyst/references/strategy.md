@@ -11,7 +11,6 @@ Visualize pit stop timing and tyre compound usage across all drivers in a race.
 **Command:**
 ```bash
 pitlane analyze tyre-strategy \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R
@@ -107,7 +106,6 @@ Track how driver positions evolve throughout a race, showing overtakes and pit s
 **Command:**
 ```bash
 pitlane analyze position-changes \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R
@@ -204,7 +202,6 @@ Compare lap time distributions between teams to identify pace hierarchy and cons
 **Command:**
 ```bash
 pitlane analyze team-pace \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R
@@ -213,7 +210,6 @@ pitlane analyze team-pace \
 **With team filter:**
 ```bash
 pitlane analyze team-pace \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R \
@@ -292,7 +288,6 @@ Show each driver's final qualifying classification and gap to pole, colored by w
 **Command:**
 ```bash
 pitlane analyze qualifying-results \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session Q

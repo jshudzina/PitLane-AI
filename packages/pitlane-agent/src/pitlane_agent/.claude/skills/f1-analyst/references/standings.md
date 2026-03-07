@@ -12,20 +12,17 @@ Calculate which drivers or constructors can still mathematically win their respe
 ```bash
 # Current standings
 pitlane analyze championship-possibilities \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --championship drivers
 
 # Historical "what if" analysis after a specific round
 pitlane analyze championship-possibilities \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --championship drivers \
   --after-round 10
 ```
 
 **Parameters:**
-- `--workspace-id`: Workspace ID (required)
 - `--year`: Championship year (required)
 - `--championship`: Type - "drivers" or "constructors" (default: drivers)
 - `--after-round`: Optional round number for historical "what if" analysis
@@ -87,18 +84,15 @@ Visualize championship points scored per competitor at each round of the season 
 ```bash
 # Drivers championship heatmap (default)
 pitlane analyze season-summary \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024
 
 # Constructors championship heatmap
 pitlane analyze season-summary \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --type constructors
 ```
 
 **Parameters:**
-- `--workspace-id`: Workspace ID (required)
 - `--year`: Championship year (required)
 - `--type`: Summary type — `drivers` or `constructors` (default: `drivers`)
 
@@ -151,12 +145,10 @@ Rank all races in a season by a composite "wildness" score derived from overtake
 **Command:**
 ```bash
 pitlane fetch season-summary \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024
 ```
 
 **Parameters:**
-- `--workspace-id`: Workspace ID (required)
 - `--year`: Championship year (required)
 
 **Returns:**

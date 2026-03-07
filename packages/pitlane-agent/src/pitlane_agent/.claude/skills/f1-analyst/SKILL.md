@@ -118,7 +118,7 @@ Fetch session info when you need context about:
 
 **Command:**
 ```bash
-pitlane fetch session-info --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --gp Monaco --session R
+pitlane fetch session-info --year 2024 --gp Monaco --session R
 ```
 
 **Returns:**
@@ -156,7 +156,7 @@ After fetching data, you can read workspace files using the Read tool:
 To get driver abbreviations, names, and teams for a specific season:
 
 ```bash
-pitlane fetch driver-info --workspace-id $PITLANE_WORKSPACE_ID --season 2024
+pitlane fetch driver-info --season 2024
 ```
 
 Returns JSON with driver codes, full names, nationalities, teams, and Wikipedia links. Data is saved to workspace.

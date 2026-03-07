@@ -11,7 +11,6 @@ Compare speed profiles between drivers across track distance to identify perform
 **Command:**
 ```bash
 pitlane analyze speed-trace \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp "Spanish Grand Prix" \
   --session Q \
@@ -52,7 +51,6 @@ Visualize gear usage overlaid on the circuit layout, showing which gear a driver
 **Command:**
 ```bash
 pitlane analyze gear-shifts-map \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session Q \
@@ -110,7 +108,6 @@ Compare all five telemetry channels (Speed, RPM, Gear, Throttle, Brake) between 
 **Command:**
 ```bash
 pitlane analyze telemetry \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session Q \
@@ -169,7 +166,6 @@ Fetch structured per-lap data for a single driver — no chart generated. Use th
 **Command:**
 ```bash
 pitlane analyze driver-laps \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R \
@@ -217,7 +213,6 @@ Compare specific laps for a single driver within one session — useful for comp
 **Command:**
 ```bash
 pitlane analyze multi-lap \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session Q \
@@ -266,7 +261,6 @@ Compare a driver's best lap at the same track across multiple seasons. Best suit
 **Command:**
 ```bash
 pitlane analyze year-compare \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --gp Monza \
   --session Q \
   --driver VER \
@@ -314,7 +308,6 @@ When the user's question implies a comparison but doesn't specify lap numbers (e
 **Step 1 — Fetch lap inventory:**
 ```bash
 pitlane analyze driver-laps \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 --gp Monaco --session R --driver VER
 ```
 

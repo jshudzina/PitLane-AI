@@ -268,7 +268,7 @@ class TestEventScheduleCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", "2024"])
+            result = runner.invoke(cli, ["--year", "2024"], env={"PITLANE_WORKSPACE_ID": "test-session"})
 
             assert result.exit_code == 0
 
@@ -319,7 +319,11 @@ class TestEventScheduleCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", "2024", "--round", "6"])
+            result = runner.invoke(
+                cli,
+                ["--year", "2024", "--round", "6"],
+                env={"PITLANE_WORKSPACE_ID": "test-session"},
+            )
 
             assert result.exit_code == 0
             mock_get_schedule.assert_called_once_with(
@@ -365,7 +369,11 @@ class TestEventScheduleCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", "2024", "--country", "Italy"])
+            result = runner.invoke(
+                cli,
+                ["--year", "2024", "--country", "Italy"],
+                env={"PITLANE_WORKSPACE_ID": "test-session"},
+            )
 
             assert result.exit_code == 0
             mock_get_schedule.assert_called_once_with(
@@ -411,7 +419,11 @@ class TestEventScheduleCLI:
             mock_open.return_value.__exit__ = Mock(return_value=False)
 
             runner = CliRunner()
-            result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", "2024", "--no-testing"])
+            result = runner.invoke(
+                cli,
+                ["--year", "2024", "--no-testing"],
+                env={"PITLANE_WORKSPACE_ID": "test-session"},
+            )
 
             assert result.exit_code == 0
             mock_get_schedule.assert_called_once_with(
@@ -427,7 +439,7 @@ class TestEventScheduleCLI:
         mock_exists.return_value = False
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["--workspace-id", "nonexistent", "--year", "2024"])
+        result = runner.invoke(cli, ["--year", "2024"], env={"PITLANE_WORKSPACE_ID": "nonexistent"})
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -440,7 +452,7 @@ class TestEventScheduleCLI:
         mock_exists.return_value = True
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", "1949"])
+        result = runner.invoke(cli, ["--year", "1949"], env={"PITLANE_WORKSPACE_ID": "test-session"})
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -456,7 +468,7 @@ class TestEventScheduleCLI:
         current_year = datetime.now().year
         future_year = current_year + 3
 
-        result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", str(future_year)])
+        result = runner.invoke(cli, ["--year", str(future_year)], env={"PITLANE_WORKSPACE_ID": "test-session"})
 
         assert result.exit_code == 1
         error = json.loads(result.output)
@@ -478,21 +490,12 @@ class TestEventScheduleCLI:
         mock_get_schedule.side_effect = Exception("FastF1 error")
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["--workspace-id", "test-session", "--year", "2024"])
+        result = runner.invoke(cli, ["--year", "2024"], env={"PITLANE_WORKSPACE_ID": "test-session"})
 
         assert result.exit_code == 1
         error = json.loads(result.output)
         assert "error" in error
         assert "FastF1 error" in error["error"]
-
-    def test_cli_missing_required_args(self):
-        """Test CLI with missing required arguments."""
-        runner = CliRunner()
-        # Test missing --workspace-id
-        result = runner.invoke(cli, ["--year", "2024"])
-
-        assert result.exit_code != 0
-        assert "Missing option" in result.output or "Error" in result.output
 
     @patch("pitlane_agent.cli_fetch.workspace_exists")
     def test_cli_missing_year(self, mock_exists):
@@ -501,7 +504,7 @@ class TestEventScheduleCLI:
 
         runner = CliRunner()
         # Test missing --year
-        result = runner.invoke(cli, ["--workspace-id", "test-session"])
+        result = runner.invoke(cli, [], env={"PITLANE_WORKSPACE_ID": "test-session"})
 
         assert result.exit_code != 0
         assert "Missing option" in result.output or "Error" in result.output
