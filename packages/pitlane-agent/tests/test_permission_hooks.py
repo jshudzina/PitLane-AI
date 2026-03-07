@@ -14,6 +14,10 @@ class TestMakePreToolUseHook:
     def hook(self):
         return make_pre_tool_use_hook("/tmp/workspace", "ws-123")
 
+    @pytest.fixture
+    def no_sandbox_hook(self):
+        return make_pre_tool_use_hook("/tmp/workspace", "ws-123", sandbox_enabled=False)
+
     def test_returns_callable(self):
         hook = make_pre_tool_use_hook("/tmp/workspace", "ws-123")
         assert callable(hook)
@@ -66,8 +70,8 @@ class TestMakePreToolUseHook:
         assert result == {"continue_": True}
 
     @pytest.mark.asyncio
-    async def test_denies_echo_non_whitelisted_env_var(self, hook):
-        result = await hook(
+    async def test_denies_echo_non_whitelisted_env_var(self, no_sandbox_hook):
+        result = await no_sandbox_hook(
             {"tool_name": "Bash", "tool_input": {"command": "echo $HOME"}},
             "tool-2",
             {},
@@ -75,9 +79,9 @@ class TestMakePreToolUseHook:
         assert result["continue_"] is False
 
     @pytest.mark.asyncio
-    async def test_denies_echo_whitelisted_var_with_trailing_tokens(self, hook):
+    async def test_denies_echo_whitelisted_var_with_trailing_tokens(self, no_sandbox_hook):
         """Trailing tokens after the var name must be blocked (injection guard)."""
-        result = await hook(
+        result = await no_sandbox_hook(
             {"tool_name": "Bash", "tool_input": {"command": "echo $PITLANE_WORKSPACE_ID ; rm -rf ~"}},
             "tool-2",
             {},
@@ -85,8 +89,8 @@ class TestMakePreToolUseHook:
         assert result["continue_"] is False
 
     @pytest.mark.asyncio
-    async def test_denies_non_pitlane_bash_command(self, hook):
-        result = await hook(
+    async def test_denies_non_pitlane_bash_command(self, no_sandbox_hook):
+        result = await no_sandbox_hook(
             {"tool_name": "Bash", "tool_input": {"command": "rm -rf /"}},
             "tool-2",
             {},
@@ -254,7 +258,7 @@ class TestMakeCanUseToolCallback:
 
     @pytest.mark.asyncio
     async def test_denies_non_pitlane_bash(self):
-        callback = make_can_use_tool_callback("/tmp/ws", "ws-123")
+        callback = make_can_use_tool_callback("/tmp/ws", "ws-123", sandbox_enabled=False)
         result = await callback("Bash", {"command": "cat /etc/passwd"}, {})
         assert isinstance(result, PermissionResultDeny)
 

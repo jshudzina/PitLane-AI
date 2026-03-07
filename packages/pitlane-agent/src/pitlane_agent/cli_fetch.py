@@ -21,15 +21,15 @@ from pitlane_agent.commands.fetch import (
     get_session_info,
 )
 from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
+from pitlane_agent.utils.cli_helpers import get_workspace_id as _get_workspace_id
 from pitlane_agent.utils.constants import MIN_F1_YEAR
 from pitlane_agent.utils.fastf1_helpers import build_data_path, validate_session_or_test
 
 
-def _validate_standings_request(workspace_id: str, year: int) -> Path:
+def _validate_standings_request(year: int) -> Path:
     """Validate workspace and year for standings fetch commands.
 
     Args:
-        workspace_id: Workspace ID
         year: Championship year
 
     Returns:
@@ -38,6 +38,8 @@ def _validate_standings_request(workspace_id: str, year: int) -> Path:
     Raises:
         SystemExit: If validation fails
     """
+    workspace_id = _get_workspace_id()
+
     # Verify workspace exists
     if not workspace_exists(workspace_id):
         click.echo(
@@ -65,7 +67,6 @@ def fetch():
 
 
 @fetch.command()
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -79,7 +80,6 @@ def fetch():
     "--day", "session_number", type=int, default=None, help="Day/session within testing event (e.g., 1, 2, 3)"
 )
 def session_info(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session: str | None,
@@ -88,6 +88,8 @@ def session_info(
 ):
     """Fetch session information and store in workspace."""
     validate_session_or_test(gp, session, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     # Verify workspace exists
     if not workspace_exists(workspace_id):
@@ -137,7 +139,6 @@ def session_info(
 
 
 @fetch.command()
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option(
     "--driver-code",
     type=str,
@@ -163,13 +164,14 @@ def session_info(
     help="Number of drivers to skip for pagination (default: 0)",
 )
 def driver_info(
-    workspace_id: str,
     driver_code: str | None,
     season: int | None,
     limit: int,
     offset: int,
 ):
     """Fetch driver information and store in workspace."""
+    workspace_id = _get_workspace_id()
+
     # Verify workspace exists
     if not workspace_exists(workspace_id):
         click.echo(
@@ -218,7 +220,6 @@ def driver_info(
 
 
 @fetch.command()
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option(
     "--year",
     type=int,
@@ -244,13 +245,14 @@ def driver_info(
     help="Include testing sessions (default: True)",
 )
 def event_schedule(
-    workspace_id: str,
     year: int,
     round_number: int | None,
     country: str | None,
     include_testing: bool,
 ):
     """Fetch event schedule and store in workspace."""
+    workspace_id = _get_workspace_id()
+
     # Verify workspace exists
     if not workspace_exists(workspace_id):
         click.echo(
@@ -298,7 +300,6 @@ def event_schedule(
 
 
 @fetch.command("driver-standings")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Championship year (e.g., 2024)")
 @click.option(
     "--round",
@@ -307,10 +308,10 @@ def event_schedule(
     default=None,
     help="Filter by specific round number (default: final standings)",
 )
-def driver_standings(workspace_id: str, year: int, round_number: int | None):
+def driver_standings(year: int, round_number: int | None):
     """Fetch driver championship standings and store in workspace."""
     # Validate request
-    workspace_path = _validate_standings_request(workspace_id, year)
+    workspace_path = _validate_standings_request(year)
 
     try:
         # Fetch standings
@@ -337,7 +338,6 @@ def driver_standings(workspace_id: str, year: int, round_number: int | None):
 
 
 @fetch.command("constructor-standings")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Championship year (e.g., 2024)")
 @click.option(
     "--round",
@@ -346,10 +346,10 @@ def driver_standings(workspace_id: str, year: int, round_number: int | None):
     default=None,
     help="Filter by specific round number (default: final standings)",
 )
-def constructor_standings(workspace_id: str, year: int, round_number: int | None):
+def constructor_standings(year: int, round_number: int | None):
     """Fetch constructor championship standings and store in workspace."""
     # Validate request
-    workspace_path = _validate_standings_request(workspace_id, year)
+    workspace_path = _validate_standings_request(year)
 
     try:
         # Fetch standings
@@ -376,7 +376,6 @@ def constructor_standings(workspace_id: str, year: int, round_number: int | None
 
 
 @fetch.command("race-control")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Season year (e.g., 2024)")
 @click.option("--gp", type=str, default=None, help="Grand Prix name (e.g., Monaco)")
 @click.option(
@@ -432,7 +431,6 @@ def constructor_standings(workspace_id: str, year: int, round_number: int | None
     help="Filter by track sector number",
 )
 def race_control(
-    workspace_id: str,
     year: int,
     gp: str | None,
     session: str | None,
@@ -448,6 +446,8 @@ def race_control(
 ):
     """Fetch race control messages and store in workspace."""
     validate_session_or_test(gp, session, test_number, session_number)
+
+    workspace_id = _get_workspace_id()
 
     # Verify workspace exists
     if not workspace_exists(workspace_id):
@@ -507,11 +507,10 @@ def race_control(
 
 
 @fetch.command("season-summary")
-@click.option("--workspace-id", required=True, help="Workspace ID")
 @click.option("--year", type=int, required=True, help="Championship year (e.g., 2024)")
-def season_summary(workspace_id: str, year: int):
+def season_summary(year: int):
     """Fetch season summary with races ranked by wildness score."""
-    workspace_path = _validate_standings_request(workspace_id, year)
+    workspace_path = _validate_standings_request(year)
 
     try:
         summary = get_season_summary(year)

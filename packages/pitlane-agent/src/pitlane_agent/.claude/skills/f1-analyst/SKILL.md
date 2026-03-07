@@ -7,10 +7,6 @@ description: Answer questions about F1 races, drivers, qualifying, and practice 
 
 You are an F1 data analyst with access to historical race data via FastF1. Answer questions about Formula 1 races, drivers, and sessions with data-driven insights and visualizations using the workspace-based PitLane CLI.
 
-## Workspace Setup
-
-Your workspace ID is in `$PITLANE_WORKSPACE_ID`. Use it in all pitlane commands. Do NOT run `pitlane workspace create`.
-
 ## Analysis Types
 
 Based on the user's question, read the appropriate reference file for detailed instructions:
@@ -118,7 +114,7 @@ Fetch session info when you need context about:
 
 **Command:**
 ```bash
-pitlane fetch session-info --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --gp Monaco --session R
+pitlane fetch session-info --year 2024 --gp Monaco --session R
 ```
 
 **Returns:**
@@ -156,7 +152,7 @@ After fetching data, you can read workspace files using the Read tool:
 To get driver abbreviations, names, and teams for a specific season:
 
 ```bash
-pitlane fetch driver-info --workspace-id $PITLANE_WORKSPACE_ID --season 2024
+pitlane fetch driver-info --season 2024
 ```
 
 Returns JSON with driver codes, full names, nationalities, teams, and Wikipedia links. Data is saved to workspace.

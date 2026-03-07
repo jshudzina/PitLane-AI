@@ -14,6 +14,18 @@ from pitlane_agent import tracing
 # Module logger
 logger = logging.getLogger(__name__)
 
+# FastF1 makes direct HTTP calls (not via Claude tools). These domains cannot
+# be filtered by the SDK bash sandbox without a proxy (tracked in #118).
+# This constant is not yet used — it documents the domains for the future
+# proxy-based filtering implementation.
+FASTF1_NETWORK_DOMAINS = [
+    "livetiming.formula1.com",  # F1 live timing primary source
+    "livetiming-static.formula1.com",  # Static live timing files
+    "api.formula1.com",  # F1 official API (fastf1 >= 3.4)
+    "api.ergast.com",  # Historical data (legacy, still used)
+    "raw.githubusercontent.com",  # fastf1 datasets (driver numbers, etc.)
+]
+
 # Allowed domains for WebFetch tool
 ALLOWED_WEBFETCH_DOMAINS = {
     "wikipedia.org",
@@ -36,64 +48,21 @@ ALLOWED_WEBSEARCH_DOMAINS = {
     "api.fia.com",
 }
 
-# Allowed environment variables for Bash commands
-# Only these environment variables can be set when running pitlane CLI commands
-ALLOWED_ENV_VARS = {
-    "PITLANE_WORKSPACE_ID",
-    "PITLANE_CACHE_DIR",
-    "PITLANE_TRACING_ENABLED",
-    "PITLANE_SPAN_PROCESSOR",
-}
-
 
 def _is_allowed_bash_command(command: str) -> bool:
     """Check if Bash command is allowed (pitlane CLI only).
 
-    Validates that:
-    1. Only whitelisted environment variables are used
-    2. The command starts with "pitlane "
+    Used only when the OS sandbox is disabled. When the sandbox is active,
+    filesystem and network isolation is enforced at the OS level instead.
 
     Args:
         command: The bash command to validate.
 
     Returns:
-        True if command is allowed, False otherwise.
+        True if command starts with "pitlane", False otherwise.
     """
-    if not command:
-        return False
-
     cmd = command.strip()
-    parts = cmd.split()
-
-    # Extract and validate environment variables
-    env_vars = []
-    for i, part in enumerate(parts):
-        if "=" not in part:
-            # Found the actual command (not an env var assignment)
-            cmd = " ".join(parts[i:])
-            break
-        # Extract env var name before '='
-        env_var = part.split("=")[0]
-        env_vars.append(env_var)
-    else:
-        # All parts are env vars, no command
-        return False
-
-    # Check if any env var is not in whitelist
-    for env_var in env_vars:
-        if env_var not in ALLOWED_ENV_VARS:
-            return False
-
-    if cmd.startswith("pitlane "):
-        return True
-
-    # Allow echoing whitelisted environment variables (exactly: echo $VARNAME)
-    echo_parts = cmd.split()
-    if len(echo_parts) == 2 and echo_parts[0] == "echo" and echo_parts[1].startswith("$"):
-        var_name = echo_parts[1][1:]
-        return var_name in ALLOWED_ENV_VARS
-
-    return False
+    return cmd == "pitlane" or cmd.startswith("pitlane ")
 
 
 def _is_within_workspace(file_path: str, workspace_dir: str | None) -> bool:
@@ -121,13 +90,18 @@ def _is_within_workspace(file_path: str, workspace_dir: str | None) -> bool:
         return False
 
 
-def make_can_use_tool_callback(workspace_dir: str, workspace_id: str, skills_dir: str | None = None):
+def make_can_use_tool_callback(
+    workspace_dir: str, workspace_id: str, skills_dir: str | None = None, sandbox_enabled: bool = True
+):
     """Create a can_use_tool callback pre-loaded with workspace context.
 
     Args:
         workspace_dir: Absolute path to the workspace directory.
         workspace_id: Workspace identifier.
         skills_dir: Absolute path to the skills/package directory (read-only).
+        sandbox_enabled: Whether the OS sandbox is active. When True, Bash restrictions
+            are skipped (the sandbox handles isolation). When False, only pitlane commands
+            are allowed.
 
     Returns:
         Async callable suitable for ClaudeAgentOptions.can_use_tool.
@@ -137,13 +111,20 @@ def make_can_use_tool_callback(workspace_dir: str, workspace_id: str, skills_dir
         return await can_use_tool(
             tool_name,
             input_params,
-            {"workspace_dir": workspace_dir, "workspace_id": workspace_id, "skills_dir": skills_dir},
+            {
+                "workspace_dir": workspace_dir,
+                "workspace_id": workspace_id,
+                "skills_dir": skills_dir,
+                "sandbox_enabled": sandbox_enabled,
+            },
         )
 
     return can_use_tool_with_context
 
 
-def make_pre_tool_use_hook(workspace_dir: str, workspace_id: str, skills_dir: str | None = None):
+def make_pre_tool_use_hook(
+    workspace_dir: str, workspace_id: str, skills_dir: str | None = None, sandbox_enabled: bool = True
+):
     """Create a PreToolUse hook that enforces permissions and optional tracing.
 
     This hook must be used (not can_use_tool alone) for tools listed in
@@ -153,6 +134,9 @@ def make_pre_tool_use_hook(workspace_dir: str, workspace_id: str, skills_dir: st
         workspace_dir: Absolute path to the workspace directory.
         workspace_id: Workspace identifier.
         skills_dir: Absolute path to the skills/package directory (read-only).
+        sandbox_enabled: Whether the OS sandbox is active. When True, Bash restrictions
+            are skipped (the sandbox handles isolation). When False, only pitlane commands
+            are allowed.
 
     Returns:
         Async callable suitable for a PreToolUse HookMatcher.
@@ -166,7 +150,12 @@ def make_pre_tool_use_hook(workspace_dir: str, workspace_id: str, skills_dir: st
         result = await can_use_tool(
             tool_name,
             tool_input,
-            {"workspace_dir": workspace_dir, "workspace_id": workspace_id, "skills_dir": skills_dir},
+            {
+                "workspace_dir": workspace_dir,
+                "workspace_id": workspace_id,
+                "skills_dir": skills_dir,
+                "sandbox_enabled": sandbox_enabled,
+            },
         )
         if isinstance(result, PermissionResultDeny):
             logger.warning("Tool use denied: %s %s — %s", tool_name, key_param, result.message)
@@ -214,25 +203,29 @@ async def can_use_tool(
     # Convert context to dict if needed
     context_dict = context if isinstance(context, dict) else {}
 
-    # Restrict Bash to pitlane CLI only
+    # Restrict Bash to pitlane CLI only when sandbox is disabled.
+    # When the OS sandbox is active it provides filesystem/network isolation,
+    # so we rely on that boundary instead of restricting which commands can run.
     if tool_name == "Bash":
-        command = input_params.get("command", "")
-
-        if not _is_allowed_bash_command(command):
-            denial_msg = (
-                "Bash is restricted to 'pitlane' CLI commands only. "
-                "Use 'pitlane <subcommand>' to execute F1 data operations."
-            )
-            logger.warning(
-                "Bash permission denied: command not allowed",
-                extra={
-                    "tool": tool_name,
-                    "command": command,
-                    "reason": "not_pitlane_command",
-                },
-            )
-            tracing.log_permission_check(tool_name, False, denial_msg)
-            return PermissionResultDeny(message=denial_msg)
+        if not context_dict.get("sandbox_enabled", True):
+            command = input_params.get("command", "")
+            if not _is_allowed_bash_command(command):
+                denial_msg = (
+                    "Bash is restricted to 'pitlane' CLI commands only. "
+                    "The 'pitlane' binary is available directly in PATH — "
+                    "use 'pitlane <subcommand>' without 'cd', 'uv run', or other wrappers. "
+                    "Example: 'pitlane fetch session-info --year 2026 --gp Australia --session FP2'"
+                )
+                logger.warning(
+                    "Bash permission denied: command not allowed",
+                    extra={
+                        "tool": tool_name,
+                        "command": command,
+                        "reason": "not_pitlane_command",
+                    },
+                )
+                tracing.log_permission_check(tool_name, False, denial_msg)
+                return PermissionResultDeny(message=denial_msg)
 
         return PermissionResultAllow()
 

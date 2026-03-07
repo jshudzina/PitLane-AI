@@ -37,14 +37,12 @@ Use `pitlane fetch race-control` with appropriate filters. The workspace ID is a
 ```bash
 # Major events only (default - recommended starting point)
 pitlane fetch race-control \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R
 
 # Investigate specific lap range
 pitlane fetch race-control \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R \
@@ -54,7 +52,6 @@ pitlane fetch race-control \
 
 # Safety car periods only
 pitlane fetch race-control \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R \
@@ -62,7 +59,6 @@ pitlane fetch race-control \
 
 # Driver-specific events
 pitlane fetch race-control \
-  --workspace-id $PITLANE_WORKSPACE_ID \
   --year 2024 \
   --gp Monaco \
   --session R \
@@ -143,35 +139,35 @@ Present events chronologically with lap numbers and impact assessment:
 ### "Why did the race restart on lap 5?"
 **Approach**: Fetch high detail, look for RED flag deployment and clearance sequence
 ```bash
-pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --gp Monaco --session R --detail high
+pitlane fetch race-control --year 2024 --gp Monaco --session R --detail high
 ```
 **Analysis**: Find RED flag message, then "TRACK CLEAR", then "GREEN LIGHT - PIT EXIT OPEN"
 
 ### "What caused the safety car in Qatar?"
 **Approach**: Fetch SafetyCar category to see deployment reason
 ```bash
-pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --gp Qatar --session R --category SafetyCar
+pitlane fetch race-control --year 2024 --gp Qatar --session R --category SafetyCar
 ```
 **Analysis**: Safety car messages often preceded by incident notes (COLLISION, etc.)
 
 ### "Were there yellow flags in sector 3 during qualifying?"
 **Approach**: Filter by sector and flag category
 ```bash
-pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --gp Monaco --session Q --sector 3 --category Flag
+pitlane fetch race-control --year 2024 --gp Monaco --session Q --sector 3 --category Flag
 ```
 **Analysis**: Look for YELLOW or DOUBLE YELLOW flags in specified sector
 
 ### "Did Leclerc get penalized for anything?"
 **Approach**: Filter by driver number (16 for Leclerc)
 ```bash
-pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --gp Monaco --session R --driver 16 --detail full
+pitlane fetch race-control --year 2024 --gp Monaco --session R --driver 16 --detail full
 ```
 **Analysis**: Check for PENALTY messages, time penalties, investigations
 
 ### "What happened in the first 5 laps?"
 **Approach**: Use lap range with medium detail
 ```bash
-pitlane fetch race-control --workspace-id $PITLANE_WORKSPACE_ID --year 2024 --gp Monaco --session R --lap-start 1 --lap-end 5 --detail medium
+pitlane fetch race-control --year 2024 --gp Monaco --session R --lap-start 1 --lap-end 5 --detail medium
 ```
 **Analysis**: Chronologically list all significant events from race start
 
