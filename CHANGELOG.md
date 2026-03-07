@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-03-07
+
+### Features
+
+- **agent**: Sandbox path prep - MPLCONFIGDIR, env var echo, remove CHARTS_DIR ([#119](https://github.com/jshudzina/PitLane-AI/pull/119))
+
+- **agent**: Sandbox config, workspace env var, and skill cleanup ([#117](https://github.com/jshudzina/PitLane-AI/pull/117)) ([#121](https://github.com/jshudzina/PitLane-AI/pull/121))
+
 ## [0.4.2] - 2026-03-05
 
 ### Bug Fixes
