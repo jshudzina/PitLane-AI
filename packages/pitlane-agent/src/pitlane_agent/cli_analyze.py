@@ -5,7 +5,6 @@ and storing results in the workspace charts directory.
 """
 
 import json
-import os
 import sys
 
 import click
@@ -27,23 +26,9 @@ from pitlane_agent.commands.analyze import (
     generate_tyre_strategy_chart,
     generate_year_compare_chart,
 )
-from pitlane_agent.commands.workspace import create_workspace, get_workspace_path, workspace_exists
+from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
+from pitlane_agent.utils.cli_helpers import get_workspace_id as _get_workspace_id
 from pitlane_agent.utils.fastf1_helpers import validate_session_or_test
-
-_DEFAULT_WORKSPACE_ID = "default"
-
-
-def _get_workspace_id() -> str:
-    workspace_id = os.environ.get("PITLANE_WORKSPACE_ID")
-    if not workspace_id:
-        workspace_id = _DEFAULT_WORKSPACE_ID
-        if not workspace_exists(workspace_id):
-            create_workspace(workspace_id, description="Default workspace")
-        click.echo(
-            f"Warning: PITLANE_WORKSPACE_ID not set, using default workspace '{workspace_id}'",
-            err=True,
-        )
-    return workspace_id
 
 
 def validate_mutually_exclusive(ctx, param, value):

@@ -447,19 +447,19 @@ class TestF1AgentTracing:
 class TestF1AgentSandbox:
     """Tests for F1Agent sandbox configuration."""
 
-    def test_disable_sandbox_stored_on_init(self, tmp_path):
-        """Test that disable_sandbox parameter is stored as instance attribute."""
+    def test_sandbox_enabled_stored_on_init(self, tmp_path):
+        """Test that sandbox_enabled parameter is stored as instance attribute."""
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir(parents=True)
 
         agent_default = F1Agent(workspace_dir=workspace_dir)
-        assert agent_default.disable_sandbox is False
+        assert agent_default.sandbox_enabled is True
 
         workspace_dir2 = tmp_path / "workspace2"
         workspace_dir2.mkdir(parents=True)
 
-        agent_disabled = F1Agent(workspace_dir=workspace_dir2, disable_sandbox=True)
-        assert agent_disabled.disable_sandbox is True
+        agent_disabled = F1Agent(workspace_dir=workspace_dir2, sandbox_enabled=False)
+        assert agent_disabled.sandbox_enabled is False
 
     @pytest.mark.asyncio
     async def test_sandbox_enabled_by_default(self, disable_tracing):
@@ -489,7 +489,7 @@ class TestF1AgentSandbox:
 
     @pytest.mark.asyncio
     async def test_sandbox_disabled_when_flag_set(self, disable_tracing):
-        """Test that sandbox is None when disable_sandbox=True."""
+        """Test that sandbox is None when sandbox_enabled=False."""
         mock_client = AsyncMock()
         mock_client.query = AsyncMock()
 
@@ -504,7 +504,7 @@ class TestF1AgentSandbox:
         with patch("pitlane_agent.agent.ClaudeSDKClient") as mock_sdk_client:
             mock_sdk_client.return_value = mock_client
 
-            agent = F1Agent(disable_sandbox=True)
+            agent = F1Agent(sandbox_enabled=False)
             async for _ in agent.chat("Test"):
                 pass
 

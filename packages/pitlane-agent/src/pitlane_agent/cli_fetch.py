@@ -5,7 +5,6 @@ and storing results in the workspace data directory.
 """
 
 import json
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -21,24 +20,10 @@ from pitlane_agent.commands.fetch import (
     get_season_summary,
     get_session_info,
 )
-from pitlane_agent.commands.workspace import create_workspace, get_workspace_path, workspace_exists
+from pitlane_agent.commands.workspace import get_workspace_path, workspace_exists
+from pitlane_agent.utils.cli_helpers import get_workspace_id as _get_workspace_id
 from pitlane_agent.utils.constants import MIN_F1_YEAR
 from pitlane_agent.utils.fastf1_helpers import build_data_path, validate_session_or_test
-
-_DEFAULT_WORKSPACE_ID = "default"
-
-
-def _get_workspace_id() -> str:
-    workspace_id = os.environ.get("PITLANE_WORKSPACE_ID")
-    if not workspace_id:
-        workspace_id = _DEFAULT_WORKSPACE_ID
-        if not workspace_exists(workspace_id):
-            create_workspace(workspace_id, description="Default workspace")
-        click.echo(
-            f"Warning: PITLANE_WORKSPACE_ID not set, using default workspace '{workspace_id}'",
-            err=True,
-        )
-    return workspace_id
 
 
 def _validate_standings_request(year: int) -> Path:
