@@ -4,6 +4,7 @@ Usage:
     pitlane analyze position-changes --workspace-id <id> --year 2024 --gp Monaco --session R
 """
 
+from collections import namedtuple
 from pathlib import Path
 
 import fastf1.plotting
@@ -26,12 +27,14 @@ from pitlane_agent.utils.filename import sanitize_filename
 from pitlane_agent.utils.plotting import get_driver_color_safe, save_figure, setup_plot_style
 from pitlane_agent.utils.race_stats import compute_driver_position_stats, get_grid_position
 
+DriverPlotResult = namedtuple("DriverPlotResult", ["stats", "has_grid_position"])
+
 
 def _extract_driver_position_data(
     driver_abbr: str,
     session: Session,
     ax: plt.Axes,
-) -> dict | None:
+) -> DriverPlotResult | None:
     """Extract and plot position data for a single driver.
 
     Args:
@@ -40,7 +43,7 @@ def _extract_driver_position_data(
         ax: Matplotlib axes to plot on
 
     Returns:
-        Dictionary with driver statistics, or None if driver should be excluded
+        DriverPlotResult(stats, has_grid_position), or None if driver should be excluded
     """
     # Compute stats using shared utility
     stats = compute_driver_position_stats(driver_abbr, session)
@@ -53,7 +56,8 @@ def _extract_driver_position_data(
 
     # Prepend grid position as Lap 0 so the chart shows where each driver started
     grid_pos = get_grid_position(driver_abbr, session)
-    if grid_pos is not None:
+    has_grid_position = grid_pos is not None
+    if has_grid_position:
         grid_row = pd.DataFrame([{"LapNumber": 0, "Position": float(grid_pos)}])
         position_data = pd.concat([grid_row, position_data], ignore_index=True)
 
@@ -88,16 +92,19 @@ def _extract_driver_position_data(
                 zorder=5,
             )
 
-    return stats
+    return DriverPlotResult(stats=stats, has_grid_position=has_grid_position)
 
 
-def _configure_position_plot(ax: plt.Axes, session: Session, year: int, has_grid_position: bool = False) -> None:
+def _configure_position_plot(
+    ax: plt.Axes, session: Session, year: int, max_lap: int, has_grid_position: bool = False
+) -> None:
     """Configure plot axes, labels, and styling.
 
     Args:
         ax: Matplotlib axes to configure
         session: FastF1 session object
         year: Season year
+        max_lap: Highest lap number plotted (used to set explicit integer x-ticks)
         has_grid_position: Whether Lap 0 (grid position) data was plotted
     """
     ax.set_xlabel("Lap Number")
@@ -105,8 +112,8 @@ def _configure_position_plot(ax: plt.Axes, session: Session, year: int, has_grid
     ax.set_title(f"{session.event['EventName']} {year} - Position Changes")
 
     if has_grid_position:
-        ticks = ax.get_xticks()
-        labels = [("Grid" if t == 0 else str(int(t))) for t in ticks]
+        ticks = list(range(0, max_lap + 1))
+        labels = ["Grid"] + [str(t) for t in ticks[1:]]
         ax.set_xticks(ticks)
         ax.set_xticklabels(labels)
 
@@ -221,16 +228,16 @@ def generate_position_changes_chart(
 
     # Extract position data for each driver
     for driver_abbr in selected_drivers:
-        driver_stats = _extract_driver_position_data(driver_abbr, session, ax)
-        if driver_stats is None:
+        plot_result = _extract_driver_position_data(driver_abbr, session, ax)
+        if plot_result is None:
             excluded_drivers.append(driver_abbr)
         else:
-            stats.append(driver_stats)
-            if not has_grid_position and get_grid_position(driver_abbr, session) is not None:
-                has_grid_position = True
+            stats.append(plot_result.stats)
+            has_grid_position = has_grid_position or plot_result.has_grid_position
 
     # Configure plot styling
-    _configure_position_plot(ax, session, year, has_grid_position=has_grid_position)
+    max_lap = int(session.laps["LapNumber"].max())
+    _configure_position_plot(ax, session, year, max_lap=max_lap, has_grid_position=has_grid_position)
 
     # Save figure with bbox_inches="tight" for this specific chart
     save_figure(fig, output_path, dpi=DEFAULT_DPI, bbox_inches="tight")

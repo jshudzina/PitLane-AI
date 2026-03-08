@@ -79,8 +79,8 @@ def get_grid_position(driver_abbr: str, session: Session) -> int | None:
         row = results[results["Abbreviation"] == driver_abbr]
         if row.empty:
             return None
-        gp = row["GridPosition"].iloc[0]
-        if np.isnan(float(gp)) or float(gp) <= 0:
+        gp = float(row["GridPosition"].iloc[0])
+        if np.isnan(gp) or gp <= 0:
             return None
         return int(gp)
     except Exception:

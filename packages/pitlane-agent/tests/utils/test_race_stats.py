@@ -104,7 +104,7 @@ class TestGetGridPosition:
         assert get_grid_position("VER", session) is None
 
     def test_returns_none_for_zero_grid_position(self):
-        """Test that zero grid position (pit lane start) returns None."""
+        """Test that zero or missing grid position (e.g. DNQ, testing) returns None."""
         session = _make_session_with_grid({"VER": {"positions": [1], "grid_position": 0}})
         assert get_grid_position("VER", session) is None
 

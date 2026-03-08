@@ -271,7 +271,6 @@ class TestPositionChangesBusinessLogic:
         mock_ax = MagicMock()
         mock_plt.subplots.return_value = (mock_fig, mock_ax)
         mock_ax.get_ylim.return_value = (20, 1)
-        mock_ax.get_xticks.return_value = [0, 1, 2]
         mock_fastf1.plotting.get_driver_color.return_value = "#0600EF"
 
         generate_position_changes_chart(
@@ -318,7 +317,6 @@ class TestPositionChangesBusinessLogic:
         mock_ax = MagicMock()
         mock_plt.subplots.return_value = (mock_fig, mock_ax)
         mock_ax.get_ylim.return_value = (20, 1)
-        mock_ax.get_xticks.return_value = [1, 2]
         mock_fastf1.plotting.get_driver_color.return_value = "#0600EF"
 
         result = generate_position_changes_chart(
