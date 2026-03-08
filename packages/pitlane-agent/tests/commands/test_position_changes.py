@@ -292,6 +292,48 @@ class TestPositionChangesBusinessLogic:
         y_data = plot_call_args[0][1]  # Second positional arg is y (Position)
         assert list(y_data)[0] == 5.0, "First plotted position should be the grid position (P5)"
 
+    @patch("pitlane_agent.commands.analyze.position_changes.fastf1")
+    @patch("pitlane_agent.commands.analyze.position_changes.plt")
+    @patch("pitlane_agent.commands.analyze.position_changes.load_session_or_testing")
+    def test_warning_when_grid_position_unavailable(
+        self, mock_load_session, mock_plt, mock_fastf1, tmp_output_dir, mock_fastf1_session
+    ):
+        """Test that a warning is added to the result when GridPosition is unavailable."""
+        mock_load_session.return_value = mock_fastf1_session
+        mock_fastf1_session.drivers = [33]
+        mock_fastf1_session.get_driver.return_value = {"Abbreviation": "VER"}
+
+        # results without GridPosition column (simulates missing/partial race data)
+        mock_fastf1_session.results = pd.DataFrame({"Abbreviation": ["VER"]})
+
+        mock_laps = pd.DataFrame(
+            [
+                {"LapNumber": 1, "Position": 3, "PitOutTime": pd.NaT},
+                {"LapNumber": 2, "Position": 2, "PitOutTime": pd.NaT},
+            ]
+        )
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_laps
+
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+        mock_ax.get_ylim.return_value = (20, 1)
+        mock_ax.get_xticks.return_value = [1, 2]
+        mock_fastf1.plotting.get_driver_color.return_value = "#0600EF"
+
+        result = generate_position_changes_chart(
+            year=2024,
+            gp="Monaco",
+            session_type="R",
+            drivers=["VER"],
+            top_n=None,
+            workspace_dir=tmp_output_dir,
+        )
+
+        assert "warning" in result
+        assert "GridPosition unavailable" in result["warning"]
+        assert "start_position" in result["warning"]
+
     @patch("pitlane_agent.commands.analyze.position_changes.load_session_or_testing")
     def test_generate_position_changes_chart_error(self, mock_load_session, tmp_output_dir):
         """Test error handling in chart generation."""

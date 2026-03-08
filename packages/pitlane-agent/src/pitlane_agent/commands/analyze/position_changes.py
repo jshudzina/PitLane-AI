@@ -249,8 +249,19 @@ def generate_position_changes_chart(
     }
 
     # Add warning if any drivers were excluded
+    warnings = []
     if excluded_drivers:
         result["excluded_drivers"] = excluded_drivers
-        result["warning"] = f"Drivers excluded (no position data): {', '.join(excluded_drivers)}"
+        warnings.append(f"Drivers excluded (no position data): {', '.join(excluded_drivers)}")
+
+    if not has_grid_position:
+        warnings.append(
+            "GridPosition unavailable in session results — start_position and net_change stats "
+            "reflect Lap 1 position, not the qualifying grid position. "
+            "Clear the FastF1 cache and retry once race data is fully published."
+        )
+
+    if warnings:
+        result["warning"] = " | ".join(warnings)
 
     return result
