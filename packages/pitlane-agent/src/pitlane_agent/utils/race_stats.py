@@ -62,6 +62,31 @@ def get_circuit_length_km(session: Session) -> float | None:
         return None
 
 
+def get_grid_position(driver_abbr: str, session: Session) -> int | None:
+    """Get the qualifying/grid position for a driver from session results.
+
+    Args:
+        driver_abbr: Driver abbreviation (e.g., 'VER', 'HAM')
+        session: FastF1 session object
+
+    Returns:
+        Grid position as integer, or None if unavailable
+    """
+    try:
+        results = session.results
+        if results is None or results.empty or "GridPosition" not in results.columns:
+            return None
+        row = results[results["Abbreviation"] == driver_abbr]
+        if row.empty:
+            return None
+        gp = row["GridPosition"].iloc[0]
+        if np.isnan(float(gp)) or float(gp) <= 0:
+            return None
+        return int(gp)
+    except Exception:
+        return None
+
+
 def compute_driver_position_stats(driver_abbr: str, session: Session) -> DriverPositionStats | None:
     """Compute position statistics for a single driver.
 
@@ -84,9 +109,13 @@ def compute_driver_position_stats(driver_abbr: str, session: Session) -> DriverP
         return None
 
     positions = position_data["Position"].values
-    start_position = float(positions[0])
+    grid_position = get_grid_position(driver_abbr, session)
+    start_position = float(grid_position) if grid_position is not None else float(positions[0])
     finish_position = float(positions[-1])
-    position_changes = np.diff(positions)
+
+    # Include grid→Lap1 transition in diff calculations when grid position is available
+    positions_with_start = np.concatenate([[start_position], positions]) if grid_position is not None else positions
+    position_changes = np.diff(positions_with_start)
 
     overtakes = int(np.sum(position_changes < 0))
     times_overtaken = int(np.sum(position_changes > 0))

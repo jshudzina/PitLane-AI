@@ -8,7 +8,28 @@ from pitlane_agent.utils.race_stats import (
     compute_driver_position_stats,
     compute_race_summary_stats,
     get_circuit_length_km,
+    get_grid_position,
 )
+
+
+def _make_session_with_grid(driver_laps_map: dict[str, dict]) -> MagicMock:
+    """Create a mock session with laps data and GridPosition in session.results.
+
+    Extends _make_session_with_laps by adding a real results DataFrame so that
+    get_grid_position() returns the configured grid position.
+
+    Args:
+        driver_laps_map: Dict mapping driver abbreviation to dict with
+            'positions' (list of floats), 'grid_position' (int), and
+            optionally 'pit_laps' (list of ints)
+    """
+    session = _make_session_with_laps(driver_laps_map)
+    results_rows = [
+        {"Abbreviation": abbr, "GridPosition": float(data.get("grid_position", 0))}
+        for abbr, data in driver_laps_map.items()
+    ]
+    session.results = pd.DataFrame(results_rows)
+    return session
 
 
 def _make_session_with_laps(driver_laps_map: dict[str, dict]) -> MagicMock:
@@ -55,6 +76,43 @@ def _make_session_with_laps(driver_laps_map: dict[str, dict]) -> MagicMock:
     session.get_driver = get_driver
 
     return session
+
+
+class TestGetGridPosition:
+    """Tests for get_grid_position."""
+
+    def test_returns_grid_position_when_available(self):
+        """Test that grid position is returned from session.results."""
+        session = _make_session_with_grid({"VER": {"positions": [1], "grid_position": 3}})
+        assert get_grid_position("VER", session) == 3
+
+    def test_returns_none_when_no_results(self):
+        """Test that None is returned when session has no results."""
+        session = MagicMock()
+        session.results = None
+        assert get_grid_position("VER", session) is None
+
+    def test_returns_none_when_gridposition_column_missing(self):
+        """Test that None is returned when GridPosition column is absent."""
+        session = MagicMock()
+        session.results = pd.DataFrame({"Abbreviation": ["VER"]})
+        assert get_grid_position("VER", session) is None
+
+    def test_returns_none_when_driver_not_in_results(self):
+        """Test that None is returned when driver is not in results."""
+        session = _make_session_with_grid({"HAM": {"positions": [1], "grid_position": 2}})
+        assert get_grid_position("VER", session) is None
+
+    def test_returns_none_for_zero_grid_position(self):
+        """Test that zero grid position (pit lane start) returns None."""
+        session = _make_session_with_grid({"VER": {"positions": [1], "grid_position": 0}})
+        assert get_grid_position("VER", session) is None
+
+    def test_returns_none_on_exception(self):
+        """Test that exceptions are swallowed and None is returned."""
+        session = MagicMock()
+        session.results = property(lambda self: (_ for _ in ()).throw(Exception("no data")))
+        assert get_grid_position("VER", session) is None
 
 
 class TestComputeDriverPositionStats:
@@ -155,6 +213,33 @@ class TestComputeDriverPositionStats:
         result = compute_driver_position_stats("VER", session)
 
         assert result is None
+
+    def test_start_position_uses_grid_position(self):
+        """Test that start_position comes from grid position, not Lap 1 position."""
+        # Grid P10 → Lap 1 P8 (gained 2 on opening lap) → Lap 2 P6 → Lap 3 P5
+        session = _make_session_with_grid({"VER": {"positions": [8, 6, 5], "grid_position": 10}})
+
+        result = compute_driver_position_stats("VER", session)
+
+        assert result is not None
+        assert result["start_position"] == 10  # From grid, not Lap 1
+        assert result["finish_position"] == 5
+        assert result["net_change"] == 5  # 10 - 5
+        # Grid→Lap1 transition (10→8 = gain) is included in overtakes
+        assert result["overtakes"] == 3  # grid→L1, L1→L2, L2→L3 all gains
+        assert result["times_overtaken"] == 0
+        assert result["biggest_gain"] == 2  # 10→8 on opening lap
+
+    def test_stats_without_grid_position_falls_back_to_lap1(self):
+        """Test fallback to Lap 1 position when grid position is unavailable."""
+        # No GridPosition in results — falls back to Lap 1 value
+        session = _make_session_with_laps({"VER": {"positions": [8, 6, 5]}})
+
+        result = compute_driver_position_stats("VER", session)
+
+        assert result is not None
+        assert result["start_position"] == 8  # Lap 1 value
+        assert result["net_change"] == 3  # 8 - 5
 
 
 class TestComputeRaceSummaryStats:
