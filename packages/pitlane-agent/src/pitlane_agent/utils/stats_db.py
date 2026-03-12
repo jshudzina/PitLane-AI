@@ -4,8 +4,29 @@ from __future__ import annotations
 
 import importlib.resources
 from pathlib import Path
+from typing import TypedDict, cast
 
 import duckdb
+
+
+class SessionStats(TypedDict, total=False):
+    year: int
+    round: int
+    event_name: str
+    country: str
+    date: str | None
+    session_type: str
+    circuit_length_km: float | None
+    total_overtakes: int | None
+    total_position_changes: int | None
+    average_volatility: float | None
+    mean_pit_stops: float | None
+    total_laps: int | None
+    num_safety_cars: int | None
+    num_virtual_safety_cars: int | None
+    num_red_flags: int | None
+    podium: str | None
+
 
 # Schema version 1. There is no migration path — if columns change, drop and
 # recreate the database file (it is a regenerable cache, not source of truth).
@@ -67,7 +88,7 @@ _COLUMNS = (
 )
 
 
-def upsert_session_stats(db_path: Path, records: list[dict]) -> None:
+def upsert_session_stats(db_path: Path, records: list[SessionStats]) -> None:
     """Insert or replace rows keyed on (year, round, session_type).
 
     The database must already be initialised via :func:`init_db` before
@@ -87,7 +108,7 @@ def upsert_session_stats(db_path: Path, records: list[dict]) -> None:
         con.close()
 
 
-def get_season_stats(db_path: Path, year: int) -> list[dict] | None:
+def get_season_stats(db_path: Path, year: int) -> list[SessionStats] | None:
     """Fetch all rows for a season ordered by round.
 
     Args:
@@ -111,4 +132,4 @@ def get_season_stats(db_path: Path, year: int) -> list[dict] | None:
         columns = [desc[0] for desc in cursor.description]
     finally:
         con.close()
-    return [dict(zip(columns, row)) for row in rows]
+    return [cast(SessionStats, dict(zip(columns, row, strict=True))) for row in rows]

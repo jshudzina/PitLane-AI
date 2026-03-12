@@ -3,8 +3,6 @@
 from pathlib import Path
 
 import duckdb
-import pytest
-
 from pitlane_agent.utils.stats_db import (
     get_season_stats,
     init_db,
