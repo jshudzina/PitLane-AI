@@ -7,6 +7,8 @@ from pathlib import Path
 
 import duckdb
 
+# Schema version 1. There is no migration path — if columns change, drop and
+# recreate the database file (it is a regenerable cache, not source of truth).
 _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS session_stats (
     year                    INTEGER NOT NULL,
@@ -52,8 +54,19 @@ def init_db(db_path: Path) -> None:
         con.close()
 
 
+_COLUMNS = (
+    "year", "round", "event_name", "country", "date", "session_type",
+    "circuit_length_km", "total_overtakes", "total_position_changes",
+    "average_volatility", "mean_pit_stops", "total_laps",
+    "num_safety_cars", "num_virtual_safety_cars", "num_red_flags", "podium",
+)
+
+
 def upsert_session_stats(db_path: Path, records: list[dict]) -> None:
     """Insert or replace rows keyed on (year, round, session_type).
+
+    The database must already be initialised via :func:`init_db` before
+    calling this function; the session_stats table must exist.
 
     Args:
         db_path: Path to the DuckDB database file.
@@ -61,30 +74,10 @@ def upsert_session_stats(db_path: Path, records: list[dict]) -> None:
     """
     if not records:
         return
+    rows = [[r.get(col) for col in _COLUMNS] for r in records]
     con = duckdb.connect(str(db_path))
     try:
-        for record in records:
-            con.execute(
-                _UPSERT_SQL,
-                [
-                    record.get("year"),
-                    record.get("round"),
-                    record.get("event_name"),
-                    record.get("country"),
-                    record.get("date"),
-                    record.get("session_type"),
-                    record.get("circuit_length_km"),
-                    record.get("total_overtakes"),
-                    record.get("total_position_changes"),
-                    record.get("average_volatility"),
-                    record.get("mean_pit_stops"),
-                    record.get("total_laps"),
-                    record.get("num_safety_cars"),
-                    record.get("num_virtual_safety_cars"),
-                    record.get("num_red_flags"),
-                    record.get("podium"),
-                ],
-            )
+        con.executemany(_UPSERT_SQL, rows)
     finally:
         con.close()
 
