@@ -32,7 +32,12 @@ CREATE TABLE IF NOT EXISTS session_stats (
 """
 
 _UPSERT_SQL = """
-INSERT OR REPLACE INTO session_stats VALUES (
+INSERT OR REPLACE INTO session_stats (
+    year, round, event_name, country, date, session_type,
+    circuit_length_km, total_overtakes, total_position_changes,
+    average_volatility, mean_pit_stops, total_laps,
+    num_safety_cars, num_virtual_safety_cars, num_red_flags, podium
+) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 """
