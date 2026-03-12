@@ -81,10 +81,22 @@ def init_db(db_path: Path) -> None:
 
 
 _COLUMNS = (
-    "year", "round", "event_name", "country", "date", "session_type",
-    "circuit_length_km", "total_overtakes", "total_position_changes",
-    "average_volatility", "mean_pit_stops", "total_laps",
-    "num_safety_cars", "num_virtual_safety_cars", "num_red_flags", "podium",
+    "year",
+    "round",
+    "event_name",
+    "country",
+    "date",
+    "session_type",
+    "circuit_length_km",
+    "total_overtakes",
+    "total_position_changes",
+    "average_volatility",
+    "mean_pit_stops",
+    "total_laps",
+    "num_safety_cars",
+    "num_virtual_safety_cars",
+    "num_red_flags",
+    "podium",
 )
 
 
@@ -123,9 +135,7 @@ def get_season_stats(db_path: Path, year: int) -> list[SessionStats] | None:
         return None
     con = duckdb.connect(str(db_path), read_only=True)
     try:
-        cursor = con.execute(
-            "SELECT * FROM session_stats WHERE year = ? ORDER BY round", [year]
-        )
+        cursor = con.execute("SELECT * FROM session_stats WHERE year = ? ORDER BY round", [year])
         rows = cursor.fetchall()
         if not rows:
             return None

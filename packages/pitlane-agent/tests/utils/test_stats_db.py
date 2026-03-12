@@ -128,9 +128,7 @@ class TestUpsertSessionStats:
         upsert_session_stats(db_path, [record])
 
         con = duckdb.connect(str(db_path))
-        result = con.execute(
-            "SELECT circuit_length_km, podium, date FROM session_stats WHERE round = 1"
-        ).fetchone()
+        result = con.execute("SELECT circuit_length_km, podium, date FROM session_stats WHERE round = 1").fetchone()
         con.close()
 
         assert result[0] is None
@@ -177,10 +175,22 @@ class TestGetSeasonStats:
         assert result is not None
         row = result[0]
         expected_keys = {
-            "year", "round", "event_name", "country", "date", "session_type",
-            "circuit_length_km", "total_overtakes", "total_position_changes",
-            "average_volatility", "mean_pit_stops", "total_laps",
-            "num_safety_cars", "num_virtual_safety_cars", "num_red_flags", "podium",
+            "year",
+            "round",
+            "event_name",
+            "country",
+            "date",
+            "session_type",
+            "circuit_length_km",
+            "total_overtakes",
+            "total_position_changes",
+            "average_volatility",
+            "mean_pit_stops",
+            "total_laps",
+            "num_safety_cars",
+            "num_virtual_safety_cars",
+            "num_red_flags",
+            "podium",
         }
         assert set(row.keys()) == expected_keys
 
