@@ -16,7 +16,7 @@ PITLANE_ENV = os.getenv("PITLANE_ENV", "production")  # production | development
 # Can be explicitly overridden with PITLANE_HTTPS_ENABLED
 if os.getenv("PITLANE_HTTPS_ENABLED") is not None:
     # Explicit override takes precedence
-    SESSION_COOKIE_SECURE = os.getenv("PITLANE_HTTPS_ENABLED").lower() == "true"
+    SESSION_COOKIE_SECURE = os.getenv("PITLANE_HTTPS_ENABLED", "false").lower() == "true"
 else:
     # Default based on environment: secure in production, insecure in development
     SESSION_COOKIE_SECURE = PITLANE_ENV != "development"
