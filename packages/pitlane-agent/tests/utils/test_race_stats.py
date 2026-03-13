@@ -1,6 +1,6 @@
 """Tests for race_stats utility module."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock
 
 import pandas as pd
 from fastf1.exceptions import DataNotLoadedError
@@ -363,11 +363,13 @@ class TestComputeRaceSummaryStatsFromResults:
         # grids [1,5,10], finishes [3,2,8]
         # changes: |1-3|=2, |5-2|=3, |10-8|=2 → total=7
         # overtakes: max(0,1-3)=0, max(0,5-2)=3, max(0,10-8)=2 → total=5
-        session = _make_results_only_session([
-            {"GridPosition": 1.0, "Position": 3.0, "Laps": 78},
-            {"GridPosition": 5.0, "Position": 2.0, "Laps": 78},
-            {"GridPosition": 10.0, "Position": 8.0, "Laps": 76},
-        ])
+        session = _make_results_only_session(
+            [
+                {"GridPosition": 1.0, "Position": 3.0, "Laps": 78},
+                {"GridPosition": 5.0, "Position": 2.0, "Laps": 78},
+                {"GridPosition": 10.0, "Position": 8.0, "Laps": 76},
+            ]
+        )
         result = compute_race_summary_stats_from_results(session)
         assert result is not None
         assert result["total_position_changes"] == 7
@@ -377,21 +379,25 @@ class TestComputeRaceSummaryStatsFromResults:
 
     def test_laps_extracted(self):
         """Test that total_laps is the max of the Laps column."""
-        session = _make_results_only_session([
-            {"GridPosition": 1.0, "Position": 1.0, "Laps": 57},
-            {"GridPosition": 2.0, "Position": 2.0, "Laps": 55},
-            {"GridPosition": 3.0, "Position": 3.0, "Laps": 53},
-        ])
+        session = _make_results_only_session(
+            [
+                {"GridPosition": 1.0, "Position": 1.0, "Laps": 57},
+                {"GridPosition": 2.0, "Position": 2.0, "Laps": 55},
+                {"GridPosition": 3.0, "Position": 3.0, "Laps": 53},
+            ]
+        )
         result = compute_race_summary_stats_from_results(session)
         assert result is not None
         assert result["total_laps"] == 57
 
     def test_zero_grid_excluded(self):
         """Test that drivers with GridPosition=0 (pit lane start) are excluded."""
-        session = _make_results_only_session([
-            {"GridPosition": 0.0, "Position": 5.0, "Laps": 50},  # pit lane start
-            {"GridPosition": 3.0, "Position": 1.0, "Laps": 50},
-        ])
+        session = _make_results_only_session(
+            [
+                {"GridPosition": 0.0, "Position": 5.0, "Laps": 50},  # pit lane start
+                {"GridPosition": 3.0, "Position": 1.0, "Laps": 50},
+            ]
+        )
         result = compute_race_summary_stats_from_results(session)
         assert result is not None
         # Only the second driver counted: |3-1|=2, max(0,3-1)=2
@@ -400,10 +406,12 @@ class TestComputeRaceSummaryStatsFromResults:
 
     def test_nan_grid_excluded(self):
         """Test that drivers with NaN GridPosition are excluded."""
-        session = _make_results_only_session([
-            {"GridPosition": float("nan"), "Position": 5.0, "Laps": 50},
-            {"GridPosition": 4.0, "Position": 2.0, "Laps": 50},
-        ])
+        session = _make_results_only_session(
+            [
+                {"GridPosition": float("nan"), "Position": 5.0, "Laps": 50},
+                {"GridPosition": 4.0, "Position": 2.0, "Laps": 50},
+            ]
+        )
         result = compute_race_summary_stats_from_results(session)
         assert result is not None
         assert result["total_position_changes"] == 2
@@ -411,10 +419,12 @@ class TestComputeRaceSummaryStatsFromResults:
 
     def test_nan_finish_excluded(self):
         """Test that drivers with NaN finish Position are excluded."""
-        session = _make_results_only_session([
-            {"GridPosition": 2.0, "Position": float("nan"), "Laps": 10},  # DNF
-            {"GridPosition": 4.0, "Position": 2.0, "Laps": 50},
-        ])
+        session = _make_results_only_session(
+            [
+                {"GridPosition": 2.0, "Position": float("nan"), "Laps": 10},  # DNF
+                {"GridPosition": 4.0, "Position": 2.0, "Laps": 50},
+            ]
+        )
         result = compute_race_summary_stats_from_results(session)
         assert result is not None
         assert result["total_position_changes"] == 2
@@ -458,9 +468,11 @@ class TestComputeRaceSummaryStatsFromResults:
 
     def test_all_laps_nan_gives_zero_laps(self):
         """Test that all-NaN Laps column results in total_laps=0."""
-        session = _make_results_only_session([
-            {"GridPosition": 1.0, "Position": 1.0, "Laps": float("nan")},
-        ])
+        session = _make_results_only_session(
+            [
+                {"GridPosition": 1.0, "Position": 1.0, "Laps": float("nan")},
+            ]
+        )
         result = compute_race_summary_stats_from_results(session)
         assert result is not None
         assert result["total_laps"] == 0
@@ -468,6 +480,6 @@ class TestComputeRaceSummaryStatsFromResults:
     def test_exception_returns_none(self):
         """Test that unexpected exceptions are swallowed and return None."""
         session = MagicMock()
-        session.results = property(lambda self: (_ for _ in ()).throw(AttributeError("boom")))
+        type(session).results = PropertyMock(side_effect=AttributeError("boom"))
         result = compute_race_summary_stats_from_results(session)
         assert result is None
