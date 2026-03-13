@@ -25,6 +25,7 @@ from pitlane_agent.utils.fastf1_helpers import load_session, setup_fastf1_cache
 from pitlane_agent.utils.race_stats import (
     RaceSummaryStats,
     compute_race_summary_stats,
+    compute_race_summary_stats_from_results,
     get_circuit_length_km,
 )
 
@@ -182,19 +183,28 @@ def get_season_summary(year: int) -> SeasonSummary:
 
             race_summary = compute_race_summary_stats(session)
             if race_summary is None:
-                logger.info(
-                    "No lap data for %s %d: %s (F1 API not supported, likely pre-2018), including with zeroed stats",
-                    session_type,
-                    round_number,
-                    event_name,
-                )
-                race_summary = RaceSummaryStats(
-                    total_overtakes=0,
-                    total_position_changes=0,
-                    average_volatility=0.0,
-                    mean_pit_stops=0.0,
-                    total_laps=0,
-                )
+                race_summary = compute_race_summary_stats_from_results(session)
+                if race_summary is not None:
+                    logger.info(
+                        "Using results-only (partial) stats for %s %d: %s — volatility and pit stops unavailable",
+                        session_type,
+                        round_number,
+                        event_name,
+                    )
+                else:
+                    logger.info(
+                        "No lap or results data for %s %d: %s (likely pre-2018), including with zeroed stats",
+                        session_type,
+                        round_number,
+                        event_name,
+                    )
+                    race_summary = RaceSummaryStats(
+                        total_overtakes=0,
+                        total_position_changes=0,
+                        average_volatility=0.0,
+                        mean_pit_stops=0.0,
+                        total_laps=0,
+                    )
 
             safety_cars, vscs, red_flags = _count_track_interruptions(session)
 
