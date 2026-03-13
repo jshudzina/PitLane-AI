@@ -195,3 +195,47 @@ def compute_race_summary_stats(session: Session) -> RaceSummaryStats | None:
         "mean_pit_stops": round(mean_pit_stops, 2),
         "total_laps": total_laps,
     }
+
+
+def compute_race_summary_stats_from_results(session: Session) -> RaceSummaryStats | None:
+    """Compute partial race stats from session.results when lap data is unavailable (pre-2018).
+
+    Computes total_position_changes and total_overtakes as net position changes from
+    grid to finish. Note: total_overtakes is a net-gain proxy (sum of positive net changes)
+    — it undercounts vs lap-by-lap tracking but is far better than 0.
+    average_volatility and mean_pit_stops cannot be computed without lap data and are 0.0.
+
+    Args:
+        session: FastF1 session object
+
+    Returns:
+        Dictionary with partial stats, or None if results data is unavailable
+    """
+    try:
+        results = session.results
+        if results is None or results.empty:
+            return None
+        if "GridPosition" not in results.columns or "Position" not in results.columns:
+            return None
+
+        # Filter to rows with valid grid positions (>0, not NaN) and valid finish positions
+        valid = results[results["GridPosition"].notna() & (results["GridPosition"] > 0) & results["Position"].notna()]
+
+        total_position_changes = int((valid["GridPosition"] - valid["Position"]).abs().sum())
+        total_overtakes = int((valid["GridPosition"] - valid["Position"]).clip(lower=0).sum())
+
+        total_laps = 0
+        if "Laps" in results.columns:
+            laps_series = results["Laps"].dropna()
+            if not laps_series.empty:
+                total_laps = int(laps_series.max())
+
+        return {
+            "total_overtakes": total_overtakes,
+            "total_position_changes": total_position_changes,
+            "average_volatility": 0.0,
+            "mean_pit_stops": 0.0,
+            "total_laps": total_laps,
+        }
+    except Exception:
+        return None

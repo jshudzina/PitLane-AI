@@ -929,3 +929,109 @@ class TestGetSeasonSummary:
         # should score identically: 0.4*1 + 0.3*1 + 0.2*0 + 0.1*0 = 0.7
         assert race_entry["wildness_score"] == 0.7
         assert sprint_entry["wildness_score"] == 0.7
+
+    @patch("pitlane_agent.commands.fetch.season_summary.get_circuit_length_km")
+    @patch("pitlane_agent.commands.fetch.season_summary.load_session")
+    @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
+    @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats_from_results")
+    @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats")
+    def test_pre2018_uses_results_fallback(
+        self,
+        mock_compute_stats,
+        mock_compute_from_results,
+        mock_setup_cache,
+        mock_get_schedule,
+        mock_load_session,
+        mock_get_circuit_length,
+    ):
+        """Test that when lap data is unavailable, results-based stats are used."""
+        mock_get_circuit_length.return_value = 5.412
+        schedule = pd.DataFrame(
+            [
+                {
+                    "RoundNumber": 6,
+                    "EventName": "Monaco Grand Prix",
+                    "Country": "Monaco",
+                    "EventDate": pd.Timestamp("2017-05-28"),
+                    "EventFormat": "conventional",
+                },
+            ]
+        )
+        mock_get_schedule.return_value = schedule
+
+        mock_session = MagicMock()
+        mock_session.track_status = pd.DataFrame({"Status": ["1"]})
+        mock_session.results = pd.DataFrame(
+            {
+                "Position": [1.0, 2.0, 3.0],
+                "Abbreviation": ["VET", "RAI", "RIC"],
+                "TeamName": ["Ferrari", "Ferrari", "Red Bull"],
+            }
+        )
+        mock_load_session.return_value = mock_session
+
+        # Lap data unavailable (pre-2018), results-based fallback returns partial stats
+        mock_compute_stats.return_value = None
+        mock_compute_from_results.return_value = {
+            "total_overtakes": 15,
+            "total_position_changes": 25,
+            "average_volatility": 0.0,
+            "mean_pit_stops": 0.0,
+            "total_laps": 78,
+        }
+
+        result = get_season_summary(2017)
+
+        assert result["total_races"] == 1
+        race = result["races"][0]
+        assert race["race_summary"]["total_overtakes"] == 15
+        assert race["race_summary"]["total_position_changes"] == 25
+        assert race["race_summary"]["total_laps"] == 78
+        assert race["wildness_score"] > 0.0
+
+    @patch("pitlane_agent.commands.fetch.season_summary.get_circuit_length_km")
+    @patch("pitlane_agent.commands.fetch.season_summary.load_session")
+    @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
+    @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats_from_results")
+    @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats")
+    def test_pre2018_zeros_when_results_also_unavailable(
+        self,
+        mock_compute_stats,
+        mock_compute_from_results,
+        mock_setup_cache,
+        mock_get_schedule,
+        mock_load_session,
+        mock_get_circuit_length,
+    ):
+        """Test that when both lap and results data are unavailable, stats are zeroed."""
+        mock_get_circuit_length.return_value = 5.412
+        schedule = pd.DataFrame(
+            [
+                {
+                    "RoundNumber": 6,
+                    "EventName": "Monaco Grand Prix",
+                    "Country": "Monaco",
+                    "EventDate": pd.Timestamp("2017-05-28"),
+                    "EventFormat": "conventional",
+                },
+            ]
+        )
+        mock_get_schedule.return_value = schedule
+
+        mock_session = MagicMock()
+        mock_session.track_status = pd.DataFrame({"Status": ["1"]})
+        mock_session.results = pd.DataFrame({"Position": [1.0], "Abbreviation": ["VET"], "TeamName": ["Ferrari"]})
+        mock_load_session.return_value = mock_session
+
+        mock_compute_stats.return_value = None
+        mock_compute_from_results.return_value = None
+
+        result = get_season_summary(2017)
+
+        assert result["total_races"] == 1
+        race = result["races"][0]
+        assert race["race_summary"]["total_overtakes"] == 0
+        assert race["race_summary"]["total_laps"] == 0
+        assert race["wildness_score"] == 0.0
