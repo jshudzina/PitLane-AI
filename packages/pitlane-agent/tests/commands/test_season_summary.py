@@ -1095,3 +1095,62 @@ class TestGetSeasonSummary:
         assert podium[0]["driver"] == "Ayrton Senna"
         assert podium[1]["driver"] == "Alain Prost"
         assert podium[2]["driver"] == "Nelson Piquet"
+
+    @patch("pitlane_agent.commands.fetch.season_summary.get_circuit_length_km")
+    @patch("pitlane_agent.commands.fetch.season_summary.load_session")
+    @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
+    @patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache")
+    @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats_from_results")
+    @patch("pitlane_agent.commands.fetch.season_summary.compute_race_summary_stats")
+    def test_na_abbreviation_falls_back_to_full_name(
+        self,
+        mock_compute_stats,
+        mock_compute_from_results,
+        mock_setup_cache,
+        mock_get_schedule,
+        mock_load_session,
+        mock_get_circuit_length,
+    ):
+        """Test that pd.NA Abbreviation (pre-2018) falls back to FullName."""
+        mock_get_circuit_length.return_value = 5.412
+        schedule = pd.DataFrame(
+            [
+                {
+                    "RoundNumber": 1,
+                    "EventName": "Brazilian Grand Prix",
+                    "Country": "Brazil",
+                    "EventDate": pd.Timestamp("1990-03-25"),
+                    "EventFormat": "conventional",
+                },
+            ]
+        )
+        mock_get_schedule.return_value = schedule
+
+        mock_session = MagicMock()
+        mock_session.track_status = pd.DataFrame({"Status": ["1"]})
+        mock_session.results = pd.DataFrame(
+            {
+                "Position": [1.0, 2.0, 3.0],
+                "Abbreviation": pd.array([pd.NA, pd.NA, pd.NA], dtype="object"),
+                "FullName": ["Ayrton Senna", "Alain Prost", "Gerhard Berger"],
+                "TeamName": ["McLaren", "Ferrari", "McLaren"],
+            }
+        )
+        mock_load_session.return_value = mock_session
+
+        mock_compute_stats.return_value = None
+        mock_compute_from_results.return_value = {
+            "total_overtakes": 3,
+            "total_position_changes": 6,
+            "average_volatility": 0.0,
+            "mean_pit_stops": 0.0,
+            "total_laps": 71,
+        }
+
+        result = get_season_summary(1990)
+
+        podium = result["races"][0]["podium"]
+        assert len(podium) == 3
+        assert podium[0]["driver"] == "Ayrton Senna"
+        assert podium[1]["driver"] == "Alain Prost"
+        assert podium[2]["driver"] == "Gerhard Berger"
