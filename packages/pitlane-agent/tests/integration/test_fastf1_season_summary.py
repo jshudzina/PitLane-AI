@@ -51,7 +51,7 @@ class TestSeasonSummaryIntegration:
                 assert "driver" in driver
                 assert "team" in driver
                 assert isinstance(driver["driver"], str)
-                assert len(driver["driver"]) == 3  # Driver abbreviations are 3 chars
+                assert len(driver["driver"]) >= 1  # 3-char abbreviation or full name for pre-2018
                 assert isinstance(driver["team"], str)
 
             # Race summary stats should be non-negative
