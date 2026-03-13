@@ -219,11 +219,7 @@ def compute_race_summary_stats_from_results(session: Session) -> RaceSummaryStat
             return None
 
         # Filter to rows with valid grid positions (>0, not NaN) and valid finish positions
-        valid = results[
-            results["GridPosition"].notna()
-            & (results["GridPosition"] > 0)
-            & results["Position"].notna()
-        ]
+        valid = results[results["GridPosition"].notna() & (results["GridPosition"] > 0) & results["Position"].notna()]
 
         total_position_changes = int((valid["GridPosition"] - valid["Position"]).abs().sum())
         total_overtakes = int((valid["GridPosition"] - valid["Position"]).clip(lower=0).sum())

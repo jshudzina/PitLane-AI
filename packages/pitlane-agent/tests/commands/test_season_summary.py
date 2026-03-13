@@ -1022,9 +1022,7 @@ class TestGetSeasonSummary:
 
         mock_session = MagicMock()
         mock_session.track_status = pd.DataFrame({"Status": ["1"]})
-        mock_session.results = pd.DataFrame(
-            {"Position": [1.0], "Abbreviation": ["VET"], "TeamName": ["Ferrari"]}
-        )
+        mock_session.results = pd.DataFrame({"Position": [1.0], "Abbreviation": ["VET"], "TeamName": ["Ferrari"]})
         mock_load_session.return_value = mock_session
 
         mock_compute_stats.return_value = None
