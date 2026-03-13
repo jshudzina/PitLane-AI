@@ -152,10 +152,11 @@ def _build_summary_from_db(year: int) -> SeasonSummary | None:
 
         circuit_length_km = row.get("circuit_length_km")
         total_laps = race_summary["total_laps"]
-        race_distance_km = (
+        race_distance_km = round(
             total_laps * circuit_length_km
             if circuit_length_km is not None
-            else total_laps * AVG_CIRCUIT_LENGTH_KM
+            else total_laps * AVG_CIRCUIT_LENGTH_KM,
+            3,
         )
 
         raw_races.append({
@@ -360,7 +361,9 @@ def get_season_summary(year: int) -> SeasonSummary:
     for race in raw_races:
         laps = race["race_summary"]["total_laps"]
         circuit_km = race["circuit_length_km"]
-        race["race_distance_km"] = laps * circuit_km if circuit_km is not None else laps * AVG_CIRCUIT_LENGTH_KM
+        race["race_distance_km"] = round(
+            laps * circuit_km if circuit_km is not None else laps * AVG_CIRCUIT_LENGTH_KM, 3
+        )
 
     # Compute normalization maxima across all sessions.  Since overtakes
     # are already expressed as a per-distance density, sprints and full

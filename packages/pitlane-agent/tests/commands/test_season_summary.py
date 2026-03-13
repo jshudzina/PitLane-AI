@@ -606,6 +606,12 @@ class TestComputeWildnessScore:
 class TestGetSeasonSummary:
     """Tests for get_season_summary."""
 
+    @pytest.fixture(autouse=True)
+    def _no_db(self):
+        """Ensure the DB fast-path returns None so tests exercise the live path."""
+        with patch("pitlane_agent.commands.fetch.season_summary.get_season_stats", return_value=None):
+            yield
+
     @patch("pitlane_agent.commands.fetch.season_summary.get_circuit_length_km")
     @patch("pitlane_agent.commands.fetch.season_summary.load_session")
     @patch("pitlane_agent.commands.fetch.season_summary.fastf1.get_event_schedule")
