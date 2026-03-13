@@ -127,8 +127,8 @@ def lookup_circuit_length_km(location: str) -> float | None:
     if key in CIRCUIT_LENGTHS_KM:
         return CIRCUIT_LENGTHS_KM[key]
 
-    # Tier 2: unambiguous substring match
-    matches = [(k, v) for k, v in CIRCUIT_LENGTHS_KM.items() if key in k or k in key]
+    # Tier 2: unambiguous substring match (query must be a substring of a dict key)
+    matches = [(k, v) for k, v in CIRCUIT_LENGTHS_KM.items() if key in k]
     if len(matches) == 1:
         return matches[0][1]
 
