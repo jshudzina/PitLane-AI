@@ -215,9 +215,16 @@ def get_season_summary(year: int) -> SeasonSummary:
                 for _, driver in results.head(3).iterrows():
                     if pd.notna(driver["Position"]):
                         team_name = driver.get("TeamName")
+                        abbr = driver["Abbreviation"]
+                        if pd.isna(abbr) or str(abbr).strip() == "":
+                            full_name = driver.get("FullName", "")
+                            full_name_str = str(full_name).strip() if pd.notna(full_name) else ""
+                            driver_str = full_name_str or "Unknown"
+                        else:
+                            driver_str = str(abbr)
                         podium.append(
                             {
-                                "driver": str(driver["Abbreviation"]),
+                                "driver": driver_str,
                                 "team": str(team_name) if pd.notna(team_name) else "Unknown",
                             }
                         )
