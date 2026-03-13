@@ -11,6 +11,8 @@ import numpy as np
 from fastf1.core import Session
 from fastf1.exceptions import DataNotLoadedError
 
+from pitlane_agent.utils.circuits import lookup_circuit_length_km
+
 
 class DriverPositionStats(TypedDict):
     """Position statistics for a single driver."""
@@ -39,10 +41,12 @@ class RaceSummaryStats(TypedDict):
 
 
 def get_circuit_length_km(session: Session) -> float | None:
-    """Compute circuit lap distance in kilometres from telemetry.
+    """Compute circuit lap distance in kilometres.
 
-    Uses the fastest lap's car data with distance channel to determine
-    the total circuit length. Returns None if telemetry is unavailable.
+    Uses a three-tier lookup:
+    1. FastF1 telemetry from the fastest lap (available for 2018+)
+    2. Static Wikipedia-sourced reference table keyed by session.event["Location"]
+    3. Returns None (caller falls back to AVG_CIRCUIT_LENGTH_KM)
 
     Args:
         session: FastF1 session object with laps loaded
@@ -50,16 +54,27 @@ def get_circuit_length_km(session: Session) -> float | None:
     Returns:
         Circuit length in km rounded to 3 decimal places, or None
     """
+    # Tier 1: telemetry-derived length
     try:
         fastest = session.laps.pick_fastest()
-        if fastest is None:
-            return None
-        telemetry = fastest.get_car_data().add_distance()
-        if telemetry.empty or "Distance" not in telemetry.columns:
-            return None
-        return round(telemetry["Distance"].max() / 1000, 3)
+        if fastest is not None:
+            telemetry = fastest.get_car_data().add_distance()
+            if not telemetry.empty and "Distance" in telemetry.columns:
+                return round(telemetry["Distance"].max() / 1000, 3)
     except Exception:
-        return None
+        pass
+
+    # Tier 2: static Wikipedia lookup via session.event["Location"]
+    try:
+        location = session.event["Location"]
+        if location:
+            result = lookup_circuit_length_km(str(location))
+            if result is not None:
+                return result
+    except Exception:
+        pass
+
+    return None
 
 
 def get_grid_position(driver_abbr: str, session: Session) -> int | None:

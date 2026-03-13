@@ -344,3 +344,48 @@ class TestGetCircuitLengthKm:
         result = get_circuit_length_km(session)
 
         assert result is None
+
+    def test_falls_back_to_static_table_when_no_telemetry(self):
+        """Static table is used when fastest lap is unavailable (e.g. pre-2018)."""
+        session = MagicMock()
+        session.laps.pick_fastest.return_value = None
+        session.event.__getitem__ = lambda self, key: "Monte Carlo" if key == "Location" else MagicMock()
+
+        result = get_circuit_length_km(session)
+
+        assert result == 3.337
+
+    def test_telemetry_takes_precedence_over_static_table(self):
+        """Telemetry-derived length overrides the static lookup when both are available."""
+        session = MagicMock()
+        fastest_lap = MagicMock()
+        session.laps.pick_fastest.return_value = fastest_lap
+        session.event.__getitem__ = lambda self, key: "Monte Carlo" if key == "Location" else MagicMock()
+
+        # Telemetry reports 3.400 km; static table would return 3.337
+        telemetry = pd.DataFrame({"Distance": [0.0, 1700.0, 3400.0]})
+        fastest_lap.get_car_data.return_value.add_distance.return_value = telemetry
+
+        result = get_circuit_length_km(session)
+
+        assert result == 3.4
+
+    def test_returns_none_when_both_tiers_fail(self):
+        """Returns None when telemetry is absent and location is not in the lookup table."""
+        session = MagicMock()
+        session.laps.pick_fastest.return_value = None
+        session.event.__getitem__ = lambda self, key: "UnknownCircuit99" if key == "Location" else MagicMock()
+
+        result = get_circuit_length_km(session)
+
+        assert result is None
+
+    def test_static_lookup_skipped_gracefully_on_missing_event_attr(self):
+        """No exception is raised when session.event["Location"] raises KeyError."""
+        session = MagicMock()
+        session.laps.pick_fastest.return_value = None
+        session.event.__getitem__ = MagicMock(side_effect=KeyError("Location"))
+
+        result = get_circuit_length_km(session)
+
+        assert result is None
