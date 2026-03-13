@@ -7,9 +7,9 @@ import pandas as pd
 import pytest
 from pitlane_agent.commands.fetch.season_summary import (
     _compute_wildness_score,
-    _count_track_interruptions,
     get_season_summary,
 )
+from pitlane_agent.utils.race_stats import count_track_interruptions as _count_track_interruptions
 
 # ---------------------------------------------------------------------------
 # Shared helpers for analyze tests
