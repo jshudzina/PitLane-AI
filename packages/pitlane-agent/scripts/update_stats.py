@@ -20,10 +20,10 @@ import logging
 import sys
 from pathlib import Path
 
+import backoff
 import click
 import fastf1
 import pandas as pd
-
 from pitlane_agent.utils.fastf1_helpers import load_session, setup_fastf1_cache
 from pitlane_agent.utils.race_stats import (
     RaceSummaryStats,
@@ -185,7 +185,11 @@ def update_stats(
             existing = {(r["round"], r["session_type"]) for r in existing_rows}
         click.echo(f"Found {len(existing)} sessions already in DB for {year}", err=True)
 
-    schedule = fastf1.get_event_schedule(year, include_testing=False)
+    @backoff.on_exception(backoff.expo, Exception, max_tries=5, jitter=backoff.full_jitter)
+    def _get_schedule() -> object:
+        return fastf1.get_event_schedule(year, include_testing=False)
+
+    schedule = _get_schedule()
 
     records: list[SessionStats] = []
     processed = 0
