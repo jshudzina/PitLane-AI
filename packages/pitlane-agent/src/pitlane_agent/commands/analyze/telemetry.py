@@ -422,8 +422,14 @@ def _render_telemetry_chart(
                 dist = float(corner["Distance"])
 
                 for row in range(1, num_rows + 1):
-                    fig.add_vline(
-                        x=dist,
+                    fig.add_shape(
+                        type="line",
+                        x0=dist,
+                        x1=dist,
+                        y0=0,
+                        y1=1,
+                        yref="y domain",
+                        xref="x",
                         line={"color": PLOTLY_DARK_THEME["corner_line_color"], "width": 1, "dash": "dash"},
                         row=row,
                         col=1,
