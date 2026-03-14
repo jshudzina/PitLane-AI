@@ -103,7 +103,7 @@ pitlane analyze gear-shifts-map \
 
 ### 3. Multi-Channel Telemetry Comparison
 
-Compare all five telemetry channels (Speed, RPM, Gear, Throttle, Brake) between drivers in a single interactive chart with synchronized subplots.
+Compare telemetry between drivers in a single interactive chart using a pro "outcome first" layout — time delta on top so you see immediately where time is gained or lost, followed by speed, driver inputs, and powertrain data.
 
 **Command:**
 ```bash
@@ -111,31 +111,45 @@ pitlane analyze telemetry \
   --year 2024 \
   --gp Monaco \
   --session Q \
-  --drivers VER --drivers HAM \
-  --annotate-corners
+  --drivers VER --drivers HAM
 ```
 
-**What it does:**
-- Loads telemetry data for specified drivers' fastest laps
-- Creates 5 synchronized subplots: Speed (km/h), RPM, Gear, Throttle (%), Brake
-- Interactive Plotly HTML chart with hover tooltips showing per-driver deltas
-- Teammate differentiation: solid vs dashed lines for drivers on the same team
-- Returns JSON with chart path, per-driver statistics, and delta analysis
-- Chart is saved as HTML to workspace charts directory
+Corner annotations are shown by default. Use `--no-corners` to suppress them.
+
+**Default layout (4 rows):**
+1. **Δ Time (s)** — Cumulative gap vs reference driver (first in list). Positive = this driver is BEHIND the reference at this point. Zero line shown as reference.
+2. **Speed (km/h)** — Speed trace per driver
+3. **Throttle / Brake** — Throttle line (0–100%) + Brake as semi-transparent filled band on same axis
+4. **RPM / Gear** — RPM on left axis; Gear as step-line on secondary right axis (1–8)
 
 **Parameters:**
 - `--year`: Season year (e.g., 2024)
 - `--gp`: Grand Prix name (e.g., "Monaco", "Silverstone")
 - `--session`: Session type (R=Race, Q=Qualifying, FP1, FP2, FP3, S=Sprint, SQ)
 - `--drivers`: 2-5 driver abbreviations to compare (specify multiple times)
-- `--annotate-corners`: (optional flag) Add vertical corner markers to all subplots
+- `--no-corners`: Disable corner markers (shown by default)
+- `--channel`: Select which channels to display (specify multiple times). Available channels:
+  - `delta` — Cumulative time gap vs reference driver
+  - `speed` — Speed trace
+  - `throttle_brake` — Throttle + Brake on shared axis
+  - `rpm_gear` — RPM (left) + Gear step-line (right secondary axis)
+  - `superclip` — MGU-K super clipping indicator
 - `--test N --day N`: For pre-season testing sessions (mutually exclusive with --gp/--session)
+
+**Channel selection examples:**
+```bash
+# Speed and delta only (minimal view)
+pitlane analyze telemetry ... --channel speed --channel delta
+
+# Add superclip to default layout
+pitlane analyze telemetry ... --channel delta --channel speed --channel throttle_brake --channel rpm_gear --channel superclip
+```
 
 **Example Questions:**
 - "Show me a full telemetry comparison between Verstappen and Hamilton at Monaco"
 - "Compare all telemetry channels for the top 3 qualifiers at Silverstone"
 - "Where is Norris losing time to Verstappen in braking and throttle application?"
-- "Show me the complete telemetry overlay including RPM and gear shifts"
+- "Show just the time delta and speed trace for these two drivers"
 - "Full telemetry comparison with corner annotations at Spa"
 - "Compare telemetry for the Red Bull drivers in pre-season testing day 2"
 
@@ -145,13 +159,15 @@ pitlane analyze telemetry \
 - `max_rpm`: Maximum RPM reached
 - `fastest_lap_time`: Lap time in HH:MM:SS format
 - `fastest_lap_number`: Which lap number was analyzed
+- `channels`: List of channel groups displayed in the chart
 
 **Chart Interpretation:**
-- 5 vertically stacked subplots sharing the same X-axis (distance in meters)
-- Hover over any subplot to see all drivers' values and deltas at that distance
+- Subplots share the same X-axis (distance in meters); zooming one syncs all
+- Δ Time: positive = this driver arrived later than reference (slower to that point); negative = ahead
+- Brake fill: same driver color as throttle, semi-transparent, shows braking zones
+- Gear trace: step-style line on right axis so it doesn't visually interfere with RPM curves
 - Each driver colored by team color; teammates distinguished by solid vs dashed lines
-- Zooming/panning one subplot synchronizes all subplots
-- Corner annotations (when enabled) appear as vertical dashed lines across all subplots
+- Corner annotations appear as vertical dashed lines across all subplots with corner numbers on top row
 
 **Limitations:**
 - Requires telemetry data to be available (typically 2018 onwards)
