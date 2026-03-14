@@ -71,10 +71,12 @@ def _extract_podium(session: object) -> list[dict[str, str]]:
                         driver_str = "Unknown"
                 else:
                     driver_str = str(abbr)
-                podium.append({
-                    "driver": driver_str,
-                    "team": str(team_name) if pd.notna(team_name) else "Unknown",
-                })
+                podium.append(
+                    {
+                        "driver": driver_str,
+                        "team": str(team_name) if pd.notna(team_name) else "Unknown",
+                    }
+                )
     except Exception:
         pass
     return podium
@@ -96,12 +98,16 @@ def _process_session(
         if race_summary is not None:
             logger.info(
                 "Using results-only stats for %s %d: %s — volatility and pit stops unavailable",
-                session_type, round_number, event_name,
+                session_type,
+                round_number,
+                event_name,
             )
         else:
             logger.info(
                 "No lap or results data for %s %d: %s, using zeroed stats",
-                session_type, round_number, event_name,
+                session_type,
+                round_number,
+                event_name,
             )
             race_summary = RaceSummaryStats(
                 total_overtakes=0,
@@ -142,25 +148,33 @@ def _process_session(
 @click.command()
 @click.option("--year", required=True, type=int, help="F1 season year (e.g. 2024)")
 @click.option(
-    "--round", "round_number",
-    default=None, type=int,
+    "--round",
+    "round_number",
+    default=None,
+    type=int,
     help="Specific round number to update (default: all rounds)",
 )
 @click.option(
-    "--db-path", "db_path_str",
-    default=None, type=str,
+    "--db-path",
+    "db_path_str",
+    default=None,
+    type=str,
     help="Path to DuckDB file (default: bundled pitlane.duckdb)",
 )
 @click.option(
-    "--with-telemetry/--no-telemetry", "with_telemetry",
-    default=True, show_default=True,
+    "--with-telemetry/--no-telemetry",
+    "with_telemetry",
+    default=True,
+    show_default=True,
     help=(
         "Load lap telemetry for precise circuit lengths (2018+). "
         "When disabled, the static Wikipedia lookup table is still used as fallback."
     ),
 )
 @click.option(
-    "--force", is_flag=True, default=False,
+    "--force",
+    is_flag=True,
+    default=False,
     help="Re-compute and overwrite sessions already in DB",
 )
 def update_stats(
@@ -222,9 +236,7 @@ def update_stats(
             click.echo(f"  Processing round {rn} {st}: {event_name}...", err=True)
             try:
                 session = load_session(year, event_name, st, telemetry=with_telemetry)
-                record = _process_session(
-                    session, year, rn, event_name, country, date_str, st
-                )
+                record = _process_session(session, year, rn, event_name, country, date_str, st)
                 records.append(record)
                 processed += 1
             except Exception as e:
