@@ -80,6 +80,14 @@ def _format_normal(context: TemporalContext) -> str:
     else:
         lines.append(f"**Phase:** {phase_display}")
 
+    if context.current_season == 2026:
+        lines.append("")
+        lines.append(
+            "> **2026 season has major regulation changes** "
+            "(new qualifying format, no MGU-H, 22 drivers, active aero). "
+            "Use the `f1-2026-season` skill for accurate current-season facts before answering."
+        )
+
     lines.append("")
 
     # Current race weekend (if any)
@@ -159,6 +167,14 @@ def _format_detailed(context: TemporalContext) -> str:
         )
     else:
         lines.append(f"**Phase:** {phase_display}")
+
+    if context.current_season == 2026:
+        lines.append("")
+        lines.append(
+            "> **2026 season has major regulation changes** "
+            "(new qualifying format, no MGU-H, 22 drivers, active aero). "
+            "Use the `f1-2026-season` skill for accurate current-season facts before answering."
+        )
 
     lines.append("")
 

@@ -76,6 +76,21 @@ MAX_SPRINT_POINTS = 8
 # Year when fastest lap point was removed
 FASTEST_LAP_POINT_REMOVED_YEAR = 2025
 
+# 2026 Grid and Qualifying Structure
+# Cadillac joined as 11th team, expanding the grid from 20 to 22 drivers
+TOTAL_DRIVERS_2026 = 22
+Q1_ELIMINATED_2026 = 6  # Bottom 6 eliminated in Q1 (was 5 with 20-car grid)
+Q2_DRIVERS_2026 = 16  # Drivers advancing to Q2 (was 15)
+Q2_ELIMINATED_2026 = 6  # Bottom 6 eliminated in Q2 (was 5)
+Q3_DRIVERS_2026 = 10  # Top 10 in Q3 (unchanged)
+
+# 2026 Power Unit
+MGUH_REMOVED_YEAR = 2026  # MGU-H eliminated from power units
+MGU_K_OUTPUT_KW_2026 = 350  # MGU-K output in kW (was 120kW pre-2026)
+
+# 2026 Car Weight
+MIN_CAR_WEIGHT_KG_2026 = 768  # Minimum car weight in kg (was 798kg in 2025)
+
 # Championship Possibility Colors
 CHAMPIONSHIP_VIABLE_COLOR = "#43B02A"  # Green for competitors who can still win
 CHAMPIONSHIP_ELIMINATED_COLOR = "#888888"  # Gray for eliminated competitors
