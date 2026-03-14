@@ -40,6 +40,9 @@ class DriverInfo(TypedDict):
     status: str | None               # FastF1 Status: "+1 Lap", "Engine", "Finished", etc.
     finish_time: str | None          # Formatted race time or gap: "1:32:45.213"
     points: float | None
+    q1: str | None                   # Best Q1 lap time (qualifying sessions only)
+    q2: str | None                   # Best Q2 lap time (qualifying sessions only)
+    q3: str | None                   # Best Q3 lap time (qualifying sessions only)
 
 
 class RaceConditions(TypedDict):
@@ -157,6 +160,17 @@ def _format_finish_time(val: object) -> str | None:
     if hours > 0:
         return f"{hours}:{minutes:02d}:{seconds:06.3f}"
     return f"{minutes}:{seconds:06.3f}"
+
+
+def _nonempty_str(val: object) -> str | None:
+    """Return val as a string, or None if it is NaN/NaT or an empty string."""
+    try:
+        if pd.isna(val):  # type: ignore[arg-type]
+            return None
+    except (TypeError, ValueError):
+        pass
+    s = str(val).strip()
+    return s or None
 
 
 def _extract_track_status(session: Session) -> RaceConditions | None:
@@ -281,9 +295,12 @@ def get_session_info(
                 "position": int(driver["Position"]) if pd.notna(driver["Position"]) else None,
                 "grid_position": int(driver["GridPosition"]) if pd.notna(driver.get("GridPosition")) else None,
                 "classified_position": _format_classified_position(driver.get("ClassifiedPosition")),
-                "status": str(driver["Status"]) if pd.notna(driver.get("Status")) else None,
+                "status": _nonempty_str(driver.get("Status")),
                 "finish_time": _format_finish_time(driver.get("Time")),
                 "points": float(driver["Points"]) if pd.notna(driver.get("Points")) else None,
+                "q1": _format_finish_time(driver.get("Q1")),
+                "q2": _format_finish_time(driver.get("Q2")),
+                "q3": _format_finish_time(driver.get("Q3")),
             }
         )
 

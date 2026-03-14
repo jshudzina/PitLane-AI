@@ -11,6 +11,7 @@ from pitlane_agent.commands.fetch.session_info import (
     _extract_weather_data,
     _format_classified_position,
     _format_finish_time,
+    _nonempty_str,
     get_session_info,
 )
 
@@ -42,6 +43,24 @@ class TestFormatClassifiedPosition:
     def test_nan_returns_none(self):
         assert _format_classified_position(float("nan")) is None
         assert _format_classified_position(None) is None
+
+
+class TestNonemptyStr:
+    """Unit tests for _nonempty_str."""
+
+    def test_normal_string(self):
+        assert _nonempty_str("Engine") == "Engine"
+
+    def test_empty_string_returns_none(self):
+        assert _nonempty_str("") is None
+        assert _nonempty_str("   ") is None
+
+    def test_nan_returns_none(self):
+        assert _nonempty_str(float("nan")) is None
+        assert _nonempty_str(None) is None
+
+    def test_nat_returns_none(self):
+        assert _nonempty_str(pd.NaT) is None
 
 
 class TestFormatFinishTime:
@@ -249,6 +268,9 @@ def _make_driver_df(rows: list[dict]) -> pd.DataFrame:
         "Status": float("nan"),
         "Time": pd.NaT,
         "Points": float("nan"),
+        "Q1": pd.NaT,
+        "Q2": pd.NaT,
+        "Q3": pd.NaT,
     }
     return pd.DataFrame([{**defaults, **row} for row in rows])
 
@@ -286,6 +308,9 @@ class TestSessionInfoBusinessLogic:
                     "Status": "Finished",
                     "Time": timedelta(hours=1, minutes=32, seconds=45, milliseconds=213),
                     "Points": 25.0,
+                    "Q1": timedelta(minutes=1, seconds=10, milliseconds=500),
+                    "Q2": timedelta(minutes=1, seconds=9, milliseconds=800),
+                    "Q3": timedelta(minutes=1, seconds=9, milliseconds=100),
                 }
             ]
         )
@@ -322,6 +347,9 @@ class TestSessionInfoBusinessLogic:
         assert driver["status"] == "Finished"
         assert driver["finish_time"] == "1:32:45.213"
         assert driver["points"] == 25.0
+        assert driver["q1"] == "1:10.500"
+        assert driver["q2"] == "1:09.800"
+        assert driver["q3"] == "1:09.100"
 
         assert result["race_conditions"] is not None
         assert result["race_conditions"]["num_safety_cars"] == 2
@@ -422,6 +450,14 @@ class TestSessionInfoBusinessLogic:
                     "ClassifiedPosition": "R",
                     "Status": "Engine",
                 },
+                {
+                    "Abbreviation": "ALO",
+                    "FirstName": "Fernando",
+                    "LastName": "Alonso",
+                    "TeamName": "Aston Martin",
+                    "ClassifiedPosition": "N",
+                    "Status": "",  # empty string should become None
+                },
             ]
         )
         mock_extract_track_status.return_value = None
@@ -429,7 +465,7 @@ class TestSessionInfoBusinessLogic:
 
         result = get_session_info(2024, "Monaco", "Q")
 
-        assert len(result["drivers"]) == 2
+        assert len(result["drivers"]) == 3
         assert result["drivers"][0]["number"] == 1
         assert result["drivers"][0]["position"] == 1
         assert result["drivers"][0]["classified_position"] == "1st"
@@ -439,6 +475,8 @@ class TestSessionInfoBusinessLogic:
         assert result["drivers"][1]["status"] == "Engine"
         assert result["drivers"][1]["finish_time"] is None
         assert result["drivers"][1]["points"] is None
+        assert result["drivers"][2]["classified_position"] == "Not Classified"
+        assert result["drivers"][2]["status"] is None  # empty string → None
         assert result["total_laps"] is None
         assert result["race_conditions"] is None
         assert result["weather"] is None
