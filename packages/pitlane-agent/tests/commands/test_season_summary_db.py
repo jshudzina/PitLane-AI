@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from pitlane_agent.commands.fetch.season_summary import _build_summary_from_db, get_season_summary
 from pitlane_agent.utils.constants import AVG_CIRCUIT_LENGTH_KM
 from pitlane_agent.utils.stats_db import init_db, upsert_session_stats
@@ -25,11 +24,13 @@ _SAMPLE_ROW = {
     "num_safety_cars": 0,
     "num_virtual_safety_cars": 1,
     "num_red_flags": 0,
-    "podium": json.dumps([
-        {"driver": "VER", "team": "Red Bull Racing"},
-        {"driver": "SAI", "team": "Ferrari"},
-        {"driver": "LEC", "team": "Ferrari"},
-    ]),
+    "podium": json.dumps(
+        [
+            {"driver": "VER", "team": "Red Bull Racing"},
+            {"driver": "SAI", "team": "Ferrari"},
+            {"driver": "LEC", "team": "Ferrari"},
+        ]
+    ),
 }
 
 
@@ -182,14 +183,14 @@ class TestGetSeasonSummaryDbFirst:
         db_path = tmp_path / "test.duckdb"
         init_db(db_path)
         upsert_session_stats(db_path, [_SAMPLE_ROW])
-        with patch(
-            "pitlane_agent.commands.fetch.season_summary.get_db_path",
-            return_value=db_path,
+        with (
+            patch(
+                "pitlane_agent.commands.fetch.season_summary.get_db_path",
+                return_value=db_path,
+            ),
+            patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache") as mock_cache,
         ):
-            with patch(
-                "pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache"
-            ) as mock_cache:
-                result = get_season_summary(2024)
+            result = get_season_summary(2024)
         # FastF1 should not be touched when DB has data
         mock_cache.assert_not_called()
         assert result["year"] == 2024
@@ -197,17 +198,18 @@ class TestGetSeasonSummaryDbFirst:
 
     def test_falls_back_to_live_when_db_empty(self, tmp_path: Path) -> None:
         db_path = tmp_path / "missing.duckdb"
-        with patch(
-            "pitlane_agent.commands.fetch.season_summary.get_db_path",
-            return_value=db_path,
+        with (
+            patch(
+                "pitlane_agent.commands.fetch.season_summary.get_db_path",
+                return_value=db_path,
+            ),
+            patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache") as mock_cache,
+            patch("pitlane_agent.commands.fetch.season_summary.fastf1") as mock_ff1,
         ):
-            with patch(
-                "pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache"
-            ) as mock_cache:
-                with patch("pitlane_agent.commands.fetch.season_summary.fastf1") as mock_ff1:
-                    import pandas as pd
-                    mock_ff1.get_event_schedule.return_value = pd.DataFrame(columns=["RoundNumber"])
-                    result = get_season_summary(2024)
+            import pandas as pd
+
+            mock_ff1.get_event_schedule.return_value = pd.DataFrame(columns=["RoundNumber"])
+            result = get_season_summary(2024)
         # Live path was reached
         mock_cache.assert_called_once()
         mock_ff1.get_event_schedule.assert_called_once_with(2024, include_testing=False)

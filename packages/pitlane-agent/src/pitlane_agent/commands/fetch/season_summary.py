@@ -75,7 +75,6 @@ class SeasonSummary(TypedDict):
     season_averages: SeasonAverages
 
 
-
 def _compute_wildness_score(
     race_summary: RaceSummaryStats,
     num_safety_cars: int,
@@ -153,26 +152,26 @@ def _build_summary_from_db(year: int) -> SeasonSummary | None:
         circuit_length_km = row.get("circuit_length_km")
         total_laps = race_summary["total_laps"]
         race_distance_km = round(
-            total_laps * circuit_length_km
-            if circuit_length_km is not None
-            else total_laps * AVG_CIRCUIT_LENGTH_KM,
+            total_laps * circuit_length_km if circuit_length_km is not None else total_laps * AVG_CIRCUIT_LENGTH_KM,
             3,
         )
 
-        raw_races.append({
-            "round": row.get("round"),
-            "event_name": row.get("event_name", ""),
-            "country": row.get("country", ""),
-            "date": row.get("date"),
-            "session_type": row.get("session_type", "R"),
-            "circuit_length_km": circuit_length_km,
-            "podium": podium,
-            "race_summary": race_summary,
-            "num_safety_cars": row.get("num_safety_cars") or 0,
-            "num_virtual_safety_cars": row.get("num_virtual_safety_cars") or 0,
-            "num_red_flags": row.get("num_red_flags") or 0,
-            "race_distance_km": race_distance_km,
-        })
+        raw_races.append(
+            {
+                "round": row.get("round"),
+                "event_name": row.get("event_name", ""),
+                "country": row.get("country", ""),
+                "date": row.get("date"),
+                "session_type": row.get("session_type", "R"),
+                "circuit_length_km": circuit_length_km,
+                "podium": podium,
+                "race_summary": race_summary,
+                "num_safety_cars": row.get("num_safety_cars") or 0,
+                "num_virtual_safety_cars": row.get("num_virtual_safety_cars") or 0,
+                "num_red_flags": row.get("num_red_flags") or 0,
+                "race_distance_km": race_distance_km,
+            }
+        )
 
     max_overtakes_per_km = max(
         (r["race_summary"]["total_overtakes"] / r["race_distance_km"] if r["race_distance_km"] > 0 else 0)
