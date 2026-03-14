@@ -38,7 +38,7 @@ class DriverInfo(TypedDict):
     grid_position: int | None
     classified_position: str | None  # Human-readable: "1st", "Retired", "Disqualified", etc.
     status: str | None               # FastF1 Status: "+1 Lap", "Engine", "Finished", etc.
-    race_time: str | None            # Winner's total race time; gap to leader for all other finishers (race/sprint only)
+    race_time: str | None            # Winner's total race time; gap to leader for others (race/sprint only)
     points: float | None
     q1_time: str | None              # Best lap in Q1 segment (Q/SQ sessions); null means did not participate
     q2_time: str | None              # Best lap in Q2 segment (Q/SQ sessions); null means eliminated in Q1
