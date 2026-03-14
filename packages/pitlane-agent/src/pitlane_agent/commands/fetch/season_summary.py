@@ -7,27 +7,23 @@ Usage:
     pitlane season-summary --year 2024
 """
 
+import json
 import logging
 from typing import TypedDict
 
 import fastf1
 import pandas as pd
-from fastf1.core import Session
-from fastf1.exceptions import DataNotLoadedError
 
-from pitlane_agent.utils.constants import (
-    AVG_CIRCUIT_LENGTH_KM,
-    TRACK_STATUS_RED_FLAG,
-    TRACK_STATUS_SAFETY_CAR,
-    TRACK_STATUS_VSC_DEPLOYED,
-)
+from pitlane_agent.utils.constants import AVG_CIRCUIT_LENGTH_KM
 from pitlane_agent.utils.fastf1_helpers import load_session, setup_fastf1_cache
 from pitlane_agent.utils.race_stats import (
     RaceSummaryStats,
     compute_race_summary_stats,
     compute_race_summary_stats_from_results,
+    count_track_interruptions,
     get_circuit_length_km,
 )
+from pitlane_agent.utils.stats_db import get_db_path, get_season_stats
 
 logger = logging.getLogger(__name__)
 
@@ -79,22 +75,6 @@ class SeasonSummary(TypedDict):
     season_averages: SeasonAverages
 
 
-def _count_track_interruptions(session: Session) -> tuple[int, int, int]:
-    """Count safety cars, VSCs, and red flags from track status data.
-
-    Returns:
-        Tuple of (safety_cars, virtual_safety_cars, red_flags)
-    """
-    try:
-        track_status = session.track_status
-        safety_cars = len(track_status[track_status["Status"] == TRACK_STATUS_SAFETY_CAR])
-        vscs = len(track_status[track_status["Status"] == TRACK_STATUS_VSC_DEPLOYED])
-        red_flags = len(track_status[track_status["Status"] == TRACK_STATUS_RED_FLAG])
-        return safety_cars, vscs, red_flags
-    except DataNotLoadedError:
-        return 0, 0, 0
-
-
 def _compute_wildness_score(
     race_summary: RaceSummaryStats,
     num_safety_cars: int,
@@ -137,11 +117,110 @@ def _compute_wildness_score(
     )
 
 
+def _build_summary_from_db(year: int) -> SeasonSummary | None:
+    """Return SeasonSummary from pre-computed DuckDB data, or None if no data.
+
+    Args:
+        year: Championship year (e.g., 2024)
+
+    Returns:
+        Complete SeasonSummary built from cached DB rows, or None when no rows
+        exist for the year (DB missing, empty, or year not yet populated).
+        Partial seasons (not all rounds cached) are returned as-is.
+    """
+    rows = get_season_stats(get_db_path(), year)
+    if not rows:
+        return None
+
+    raw_races = []
+    for row in rows:
+        race_summary: RaceSummaryStats = {
+            "total_overtakes": row.get("total_overtakes") or 0,
+            "total_position_changes": row.get("total_position_changes") or 0,
+            "average_volatility": row.get("average_volatility") or 0.0,
+            "mean_pit_stops": row.get("mean_pit_stops") or 0.0,
+            "total_laps": row.get("total_laps") or 0,
+        }
+
+        podium: list[PodiumEntry] = []
+        if podium_raw := row.get("podium"):
+            try:
+                podium = json.loads(podium_raw)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("Could not parse podium JSON for round %s", row.get("round"))
+
+        circuit_length_km = row.get("circuit_length_km")
+        total_laps = race_summary["total_laps"]
+        race_distance_km = round(
+            total_laps * circuit_length_km if circuit_length_km is not None else total_laps * AVG_CIRCUIT_LENGTH_KM,
+            3,
+        )
+
+        raw_races.append(
+            {
+                "round": row.get("round"),
+                "event_name": row.get("event_name", ""),
+                "country": row.get("country", ""),
+                "date": row.get("date"),
+                "session_type": row.get("session_type", "R"),
+                "circuit_length_km": circuit_length_km,
+                "podium": podium,
+                "race_summary": race_summary,
+                "num_safety_cars": row.get("num_safety_cars") or 0,
+                "num_virtual_safety_cars": row.get("num_virtual_safety_cars") or 0,
+                "num_red_flags": row.get("num_red_flags") or 0,
+                "race_distance_km": race_distance_km,
+            }
+        )
+
+    max_overtakes_per_km = max(
+        (r["race_summary"]["total_overtakes"] / r["race_distance_km"] if r["race_distance_km"] > 0 else 0)
+        for r in raw_races
+    )
+    max_volatility = max(r["race_summary"]["average_volatility"] for r in raw_races)
+
+    races: list[SeasonRaceSummary] = []
+    for race in raw_races:
+        wildness = _compute_wildness_score(
+            race["race_summary"],
+            race["num_safety_cars"],
+            race["num_red_flags"],
+            race["race_distance_km"],
+            max_overtakes_per_km,
+            max_volatility,
+        )
+        races.append({**race, "wildness_score": wildness})  # type: ignore[arg-type]
+    races.sort(key=lambda r: r["wildness_score"], reverse=True)
+
+    num_races = len(races)
+    per_lap_overtakes: list[float] = []
+    per_lap_pos_changes: list[float] = []
+    for r in races:
+        laps = r["race_summary"]["total_laps"]
+        if laps > 0:
+            per_lap_overtakes.append(r["race_summary"]["total_overtakes"] / laps)
+            per_lap_pos_changes.append(r["race_summary"]["total_position_changes"] / laps)
+
+    avg_overtakes = round(sum(per_lap_overtakes) / len(per_lap_overtakes), 2) if per_lap_overtakes else 0.0
+    avg_pos_changes = round(sum(per_lap_pos_changes) / len(per_lap_pos_changes), 2) if per_lap_pos_changes else 0.0
+    return {
+        "year": year,
+        "total_races": num_races,
+        "races": races,
+        "season_averages": {
+            "overtakes_per_lap": avg_overtakes,
+            "position_changes_per_lap": avg_pos_changes,
+            "average_volatility": round(sum(r["race_summary"]["average_volatility"] for r in races) / num_races, 2),
+            "mean_pit_stops": round(sum(r["race_summary"]["mean_pit_stops"] for r in races) / num_races, 2),
+        },
+    }
+
+
 def get_season_summary(year: int) -> SeasonSummary:
     """Load all races in a season and rank them by wildness.
 
-    This loads each race session individually, which can be slow on first run.
-    Subsequent calls benefit from FastF1's cache.
+    Checks pre-computed DuckDB stats first (instant). Falls back to loading
+    all sessions live via FastF1 when no DB data exists for the year.
 
     Args:
         year: Championship year (e.g., 2024)
@@ -150,6 +229,11 @@ def get_season_summary(year: int) -> SeasonSummary:
         Dictionary with races sorted by wildness score (descending)
         and season-wide averages.
     """
+    db_result = _build_summary_from_db(year)
+    if db_result is not None:
+        logger.info("Returning season summary for %d from DuckDB (%d races)", year, db_result["total_races"])
+        return db_result
+    logger.info("No DB data for %d — loading all sessions live via FastF1", year)
     setup_fastf1_cache()
     schedule = fastf1.get_event_schedule(year, include_testing=False)
 
@@ -206,7 +290,7 @@ def get_season_summary(year: int) -> SeasonSummary:
                         total_laps=0,
                     )
 
-            safety_cars, vscs, red_flags = _count_track_interruptions(session)
+            safety_cars, vscs, red_flags = count_track_interruptions(session)
 
             # Extract podium (top 3 finishers) from results
             podium: list[PodiumEntry] = []
@@ -276,7 +360,9 @@ def get_season_summary(year: int) -> SeasonSummary:
     for race in raw_races:
         laps = race["race_summary"]["total_laps"]
         circuit_km = race["circuit_length_km"]
-        race["race_distance_km"] = laps * circuit_km if circuit_km is not None else laps * AVG_CIRCUIT_LENGTH_KM
+        race["race_distance_km"] = round(
+            laps * circuit_km if circuit_km is not None else laps * AVG_CIRCUIT_LENGTH_KM, 3
+        )
 
     # Compute normalization maxima across all sessions.  Since overtakes
     # are already expressed as a per-distance density, sprints and full

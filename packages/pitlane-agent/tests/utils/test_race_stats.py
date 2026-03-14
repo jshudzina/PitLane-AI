@@ -8,6 +8,7 @@ from pitlane_agent.utils.race_stats import (
     compute_driver_position_stats,
     compute_race_summary_stats,
     compute_race_summary_stats_from_results,
+    count_track_interruptions,
     get_circuit_length_km,
     get_grid_position,
 )
@@ -528,3 +529,28 @@ class TestComputeRaceSummaryStatsFromResults:
         type(session).results = PropertyMock(side_effect=AttributeError("boom"))
         result = compute_race_summary_stats_from_results(session)
         assert result is None
+
+
+class TestCountTrackInterruptions:
+    """Tests for count_track_interruptions."""
+
+    def test_counts_all_types(self):
+        """Test counting safety cars, VSCs, and red flags."""
+        session = MagicMock()
+        session.track_status = pd.DataFrame({"Status": ["1", "4", "6", "5", "4", "1"]})
+        sc, vsc, rf = count_track_interruptions(session)
+        assert sc == 2
+        assert vsc == 1
+        assert rf == 1
+
+    def test_returns_zeros_when_no_interruptions(self):
+        """Test that clean race returns all zeros."""
+        session = MagicMock()
+        session.track_status = pd.DataFrame({"Status": ["1", "3", "1"]})
+        assert count_track_interruptions(session) == (0, 0, 0)
+
+    def test_returns_zeros_on_data_not_loaded(self):
+        """Test that DataNotLoadedError is caught and zeros returned."""
+        session = MagicMock()
+        type(session).track_status = PropertyMock(side_effect=DataNotLoadedError("not loaded"))
+        assert count_track_interruptions(session) == (0, 0, 0)

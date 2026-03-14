@@ -12,6 +12,11 @@ from fastf1.core import Session
 from fastf1.exceptions import DataNotLoadedError
 
 from pitlane_agent.utils.circuits import lookup_circuit_length_km
+from pitlane_agent.utils.constants import (
+    TRACK_STATUS_RED_FLAG,
+    TRACK_STATUS_SAFETY_CAR,
+    TRACK_STATUS_VSC_DEPLOYED,
+)
 
 
 class DriverPositionStats(TypedDict):
@@ -75,6 +80,22 @@ def get_circuit_length_km(session: Session) -> float | None:
         pass
 
     return None
+
+
+def count_track_interruptions(session: Session) -> tuple[int, int, int]:
+    """Count safety cars, VSCs, and red flags from track status data.
+
+    Returns:
+        Tuple of (safety_cars, virtual_safety_cars, red_flags)
+    """
+    try:
+        track_status = session.track_status
+        safety_cars = len(track_status[track_status["Status"] == TRACK_STATUS_SAFETY_CAR])
+        vscs = len(track_status[track_status["Status"] == TRACK_STATUS_VSC_DEPLOYED])
+        red_flags = len(track_status[track_status["Status"] == TRACK_STATUS_RED_FLAG])
+        return safety_cars, vscs, red_flags
+    except (DataNotLoadedError, KeyError):
+        return 0, 0, 0
 
 
 def get_grid_position(driver_abbr: str, session: Session) -> int | None:
