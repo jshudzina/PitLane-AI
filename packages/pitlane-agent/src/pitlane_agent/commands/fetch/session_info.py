@@ -40,9 +40,9 @@ class DriverInfo(TypedDict):
     status: str | None               # FastF1 Status: "+1 Lap", "Engine", "Finished", etc.
     finish_time: str | None          # Formatted race time or gap: "1:32:45.213"
     points: float | None
-    q1: str | None                   # Best Q1 lap time (qualifying sessions only)
-    q2: str | None                   # Best Q2 lap time (qualifying sessions only)
-    q3: str | None                   # Best Q3 lap time (qualifying sessions only)
+    q1_time: str | None              # Best Q1 lap time (qualifying sessions only)
+    q2_time: str | None              # Best Q2 lap time (qualifying sessions only)
+    q3_time: str | None              # Best Q3 lap time (qualifying sessions only)
 
 
 class RaceConditions(TypedDict):
@@ -298,9 +298,9 @@ def get_session_info(
                 "status": _nonempty_str(driver.get("Status")),
                 "finish_time": _format_finish_time(driver.get("Time")),
                 "points": float(driver["Points"]) if pd.notna(driver.get("Points")) else None,
-                "q1": _format_finish_time(driver.get("Q1")),
-                "q2": _format_finish_time(driver.get("Q2")),
-                "q3": _format_finish_time(driver.get("Q3")),
+                "q1_time": _format_finish_time(driver.get("Q1")),
+                "q2_time": _format_finish_time(driver.get("Q2")),
+                "q3_time": _format_finish_time(driver.get("Q3")),
             }
         )
 

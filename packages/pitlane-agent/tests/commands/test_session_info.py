@@ -347,9 +347,9 @@ class TestSessionInfoBusinessLogic:
         assert driver["status"] == "Finished"
         assert driver["finish_time"] == "1:32:45.213"
         assert driver["points"] == 25.0
-        assert driver["q1"] == "1:10.500"
-        assert driver["q2"] == "1:09.800"
-        assert driver["q3"] == "1:09.100"
+        assert driver["q1_time"] == "1:10.500"
+        assert driver["q2_time"] == "1:09.800"
+        assert driver["q3_time"] == "1:09.100"
 
         assert result["race_conditions"] is not None
         assert result["race_conditions"]["num_safety_cars"] == 2
