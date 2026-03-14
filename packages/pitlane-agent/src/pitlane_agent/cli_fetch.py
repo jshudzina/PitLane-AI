@@ -26,6 +26,15 @@ from pitlane_agent.utils.constants import MIN_F1_YEAR
 from pitlane_agent.utils.fastf1_helpers import build_data_path, validate_session_or_test
 
 
+def _strip_none(obj: object) -> object:
+    """Recursively remove None values from dicts for cleaner JSON output."""
+    if isinstance(obj, dict):
+        return {k: _strip_none(v) for k, v in obj.items() if v is not None}
+    if isinstance(obj, list):
+        return [_strip_none(item) for item in obj]
+    return obj
+
+
 def _validate_standings_request(year: int) -> Path:
     """Validate workspace and year for standings fetch commands.
 
@@ -122,7 +131,7 @@ def session_info(
             session_number=session_number,
         )
         with open(output_file, "w") as f:
-            json.dump(info, f, indent=2)
+            json.dump(_strip_none(info), f, indent=2)
 
         # Return result
         result = {
