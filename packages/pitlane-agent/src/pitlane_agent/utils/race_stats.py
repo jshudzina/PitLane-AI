@@ -94,7 +94,7 @@ def count_track_interruptions(session: Session) -> tuple[int, int, int]:
         vscs = len(track_status[track_status["Status"] == TRACK_STATUS_VSC_DEPLOYED])
         red_flags = len(track_status[track_status["Status"] == TRACK_STATUS_RED_FLAG])
         return safety_cars, vscs, red_flags
-    except DataNotLoadedError:
+    except (DataNotLoadedError, KeyError):
         return 0, 0, 0
 
 

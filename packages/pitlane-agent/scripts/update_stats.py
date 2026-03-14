@@ -39,6 +39,7 @@ from pitlane_agent.utils.stats_db import (
     init_db,
     upsert_session_stats,
 )
+from requests.exceptions import RequestException
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -78,7 +79,7 @@ def _extract_podium(session: object) -> list[dict[str, str]]:
                     }
                 )
     except Exception:
-        pass
+        logger.warning("Could not extract podium from session results", exc_info=True)
     return podium
 
 
@@ -199,7 +200,7 @@ def update_stats(
             existing = {(r["round"], r["session_type"]) for r in existing_rows}
         click.echo(f"Found {len(existing)} sessions already in DB for {year}", err=True)
 
-    @backoff.on_exception(backoff.expo, Exception, max_tries=5, jitter=backoff.full_jitter)
+    @backoff.on_exception(backoff.expo, RequestException, max_tries=5, jitter=backoff.full_jitter)
     def _get_schedule() -> object:
         return fastf1.get_event_schedule(year, include_testing=False)
 
