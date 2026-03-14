@@ -28,13 +28,21 @@ from pitlane_agent.utils.race_stats import (
 
 
 class DriverInfo(TypedDict):
-    """Information about a single driver."""
+    """Information about a single driver's session result."""
 
     abbreviation: str
     name: str
     team: str
     number: int | None
     position: int | None
+    grid_position: int | None
+    classified_position: str | None  # Human-readable: "1st", "Retired", "Disqualified", etc.
+    status: str | None  # FastF1 Status: "+1 Lap", "Engine", "Finished", etc.
+    race_time: str | None  # Winner's total race time; gap to leader for others (race/sprint only)
+    points: float | None
+    q1_time: str | None  # Best lap in Q1 segment (Q/SQ sessions); null means did not participate
+    q2_time: str | None  # Best lap in Q2 segment (Q/SQ sessions); null means eliminated in Q1
+    q3_time: str | None  # Best lap in Q3 segment (Q/SQ sessions); null means eliminated before Q3
 
 
 class RaceConditions(TypedDict):
@@ -92,6 +100,79 @@ class SessionInfo(TypedDict):
     drivers: list[DriverInfo]
 
 
+# Mapping of FastF1 ClassifiedPosition codes to plain English.
+_CLASSIFIED_POSITION_MAP: dict[str, str] = {
+    "R": "Retired",
+    "D": "Disqualified",
+    "E": "Excluded",
+    "W": "Withdrawn",
+    "F": "Failed to Qualify",
+    "N": "Not Classified",
+}
+
+
+def _ordinal(n: int) -> str:
+    """Return the ordinal string for a positive integer (e.g. 1 → '1st', 11 → '11th')."""
+    suffix = "th" if 11 <= n % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def _format_classified_position(val: object) -> str | None:
+    """Convert a FastF1 ClassifiedPosition value to plain English.
+
+    Examples:
+        1 / "1" → "1st"
+        "R"     → "Retired"
+        "D"     → "Disqualified"
+        NaN     → None
+    """
+    try:
+        if pd.isna(val):  # type: ignore[arg-type]
+            return None
+    except (TypeError, ValueError):
+        pass
+    s = str(val).strip()
+    if s in _CLASSIFIED_POSITION_MAP:
+        return _CLASSIFIED_POSITION_MAP[s]
+    try:
+        return _ordinal(int(float(s)))
+    except (ValueError, TypeError):
+        return s or None
+
+
+def _format_finish_time(val: object) -> str | None:
+    """Format a timedelta race time as 'H:MM:SS.sss' (or 'M:SS.sss' if under an hour).
+
+    Returns None for NaT or non-timedelta values.
+    """
+    try:
+        if pd.isna(val):  # type: ignore[arg-type]
+            return None
+    except (TypeError, ValueError):
+        pass
+    try:
+        total_seconds = pd.Timedelta(val).total_seconds()  # type: ignore[arg-type]
+    except Exception:
+        return None
+    hours = int(total_seconds // 3600)
+    minutes = int((total_seconds % 3600) // 60)
+    seconds = total_seconds % 60
+    if hours > 0:
+        return f"{hours}:{minutes:02d}:{seconds:06.3f}"
+    return f"{minutes}:{seconds:06.3f}"
+
+
+def _nonempty_str(val: object) -> str | None:
+    """Return val as a string, or None if it is NaN/NaT or an empty string."""
+    try:
+        if pd.isna(val):  # type: ignore[arg-type]
+            return None
+    except (TypeError, ValueError):
+        pass
+    s = str(val).strip()
+    return s or None
+
+
 def _extract_track_status(session: Session) -> RaceConditions | None:
     """Extract race condition counts from track status data.
 
@@ -105,7 +186,6 @@ def _extract_track_status(session: Session) -> RaceConditions | None:
     try:
         track_status = session.track_status
 
-        # Count occurrences of each status code
         num_safety_cars = len(track_status[track_status["Status"] == TRACK_STATUS_SAFETY_CAR])
         num_red_flags = len(track_status[track_status["Status"] == TRACK_STATUS_RED_FLAG])
         # Count VSC as deployments, not endings
@@ -133,18 +213,15 @@ def _extract_weather_data(session: Session) -> WeatherData | None:
     try:
         weather: pd.DataFrame = session.weather_data
 
-        # Check if DataFrame is empty
         if weather.empty:
             return None
 
-        # Calculate statistics for each metric
-        def get_stats(column_name: str):
-            """Get min, max, avg for a column, handling missing data."""
+        def get_stats(column_name: str) -> WeatherStats:
+            """Return min/max/avg for a column, handling missing data."""
             if column_name not in weather.columns:
                 return {"min": None, "max": None, "avg": None}
 
             col = weather[column_name]
-            # Filter out NaN values
             col_clean = col.dropna()
 
             if col_clean.empty:
@@ -198,33 +275,40 @@ def get_session_info(
         Race conditions include counts of safety cars, virtual safety cars, and red flags.
         Weather includes min/max/avg for air temperature, humidity, pressure, and wind speed.
     """
-    # Load session with weather and messages data
+    resolved_session_type: str
     if test_number is not None and session_number is not None:
         session = load_testing_session(year, test_number, session_number, weather=True, messages=True)
-        session_type = session.name  # e.g., "Practice 1"
+        resolved_session_type = session.name  # e.g., "Practice 1"
     else:
         session = load_session(year, gp, session_type, weather=True, messages=True)
+        assert session_type is not None, "session_type required for GP sessions"
+        resolved_session_type = session_type
 
-    # Get driver info
-    drivers = []
+    drivers: list[DriverInfo] = []
     for _, driver in session.results.iterrows():
         drivers.append(
             {
                 "abbreviation": driver["Abbreviation"],
                 "name": f"{driver['FirstName']} {driver['LastName']}",
                 "team": driver["TeamName"],
-                "number": int(driver["DriverNumber"]) if pd.notna(driver["DriverNumber"]) else None,
-                "position": int(driver["Position"]) if pd.notna(driver["Position"]) else None,
+                "number": int(driver.get("DriverNumber")) if pd.notna(driver.get("DriverNumber")) else None,
+                "position": int(driver.get("Position")) if pd.notna(driver.get("Position")) else None,
+                "grid_position": int(driver.get("GridPosition")) if pd.notna(driver.get("GridPosition")) else None,
+                "classified_position": _format_classified_position(driver.get("ClassifiedPosition")),
+                "status": _nonempty_str(driver.get("Status")),
+                "race_time": _format_finish_time(driver.get("Time")),
+                "points": float(driver.get("Points")) if pd.notna(driver.get("Points")) else None,
+                "q1_time": _format_finish_time(driver.get("Q1")),
+                "q2_time": _format_finish_time(driver.get("Q2")),
+                "q3_time": _format_finish_time(driver.get("Q3")),
             }
         )
 
-    # Extract race conditions and weather data
     race_conditions = _extract_track_status(session)
     weather = _extract_weather_data(session)
 
-    # Compute race summary stats for race/sprint sessions
     race_summary = None
-    if session_type in ("R", "S"):
+    if resolved_session_type in ("R", "S"):
         race_summary = compute_race_summary_stats(session)
 
     total_laps = None
@@ -237,7 +321,7 @@ def get_session_info(
         "year": year,
         "event_name": session.event["EventName"],
         "country": session.event["Country"],
-        "session_type": session_type,
+        "session_type": resolved_session_type,
         "session_name": session.name,
         "date": str(session.date.date()) if pd.notna(session.date) else None,
         "total_laps": total_laps,

@@ -1,5 +1,6 @@
 """Tests for session_info command."""
 
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -8,8 +9,76 @@ from fastf1.exceptions import DataNotLoadedError
 from pitlane_agent.commands.fetch.session_info import (
     _extract_track_status,
     _extract_weather_data,
+    _format_classified_position,
+    _format_finish_time,
+    _nonempty_str,
     get_session_info,
 )
+
+
+class TestFormatClassifiedPosition:
+    """Unit tests for _format_classified_position."""
+
+    def test_integer_positions(self):
+        assert _format_classified_position(1) == "1st"
+        assert _format_classified_position(2) == "2nd"
+        assert _format_classified_position(3) == "3rd"
+        assert _format_classified_position(4) == "4th"
+        assert _format_classified_position(11) == "11th"
+        assert _format_classified_position(12) == "12th"
+        assert _format_classified_position(21) == "21st"
+
+    def test_numeric_string_positions(self):
+        assert _format_classified_position("1") == "1st"
+        assert _format_classified_position("20") == "20th"
+
+    def test_code_mapping(self):
+        assert _format_classified_position("R") == "Retired"
+        assert _format_classified_position("D") == "Disqualified"
+        assert _format_classified_position("E") == "Excluded"
+        assert _format_classified_position("W") == "Withdrawn"
+        assert _format_classified_position("F") == "Failed to Qualify"
+        assert _format_classified_position("N") == "Not Classified"
+
+    def test_nan_returns_none(self):
+        assert _format_classified_position(float("nan")) is None
+        assert _format_classified_position(None) is None
+
+
+class TestNonemptyStr:
+    """Unit tests for _nonempty_str."""
+
+    def test_normal_string(self):
+        assert _nonempty_str("Engine") == "Engine"
+
+    def test_empty_string_returns_none(self):
+        assert _nonempty_str("") is None
+        assert _nonempty_str("   ") is None
+
+    def test_nan_returns_none(self):
+        assert _nonempty_str(float("nan")) is None
+        assert _nonempty_str(None) is None
+
+    def test_nat_returns_none(self):
+        assert _nonempty_str(pd.NaT) is None
+
+
+class TestFormatFinishTime:
+    """Unit tests for _format_finish_time."""
+
+    def test_timedelta_under_one_hour(self):
+        result = _format_finish_time(timedelta(minutes=5, seconds=13, milliseconds=456))
+        assert result == "5:13.456"
+
+    def test_timedelta_over_one_hour(self):
+        result = _format_finish_time(timedelta(hours=1, minutes=32, seconds=45, milliseconds=213))
+        assert result == "1:32:45.213"
+
+    def test_nat_returns_none(self):
+        assert _format_finish_time(pd.NaT) is None
+
+    def test_none_returns_none(self):
+        assert _format_finish_time(None) is None
 
 
 class TestExtractTrackStatus:
@@ -17,7 +86,6 @@ class TestExtractTrackStatus:
 
     def test_extract_track_status_with_data(self):
         """Test extracting track status with valid data."""
-        # Create mock session with track status data
         mock_session = MagicMock()
         track_status_data = pd.DataFrame({"Status": ["1", "1", "4", "4", "5", "6", "7", "1"]})
         mock_session.track_status = track_status_data
@@ -45,7 +113,6 @@ class TestExtractTrackStatus:
     def test_extract_track_status_data_not_loaded(self):
         """Test handling when track status data is not loaded."""
         mock_session = MagicMock()
-        # Configure track_status property to raise DataNotLoadedError when accessed
         type(mock_session).track_status = property(
             lambda self: (_ for _ in ()).throw(DataNotLoadedError("Track status not loaded"))
         )
@@ -178,7 +245,6 @@ class TestExtractWeatherData:
     def test_extract_weather_data_not_loaded(self):
         """Test handling when weather data is not loaded."""
         mock_session = MagicMock()
-        # Configure weather_data property to raise DataNotLoadedError when accessed
         type(mock_session).weather_data = property(
             lambda self: (_ for _ in ()).throw(DataNotLoadedError("Weather data not loaded"))
         )
@@ -186,6 +252,27 @@ class TestExtractWeatherData:
         result = _extract_weather_data(mock_session)
 
         assert result is None
+
+
+def _make_driver_df(rows: list[dict]) -> pd.DataFrame:
+    """Build a driver results DataFrame with all required columns, filling defaults."""
+    defaults = {
+        "Abbreviation": "UNK",
+        "FirstName": "Unknown",
+        "LastName": "Driver",
+        "TeamName": "Unknown Team",
+        "DriverNumber": float("nan"),
+        "Position": float("nan"),
+        "GridPosition": float("nan"),
+        "ClassifiedPosition": float("nan"),
+        "Status": float("nan"),
+        "Time": pd.NaT,
+        "Points": float("nan"),
+        "Q1": pd.NaT,
+        "Q2": pd.NaT,
+        "Q3": pd.NaT,
+    }
+    return pd.DataFrame([{**defaults, **row} for row in rows])
 
 
 class TestSessionInfoBusinessLogic:
@@ -204,13 +291,10 @@ class TestSessionInfoBusinessLogic:
         mock_fastf1_session,
     ):
         """Test successful session info retrieval."""
-        # Setup mocks
         mock_load_session.return_value = mock_fastf1_session
         mock_get_circuit_length.return_value = 3.337
-        mock_fastf1_session.results = MagicMock()
 
-        # Create mock driver data
-        driver_data = pd.DataFrame(
+        mock_fastf1_session.results = _make_driver_df(
             [
                 {
                     "Abbreviation": "VER",
@@ -219,12 +303,18 @@ class TestSessionInfoBusinessLogic:
                     "TeamName": "Red Bull Racing",
                     "DriverNumber": 1,
                     "Position": 1,
+                    "GridPosition": 1,
+                    "ClassifiedPosition": 1,
+                    "Status": "Finished",
+                    "Time": timedelta(hours=1, minutes=32, seconds=45, milliseconds=213),
+                    "Points": 25.0,
+                    "Q1": timedelta(minutes=1, seconds=10, milliseconds=500),
+                    "Q2": timedelta(minutes=1, seconds=9, milliseconds=800),
+                    "Q3": timedelta(minutes=1, seconds=9, milliseconds=100),
                 }
             ]
         )
-        mock_fastf1_session.results.iterrows.return_value = driver_data.iterrows()
 
-        # Mock race conditions and weather
         mock_extract_track_status.return_value = {
             "num_safety_cars": 2,
             "num_virtual_safety_cars": 1,
@@ -238,32 +328,36 @@ class TestSessionInfoBusinessLogic:
             "wind_speed": {"min": 2.5, "max": 3.2, "avg": 2.85},
         }
 
-        # Call function
         result = get_session_info(2024, "Monaco", "Q")
 
-        # Assertions
         assert result["year"] == 2024
         assert result["event_name"] == "Monaco Grand Prix"
         assert result["country"] == "Monaco"
         assert result["session_type"] == "Q"
         assert result["session_name"] == "Qualifying"
         assert len(result["drivers"]) == 1
-        assert result["drivers"][0]["abbreviation"] == "VER"
-        assert result["drivers"][0]["name"] == "Max Verstappen"
 
-        # Verify race conditions and weather are included
+        driver = result["drivers"][0]
+        assert driver["abbreviation"] == "VER"
+        assert driver["name"] == "Max Verstappen"
+        assert driver["number"] == 1
+        assert driver["position"] == 1
+        assert driver["grid_position"] == 1
+        assert driver["classified_position"] == "1st"
+        assert driver["status"] == "Finished"
+        assert driver["race_time"] == "1:32:45.213"
+        assert driver["points"] == 25.0
+        assert driver["q1_time"] == "1:10.500"
+        assert driver["q2_time"] == "1:09.800"
+        assert driver["q3_time"] == "1:09.100"
+
         assert result["race_conditions"] is not None
         assert result["race_conditions"]["num_safety_cars"] == 2
         assert result["weather"] is not None
         assert result["weather"]["air_temp"]["avg"] == 23.5
-
-        # Circuit length should be present
         assert result["circuit_length_km"] == 3.337
+        assert result["race_summary"] is None  # non-race session
 
-        # Non-race sessions should not have race_summary
-        assert result["race_summary"] is None
-
-        # Verify FastF1 was called correctly
         mock_load_session.assert_called_once_with(2024, "Monaco", "Q", weather=True, messages=True)
 
     @patch("pitlane_agent.commands.fetch.session_info.get_circuit_length_km")
@@ -283,9 +377,8 @@ class TestSessionInfoBusinessLogic:
         """Test that race sessions include race_summary stats."""
         mock_load_session.return_value = mock_fastf1_session
         mock_get_circuit_length.return_value = 3.337
-        mock_fastf1_session.results = MagicMock()
 
-        driver_data = pd.DataFrame(
+        mock_fastf1_session.results = _make_driver_df(
             [
                 {
                     "Abbreviation": "VER",
@@ -294,10 +387,12 @@ class TestSessionInfoBusinessLogic:
                     "TeamName": "Red Bull Racing",
                     "DriverNumber": 1,
                     "Position": 1,
+                    "ClassifiedPosition": 1,
+                    "Status": "Finished",
+                    "Points": 25.0,
                 }
             ]
         )
-        mock_fastf1_session.results.iterrows.return_value = driver_data.iterrows()
         mock_extract_track_status.return_value = None
         mock_extract_weather_data.return_value = None
         mock_compute_stats.return_value = {
@@ -329,14 +424,11 @@ class TestSessionInfoBusinessLogic:
         mock_fastf1_session,
     ):
         """Test session info retrieval with NaN values in driver data."""
-        # Setup mocks
         mock_load_session.return_value = mock_fastf1_session
         mock_get_circuit_length.return_value = None
-        mock_fastf1_session.results = MagicMock()
         mock_fastf1_session.total_laps = float("nan")
 
-        # Create mock driver data with NaN values
-        driver_data = pd.DataFrame(
+        mock_fastf1_session.results = _make_driver_df(
             [
                 {
                     "Abbreviation": "VER",
@@ -345,33 +437,47 @@ class TestSessionInfoBusinessLogic:
                     "TeamName": "Red Bull Racing",
                     "DriverNumber": 1,
                     "Position": 1,
+                    "ClassifiedPosition": 1,
+                    "Status": "Finished",
+                    "Points": 25.0,
                 },
                 {
                     "Abbreviation": "HAM",
                     "FirstName": "Lewis",
                     "LastName": "Hamilton",
                     "TeamName": "Mercedes",
-                    "DriverNumber": float("nan"),  # NaN driver number
-                    "Position": float("nan"),  # NaN position
+                    # NaN fields use defaults from _make_driver_df
+                    "ClassifiedPosition": "R",
+                    "Status": "Engine",
+                },
+                {
+                    "Abbreviation": "ALO",
+                    "FirstName": "Fernando",
+                    "LastName": "Alonso",
+                    "TeamName": "Aston Martin",
+                    "ClassifiedPosition": "N",
+                    "Status": "",  # empty string should become None
                 },
             ]
         )
-        mock_fastf1_session.results.iterrows.return_value = driver_data.iterrows()
-
-        # Mock race conditions and weather
         mock_extract_track_status.return_value = None
         mock_extract_weather_data.return_value = None
 
-        # Call function
         result = get_session_info(2024, "Monaco", "Q")
 
-        # Assertions
-        assert len(result["drivers"]) == 2
+        assert len(result["drivers"]) == 3
         assert result["drivers"][0]["number"] == 1
         assert result["drivers"][0]["position"] == 1
-        assert result["drivers"][1]["number"] is None  # NaN should be None
-        assert result["drivers"][1]["position"] is None  # NaN should be None
-        assert result["total_laps"] is None  # NaN total_laps should be None
+        assert result["drivers"][0]["classified_position"] == "1st"
+        assert result["drivers"][1]["number"] is None
+        assert result["drivers"][1]["position"] is None
+        assert result["drivers"][1]["classified_position"] == "Retired"
+        assert result["drivers"][1]["status"] == "Engine"
+        assert result["drivers"][1]["race_time"] is None
+        assert result["drivers"][1]["points"] is None
+        assert result["drivers"][2]["classified_position"] == "Not Classified"
+        assert result["drivers"][2]["status"] is None  # empty string → None
+        assert result["total_laps"] is None
         assert result["race_conditions"] is None
         assert result["weather"] is None
 
@@ -388,12 +494,8 @@ class TestSessionInfoBusinessLogic:
         mock_fastf1_session,
     ):
         """Test session info retrieval when total_laps raises DataNotLoadedError."""
-        # Setup mocks
         mock_load_session.return_value = mock_fastf1_session
-        mock_fastf1_session.results = MagicMock()
-
-        # Create mock driver data
-        driver_data = pd.DataFrame(
+        mock_fastf1_session.results = _make_driver_df(
             [
                 {
                     "Abbreviation": "VER",
@@ -405,9 +507,7 @@ class TestSessionInfoBusinessLogic:
                 }
             ]
         )
-        mock_fastf1_session.results.iterrows.return_value = driver_data.iterrows()
 
-        # Mock total_laps to raise DataNotLoadedError
         type(mock_fastf1_session).total_laps = property(
             lambda self: MagicMock(side_effect=DataNotLoadedError("Total laps not loaded"))()
         )
@@ -415,18 +515,14 @@ class TestSessionInfoBusinessLogic:
         mock_extract_track_status.return_value = None
         mock_extract_weather_data.return_value = None
 
-        # Call function
         result = get_session_info(2024, "Monaco", "Q")
 
-        # Assertions
         assert result["total_laps"] is None
 
     @patch("pitlane_agent.commands.fetch.session_info.load_session")
     def test_get_session_info_error(self, mock_load_session):
         """Test error handling in session info retrieval."""
-        # Setup mock to raise error
         mock_load_session.side_effect = Exception("Session not found")
 
-        # Expect exception to be raised
         with pytest.raises(Exception, match="Session not found"):
             get_session_info(2024, "InvalidGP", "Q")

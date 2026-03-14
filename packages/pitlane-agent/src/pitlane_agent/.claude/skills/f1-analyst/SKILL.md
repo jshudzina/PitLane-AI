@@ -119,14 +119,17 @@ pitlane fetch session-info --year 2024 --gp Monaco --session R
 
 **Returns:**
 - Event metadata (name, country, date, total laps)
-- Race conditions (counts: safety cars, VSCs, red flags)
+- Race conditions (counts: safety cars, VSCs, red flags) — Race/Sprint only
 - Weather statistics (air/track temp, humidity, pressure, wind speed - all with min/max/avg; `rain_percentage`)
 - Race summary stats (Race/Sprint only): `total_overtakes`, `total_position_changes`, `average_volatility`, `mean_pit_stops`
-- Driver list (numbers, abbreviations, names, teams, finishing positions)
+- Driver list per driver:
+  - Identity: `abbreviation`, `name`, `team`, `number`
+  - Result: `position`, `grid_position`, `classified_position` (plain English: "1st", "Retired", "Disqualified", etc.), `status` (e.g. "+1 Lap", "Engine"), `points`
+  - Timing: `race_time` (winner's total elapsed time; gap to leader for all other finishers; race/sprint only); `q1_time`, `q2_time`, `q3_time` (best lap in each qualifying segment; Q and SQ sessions only; null means driver was eliminated before that segment)
 
 **Workspace file:** `data/session_info.json`
 
-*Note: Race conditions, weather, and race_summary may be `null` if unavailable for the session type.*
+*Note: Fields that are not applicable to a session type are omitted from the JSON (e.g. `q1_time`/`q2_time`/`q3_time` absent for races; `race_time` absent for qualifying/sprint qualifying; `race_conditions`/`race_summary` absent for practice).*
 
 ### 2. Race Control Messages (When Deeper Context Needed)
 
