@@ -125,11 +125,11 @@ pitlane fetch session-info --year 2024 --gp Monaco --session R
 - Driver list per driver:
   - Identity: `abbreviation`, `name`, `team`, `number`
   - Result: `position`, `grid_position`, `classified_position` (plain English: "1st", "Retired", "Disqualified", etc.), `status` (e.g. "+1 Lap", "Engine"), `points`
-  - Timing: `finish_time` (race/sprint total time); `q1_time`, `q2_time`, `q3_time` (qualifying only)
+  - Timing: `race_time` (winner's total elapsed time; gap to leader for all other finishers; race/sprint only); `q1_time`, `q2_time`, `q3_time` (best lap in each qualifying segment; Q and SQ sessions only; null means driver was eliminated before that segment)
 
 **Workspace file:** `data/session_info.json`
 
-*Note: Fields that are not applicable to a session type are omitted from the JSON (e.g. `q1_time`/`q2_time`/`q3_time` absent for races; `finish_time` absent for qualifying; `race_conditions`/`race_summary` absent for practice).*
+*Note: Fields that are not applicable to a session type are omitted from the JSON (e.g. `q1_time`/`q2_time`/`q3_time` absent for races; `race_time` absent for qualifying/sprint qualifying; `race_conditions`/`race_summary` absent for practice).*
 
 ### 2. Race Control Messages (When Deeper Context Needed)
 

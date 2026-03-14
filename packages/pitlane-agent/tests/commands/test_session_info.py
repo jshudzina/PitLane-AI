@@ -345,7 +345,7 @@ class TestSessionInfoBusinessLogic:
         assert driver["grid_position"] == 1
         assert driver["classified_position"] == "1st"
         assert driver["status"] == "Finished"
-        assert driver["finish_time"] == "1:32:45.213"
+        assert driver["race_time"] == "1:32:45.213"
         assert driver["points"] == 25.0
         assert driver["q1_time"] == "1:10.500"
         assert driver["q2_time"] == "1:09.800"
@@ -473,7 +473,7 @@ class TestSessionInfoBusinessLogic:
         assert result["drivers"][1]["position"] is None
         assert result["drivers"][1]["classified_position"] == "Retired"
         assert result["drivers"][1]["status"] == "Engine"
-        assert result["drivers"][1]["finish_time"] is None
+        assert result["drivers"][1]["race_time"] is None
         assert result["drivers"][1]["points"] is None
         assert result["drivers"][2]["classified_position"] == "Not Classified"
         assert result["drivers"][2]["status"] is None  # empty string → None

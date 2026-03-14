@@ -38,11 +38,11 @@ class DriverInfo(TypedDict):
     grid_position: int | None
     classified_position: str | None  # Human-readable: "1st", "Retired", "Disqualified", etc.
     status: str | None               # FastF1 Status: "+1 Lap", "Engine", "Finished", etc.
-    finish_time: str | None          # Formatted race time or gap: "1:32:45.213"
+    race_time: str | None            # Winner's total race time; gap to leader for all other finishers (race/sprint only)
     points: float | None
-    q1_time: str | None              # Best Q1 lap time (qualifying sessions only)
-    q2_time: str | None              # Best Q2 lap time (qualifying sessions only)
-    q3_time: str | None              # Best Q3 lap time (qualifying sessions only)
+    q1_time: str | None              # Best lap in Q1 segment (Q/SQ sessions); null means did not participate
+    q2_time: str | None              # Best lap in Q2 segment (Q/SQ sessions); null means eliminated in Q1
+    q3_time: str | None              # Best lap in Q3 segment (Q/SQ sessions); null means eliminated before Q3
 
 
 class RaceConditions(TypedDict):
@@ -296,7 +296,7 @@ def get_session_info(
                 "grid_position": int(driver["GridPosition"]) if pd.notna(driver.get("GridPosition")) else None,
                 "classified_position": _format_classified_position(driver.get("ClassifiedPosition")),
                 "status": _nonempty_str(driver.get("Status")),
-                "finish_time": _format_finish_time(driver.get("Time")),
+                "race_time": _format_finish_time(driver.get("Time")),
                 "points": float(driver["Points"]) if pd.notna(driver.get("Points")) else None,
                 "q1_time": _format_finish_time(driver.get("Q1")),
                 "q2_time": _format_finish_time(driver.get("Q2")),
