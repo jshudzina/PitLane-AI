@@ -73,8 +73,15 @@ CHANNEL_GROUPS: dict[str, dict] = {
         "traces": [
             {"key": "Throttle", "unit": "%", "fmt": ".0f", "secondary": False, "fill": None},
             # Brake scaled ×100 onto 0–100% axis; rendered as semi-transparent fill
-            {"key": "Brake", "unit": "%", "fmt": ".0f", "secondary": False, "fill": "tozeroy",
-             "scale": 100, "fill_alpha": 0.25},
+            {
+                "key": "Brake",
+                "unit": "%",
+                "fmt": ".0f",
+                "secondary": False,
+                "fill": "tozeroy",
+                "scale": 100,
+                "fill_alpha": 0.25,
+            },
         ],
     },
     "rpm_gear": {
@@ -355,20 +362,26 @@ def _render_telemetry_chart(
                 if channel_key == "TimeDelta":
                     # Delta channel: simple hover showing gap value
                     hovertemplate = (
-                        f"<b>{lbl}</b><br>"
-                        "Distance: %{x:.0f}m<br>"
-                        f"Δ vs {ref_label}: %{{y:+.3f}}s<br>"
-                        "<extra></extra>"
+                        f"<b>{lbl}</b><br>Distance: %{{x:.0f}}m<br>Δ vs {ref_label}: %{{y:+.3f}}s<br><extra></extra>"
                     )
                     customdata = np.zeros((len(tel), 1))
                 else:
                     customdata = _build_customdata(
-                        lbl, channel_key, tel, merged, other_labels,
-                        key=k, other_keys=other_keys,
+                        lbl,
+                        channel_key,
+                        tel,
+                        merged,
+                        other_labels,
+                        key=k,
+                        other_keys=other_keys,
                     )
                     hovertemplate = _build_hover_template(
-                        lbl, channel_key, grp["label"] if len(grp["traces"]) == 1 else channel_key,
-                        unit, fmt, other_labels,
+                        lbl,
+                        channel_key,
+                        grp["label"] if len(grp["traces"]) == 1 else channel_key,
+                        unit,
+                        fmt,
+                        other_labels,
                     )
 
                 # Show legend only once per driver (first row)
@@ -481,12 +494,16 @@ def _render_telemetry_chart(
         if grp.get("secondary_y") and "secondary_yaxis" in grp:
             # Plotly secondary y-axis key: yaxis{N}2 for rows > 1, yaxis2 for row 1
             sec_key = f"yaxis{row}2" if row > 1 else "yaxis2"
-            fig.update_layout(**{sec_key: {
-                "gridcolor": PLOTLY_DARK_THEME["gridcolor"],
-                "zerolinecolor": PLOTLY_DARK_THEME["zerolinecolor"],
-                "showgrid": False,
-                **grp["secondary_yaxis"],
-            }})
+            fig.update_layout(
+                **{
+                    sec_key: {
+                        "gridcolor": PLOTLY_DARK_THEME["gridcolor"],
+                        "zerolinecolor": PLOTLY_DARK_THEME["zerolinecolor"],
+                        "showgrid": False,
+                        **grp["secondary_yaxis"],
+                    }
+                }
+            )
 
     fig.update_xaxes(gridcolor=PLOTLY_DARK_THEME["gridcolor"])
     fig.update_xaxes(title_text="Distance (m)", row=num_rows, col=1)
@@ -654,9 +671,7 @@ def generate_telemetry_chart(
             logging.getLogger(__name__).warning("Failed to load circuit info for corner annotations", exc_info=True)
 
     title = f"{session.event['EventName']} {year} — {session.name}<br>Telemetry Comparison"
-    corners_drawn = _render_telemetry_chart(
-        entries, circuit_info, output_path, annotate_corners, title, channel_names
-    )
+    corners_drawn = _render_telemetry_chart(entries, circuit_info, output_path, annotate_corners, title, channel_names)
 
     return {
         "chart_path": str(output_path),

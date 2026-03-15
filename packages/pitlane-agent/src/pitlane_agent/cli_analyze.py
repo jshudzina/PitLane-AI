@@ -279,10 +279,8 @@ def speed_trace(
     help="Driver abbreviations to compare (2-5 drivers: --drivers VER --drivers HAM)",
 )
 @click.option(
-    "--no-corners",
+    "--corners/--no-corners",
     "annotate_corners",
-    is_flag=True,
-    flag_value=False,
     default=True,
     help="Disable corner markers (shown by default)",
 )
