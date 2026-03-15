@@ -55,12 +55,7 @@ def _make_mock_fastest_lap(data: dict) -> MagicMock:
 
 
 # Raw channel keys available in the test helper df (excludes computed TimeDelta)
-CHANNEL_KEYS = [
-    t["key"]
-    for grp in CHANNEL_GROUPS.values()
-    for t in grp["traces"]
-    if t["key"] != "TimeDelta"
-]
+CHANNEL_KEYS = [t["key"] for grp in CHANNEL_GROUPS.values() for t in grp["traces"] if t["key"] != "TimeDelta"]
 
 
 # ---------------------------------------------------------------------------
@@ -148,17 +143,19 @@ class TestAddTimeDelta:
         # HAM has laptime 0,2,4 vs VER 0,1,2 at the same distances → HAM is slower
         ref_tel = _make_telemetry_df([300, 310, 320], time_offset_s=0.0)  # VER: Time = 0,1,2
         # Build HAM manually with 2s per step
-        ham_tel = pd.DataFrame({
-            "Distance": [0.0, 100.0, 200.0],
-            "Speed": [295.0, 305.0, 315.0],
-            "RPM": [10000.0] * 3,
-            "nGear": [7.0] * 3,
-            "Throttle": [100.0] * 3,
-            "Brake": [0] * 3,
-            "SuperClip": [0] * 3,
-            "TimeDelta": [0.0] * 3,
-            "Time": pd.to_timedelta([0.0, 2.0, 4.0], unit="s"),  # 2s per step vs VER's 1s
-        })
+        ham_tel = pd.DataFrame(
+            {
+                "Distance": [0.0, 100.0, 200.0],
+                "Speed": [295.0, 305.0, 315.0],
+                "RPM": [10000.0] * 3,
+                "nGear": [7.0] * 3,
+                "Throttle": [100.0] * 3,
+                "Brake": [0] * 3,
+                "SuperClip": [0] * 3,
+                "TimeDelta": [0.0] * 3,
+                "Time": pd.to_timedelta([0.0, 2.0, 4.0], unit="s"),  # 2s per step vs VER's 1s
+            }
+        )
 
         entries = [
             {"driver": "VER", "key": "VER", "label": "VER", "telemetry": ref_tel},
