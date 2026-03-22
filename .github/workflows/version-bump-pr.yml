@@ -93,7 +93,12 @@ jobs:
             3. The tag-and-release workflow will automatically tag and build the release
 
             This PR was automatically created by the version-bump-pr workflow.
-          labels: release,automated
+
+      - name: Add labels
+        if: steps.create-pr.outputs.pull-request-number
+        run: gh pr edit ${{ steps.create-pr.outputs.pull-request-number }} --add-label "release,automated"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: PR Created
         if: steps.create-pr.outputs.pull-request-number
