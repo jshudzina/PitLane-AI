@@ -191,7 +191,7 @@ class TestFetchPerRoundPoints:
 
         monkeypatch.setattr("pitlane_agent.commands.analyze.season_summary.fastf1.get_session", fake_get_session)
 
-        _fetch_per_round_points(2024, schedule, "drivers")  # noqa: return unpacking not needed here
+        _fetch_per_round_points(2024, schedule, "drivers")
 
         assert all("Testing" not in name for name in call_log)
 
