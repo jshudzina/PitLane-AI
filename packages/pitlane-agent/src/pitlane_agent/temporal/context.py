@@ -2,11 +2,11 @@
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 
-class F1Season(str, Enum):
+class F1Season(StrEnum):
     """F1 season phase."""
 
     PRE_SEASON = "pre_season"  # Before first race
@@ -15,7 +15,7 @@ class F1Season(str, Enum):
     OFF_SEASON = "off_season"  # Dec-Feb gap
 
 
-class RaceWeekendPhase(str, Enum):
+class RaceWeekendPhase(StrEnum):
     """Current phase within a race weekend."""
 
     BEFORE_WEEKEND = "before_weekend"
