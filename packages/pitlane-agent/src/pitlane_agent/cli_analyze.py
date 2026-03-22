@@ -295,6 +295,18 @@ def speed_trace(
         "Default: delta speed throttle_brake rpm_gear"
     ),
 )
+@click.option(
+    "--smooth-delta/--no-smooth-delta",
+    "smooth_delta",
+    default=True,
+    help="Smooth the time delta trace with Savitzky-Golay filter (enabled by default)",
+)
+@click.option(
+    "--delta-window",
+    type=int,
+    default=25,
+    help="Savitzky-Golay window size in samples (default: 25, must be odd and ≥ 5)",
+)
 def telemetry(
     year: int,
     gp: str | None,
@@ -304,6 +316,8 @@ def telemetry(
     drivers: tuple[str, ...],
     annotate_corners: bool,
     channels: tuple[str, ...],
+    smooth_delta: bool,
+    delta_window: int,
 ):
     """Generate interactive telemetry chart for fastest laps.
 
@@ -345,6 +359,8 @@ def telemetry(
             channels=list(channels) if channels else None,
             test_number=test_number,
             session_number=session_number,
+            smooth_delta=smooth_delta,
+            delta_window=delta_window,
         )
         result["workspace_id"] = workspace_id
         click.echo(json.dumps(result, indent=2))

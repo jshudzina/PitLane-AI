@@ -177,6 +177,97 @@ class TestAddTimeDelta:
 
 
 # ---------------------------------------------------------------------------
+# _add_time_delta smoothing
+# ---------------------------------------------------------------------------
+
+
+def _make_slower_entries(n: int = 100, step_s: float = 2.0):
+    """Two entries where the second driver takes `step_s` seconds per step (vs 1s)."""
+    ref_tel = pd.DataFrame(
+        {
+            "Distance": [float(i * 10) for i in range(n)],
+            "Speed": [300.0] * n,
+            "RPM": [10000.0] * n,
+            "nGear": [7.0] * n,
+            "Throttle": [100.0] * n,
+            "Brake": [0] * n,
+            "SuperClip": [0] * n,
+            "TimeDelta": [0.0] * n,
+            "Time": pd.to_timedelta([float(i) for i in range(n)], unit="s"),
+        }
+    )
+    other_tel = pd.DataFrame(
+        {
+            "Distance": [float(i * 10) for i in range(n)],
+            "Speed": [295.0] * n,
+            "RPM": [10000.0] * n,
+            "nGear": [7.0] * n,
+            "Throttle": [100.0] * n,
+            "Brake": [0] * n,
+            "SuperClip": [0] * n,
+            "TimeDelta": [0.0] * n,
+            "Time": pd.to_timedelta([float(i) * step_s for i in range(n)], unit="s"),
+        }
+    )
+    return [
+        {"driver": "VER", "key": "VER", "label": "VER", "telemetry": ref_tel},
+        {"driver": "HAM", "key": "HAM", "label": "HAM", "telemetry": other_tel},
+    ]
+
+
+class TestAddTimeDeltaSmoothing:
+    def test_smoothing_reduces_noise(self):
+        """Savitzky-Golay smoothing should reduce high-frequency jitter."""
+        rng = np.random.default_rng(42)
+        entries = _make_slower_entries(n=200)
+        # Add synthetic noise to the second driver's Time column
+        noise = pd.to_timedelta(rng.uniform(-0.1, 0.1, size=200), unit="s")
+        entries[1]["telemetry"]["Time"] = entries[1]["telemetry"]["Time"] + noise
+
+        # Raw (unsmoothed) delta
+        import copy
+
+        entries_raw = copy.deepcopy(entries)
+        _add_time_delta(entries_raw, smooth=False)
+        raw_std = entries_raw[1]["telemetry"]["TimeDelta"].std()
+
+        # Smoothed delta
+        _add_time_delta(entries, smooth=True, window=25)
+        smoothed_std = entries[1]["telemetry"]["TimeDelta"].std()
+
+        assert smoothed_std < raw_std
+
+    def test_no_smoothing_preserves_raw(self):
+        """With smooth=False, TimeDelta values must match the unsmoothed computation exactly."""
+        import copy
+
+        entries_a = _make_slower_entries(n=50)
+        entries_b = copy.deepcopy(entries_a)
+
+        _add_time_delta(entries_a, smooth=False)
+        _add_time_delta(entries_b, smooth=False)
+
+        np.testing.assert_array_equal(
+            entries_a[1]["telemetry"]["TimeDelta"].values,
+            entries_b[1]["telemetry"]["TimeDelta"].values,
+        )
+
+    def test_smoothing_short_series_skipped(self):
+        """When the series is shorter than the window, smoothing is skipped without error."""
+        entries = _make_slower_entries(n=10)  # 10 rows < default window of 25
+        _add_time_delta(entries, smooth=True, window=25)
+        delta = entries[1]["telemetry"]["TimeDelta"]
+        assert delta.notna().all()
+
+    def test_even_window_auto_corrected(self):
+        """Even window size is auto-incremented to the next odd value without error."""
+        entries = _make_slower_entries(n=100)
+        _add_time_delta(entries, smooth=True, window=24)  # 24 is even → should become 25
+        delta = entries[1]["telemetry"]["TimeDelta"]
+        assert delta.notna().all()
+
+
+# ---------------------------------------------------------------------------
 # _build_customdata
 # ---------------------------------------------------------------------------
 

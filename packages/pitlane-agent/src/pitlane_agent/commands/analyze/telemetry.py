@@ -51,6 +51,14 @@ def _format_sector_time(sector_time: pd.Timedelta) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# Delta smoothing constants (Savitzky-Golay filter)
+# ---------------------------------------------------------------------------
+
+DELTA_SMOOTH_DEFAULT_WINDOW = 25  # samples (~38-75m of track depending on speed)
+DELTA_SMOOTH_POLY_ORDER = 3  # polynomial order (fixed; preserves asymmetric braking peaks)
+DELTA_SMOOTH_MIN_WINDOW = 5  # minimum valid window (must be > poly order and odd)
+
+# ---------------------------------------------------------------------------
 # Channel group definitions
 # ---------------------------------------------------------------------------
 
@@ -125,12 +133,21 @@ def _hex_to_rgba(hex_color: str, alpha: float) -> str:
     return f"rgba({r},{g},{b},{alpha})"
 
 
-def _add_time_delta(entries: list[dict]) -> None:
+def _add_time_delta(
+    entries: list[dict],
+    smooth: bool = True,
+    window: int = DELTA_SMOOTH_DEFAULT_WINDOW,
+) -> None:
     """Add TimeDelta column (float seconds vs reference driver) to each entry's telemetry.
 
     Convention: TimeDelta > 0 means this driver arrived later than the reference at this
     distance point (reference is faster here); TimeDelta < 0 means this driver is ahead.
     The reference driver (first entry) always receives TimeDelta = 0.
+
+    Args:
+        entries: List of entry dicts containing 'telemetry' DataFrames.
+        smooth: Apply Savitzky-Golay smoothing to remove merge_asof jitter (default: True).
+        window: Savitzky-Golay window size in samples (default: 25). Must be odd and ≥ 5.
     """
     for entry in entries:
         entry["telemetry"]["TimeDelta"] = 0.0
@@ -156,6 +173,15 @@ def _add_time_delta(entries: list[dict]) -> None:
             aligned["_LapTime"].values - aligned["_RefLapTime"].values,
             index=sorted_tel.index,
         )
+        if smooth and len(delta_series) > window:
+            from scipy.signal import savgol_filter
+
+            _win = window if window % 2 == 1 else window + 1
+            _win = max(_win, DELTA_SMOOTH_POLY_ORDER + 2)
+            smoothed: np.ndarray = np.asarray(
+                savgol_filter(delta_series.fillna(0.0).values, _win, DELTA_SMOOTH_POLY_ORDER)
+            )
+            delta_series = pd.Series(smoothed, index=delta_series.index)
         # Restore to original (unsorted) index order
         entry["telemetry"]["TimeDelta"] = delta_series.reindex(tel.index)
 
@@ -532,6 +558,8 @@ def generate_telemetry_chart(
     channels: list[str] | None = None,
     test_number: int | None = None,
     session_number: int | None = None,
+    smooth_delta: bool = True,
+    delta_window: int = DELTA_SMOOTH_DEFAULT_WINDOW,
 ) -> dict:
     """Generate an interactive telemetry comparison chart for fastest laps.
 
@@ -547,6 +575,8 @@ def generate_telemetry_chart(
             Available: delta, speed, throttle_brake, rpm_gear, superclip.
         test_number: Testing event number (e.g., 1 or 2)
         session_number: Session within testing event (e.g., 1, 2, or 3)
+        smooth_delta: Apply Savitzky-Golay smoothing to the time delta trace (default: True).
+        delta_window: Savitzky-Golay window size in samples (default: 25).
 
     Returns:
         Dictionary with chart metadata and telemetry statistics
@@ -661,7 +691,7 @@ def generate_telemetry_chart(
 
     # Compute time delta if requested
     if "delta" in channel_names and entries:
-        _add_time_delta(entries)
+        _add_time_delta(entries, smooth=smooth_delta, window=delta_window)
 
     circuit_info = None
     if annotate_corners:
