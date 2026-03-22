@@ -236,7 +236,6 @@ def _build_customdata(
 
 def _build_hover_template(
     label: str,
-    channel_key: str,
     channel_label: str,
     unit: str,
     fmt: str,
@@ -377,7 +376,6 @@ def _render_telemetry_chart(
                     )
                     hovertemplate = _build_hover_template(
                         lbl,
-                        channel_key,
                         grp["label"] if len(grp["traces"]) == 1 else channel_key,
                         unit,
                         fmt,
@@ -492,17 +490,14 @@ def _render_telemetry_chart(
 
         # Secondary y-axis styling (RPM/Gear right axis)
         if grp.get("secondary_y") and "secondary_yaxis" in grp:
-            # Plotly secondary y-axis key: yaxis{N}2 for rows > 1, yaxis2 for row 1
-            sec_key = f"yaxis{row}2" if row > 1 else "yaxis2"
-            fig.update_layout(
-                **{
-                    sec_key: {
-                        "gridcolor": PLOTLY_DARK_THEME["gridcolor"],
-                        "zerolinecolor": PLOTLY_DARK_THEME["zerolinecolor"],
-                        "showgrid": False,
-                        **grp["secondary_yaxis"],
-                    }
-                }
+            fig.update_yaxes(
+                secondary_y=True,
+                row=row,
+                col=1,
+                gridcolor=PLOTLY_DARK_THEME["gridcolor"],
+                zerolinecolor=PLOTLY_DARK_THEME["zerolinecolor"],
+                showgrid=False,
+                **grp["secondary_yaxis"],
             )
 
     fig.update_xaxes(gridcolor=PLOTLY_DARK_THEME["gridcolor"])

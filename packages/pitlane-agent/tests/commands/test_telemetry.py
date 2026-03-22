@@ -124,9 +124,9 @@ class TestAddTimeDelta:
         ham_delta = entries[1]["telemetry"]["TimeDelta"].values
         np.testing.assert_array_almost_equal(ham_delta, [0.0, 0.0, 0.0], decimal=3)
 
-    def test_delta_reflects_time_offset(self):
-        # HAM's session times are 5s later than VER at the same distances
-        # → HAM took 5s longer → TimeDelta should be +5s
+    def test_absolute_time_offset_is_normalized_away(self):
+        # HAM's session timestamps start 5s later than VER, but lap-relative
+        # elapsed time is identical (both 0,1,2s step) → delta should be 0
         ref_tel = _make_telemetry_df([300, 310, 320], time_offset_s=0.0)  # VER: Time = 0,1,2
         other_tel = _make_telemetry_df([295, 305, 315], time_offset_s=5.0)  # HAM: Time = 5,6,7 → relative 0,1,2
 
@@ -135,7 +135,7 @@ class TestAddTimeDelta:
             {"driver": "HAM", "key": "HAM", "label": "HAM", "telemetry": other_tel},
         ]
         _add_time_delta(entries)
-        # Both have same lap-relative time sequences (0,1,2) → delta ≈ 0
+        # Normalizing by Time.iloc[0] cancels the offset → both have relative 0,1,2 → delta ≈ 0
         ham_delta = entries[1]["telemetry"]["TimeDelta"].values
         np.testing.assert_array_almost_equal(ham_delta, [0.0, 0.0, 0.0], decimal=3)
 
@@ -226,7 +226,7 @@ class TestBuildCustomdata:
 
 class TestBuildHoverTemplate:
     def test_basic_structure(self):
-        tpl = _build_hover_template("VER", "Speed", "Speed (km/h)", "km/h", ".0f", [])
+        tpl = _build_hover_template("VER", "Speed (km/h)", "km/h", ".0f", [])
 
         assert "<b>VER</b>" in tpl
         assert "Distance:" in tpl
@@ -235,7 +235,7 @@ class TestBuildHoverTemplate:
         assert "<extra></extra>" in tpl
 
     def test_includes_delta_lines(self):
-        tpl = _build_hover_template("VER", "Speed", "Speed (km/h)", "km/h", ".0f", ["HAM", "LEC"])
+        tpl = _build_hover_template("VER", "Speed (km/h)", "km/h", ".0f", ["HAM", "LEC"])
 
         assert "\u0394 vs HAM" in tpl
         assert "\u0394 vs LEC" in tpl
@@ -243,11 +243,11 @@ class TestBuildHoverTemplate:
         assert "customdata[1]" in tpl
 
     def test_no_deltas_without_others(self):
-        tpl = _build_hover_template("VER", "RPM", "RPM", "", ".0f", [])
+        tpl = _build_hover_template("VER", "RPM", "", ".0f", [])
         assert "\u0394" not in tpl
 
     def test_unit_appears_in_delta_line(self):
-        tpl = _build_hover_template("VER", "Throttle", "Throttle (%)", "%", ".0f", ["HAM"])
+        tpl = _build_hover_template("VER", "Throttle (%)", "%", ".0f", ["HAM"])
         # The delta line should end with the unit
         assert "+.1f}%" in tpl
 
@@ -342,6 +342,7 @@ class TestGenerateTelemetryChart:
             session_type="Q",
             drivers=["VER", "HAM"],
             workspace_dir=tmp_output_dir,
+            annotate_corners=False,
         )
 
         assert result["year"] == 2024
@@ -357,6 +358,7 @@ class TestGenerateTelemetryChart:
         assert result["statistics"][0]["speed_trap"] == 315.0
         assert result["statistics"][0]["speed_fl"] == 298.0
         assert "channels" in result
+        assert result["corners_annotated"] is False
         assert output_file.exists()
 
     @patch("pitlane_agent.commands.analyze.telemetry.load_session_or_testing")
