@@ -11,6 +11,7 @@ from pathlib import Path
 import pandas as pd
 
 from pitlane_agent.commands.analyze.telemetry import _render_telemetry_chart
+from pitlane_agent.utils.constants import DEFAULT_TELEMETRY_CHANNELS
 from pitlane_agent.utils.fastf1_helpers import (
     format_lap_time,
     format_sector_time,
@@ -168,7 +169,7 @@ def generate_multi_lap_chart(
     output_path = workspace_dir / "charts" / filename
 
     title = f"{session.event['EventName']} {year} — {session.name}<br>{driver} Lap Comparison"
-    corners_drawn = _render_telemetry_chart(entries, circuit_info, output_path, annotate_corners, title)
+    corners_drawn = _render_telemetry_chart(entries, circuit_info, output_path, annotate_corners, title, DEFAULT_TELEMETRY_CHANNELS)
 
     return {
         "chart_path": str(output_path),
@@ -273,7 +274,7 @@ def generate_year_compare_chart(
     output_path = workspace_dir / "charts" / filename
 
     title = f"{chart_subject}<br>{driver} Year-over-Year Comparison ({', '.join(str(y) for y in years)})"
-    corners_drawn = _render_telemetry_chart(entries, circuit_info, output_path, annotate_corners, title)
+    corners_drawn = _render_telemetry_chart(entries, circuit_info, output_path, annotate_corners, title, DEFAULT_TELEMETRY_CHANNELS)
 
     return {
         "chart_path": str(output_path),
