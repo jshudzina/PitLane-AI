@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.4] - 2026-03-22
+## [0.4.5] - 2026-03-22
 
 ### Bug Fixes
 
@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **fetch**: Support pre-2018 season summary with results-based stats fallback ([#127](https://github.com/jshudzina/PitLane-AI/pull/127))
 
 - **fetch**: Use FullName fallback when driver Abbreviation is empty for pre-2018 seasons ([#128](https://github.com/jshudzina/PitLane-AI/pull/128))
+
+- **ci**: Apply PR labels via gh CLI to avoid GraphQL race condition ([#136](https://github.com/jshudzina/PitLane-AI/pull/136))
 
 
 ### Features
