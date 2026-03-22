@@ -1508,6 +1508,7 @@ dependencies = [
     { name = "opentelemetry-api" },
     { name = "opentelemetry-sdk" },
     { name = "plotly" },
+    { name = "scipy" },
     { name = "seaborn" },
 ]
 
@@ -1523,6 +1524,7 @@ requires-dist = [
     { name = "opentelemetry-api", specifier = ">=1.24.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.24.0" },
     { name = "plotly", specifier = ">=5.20" },
+    { name = "scipy", specifier = ">=1.10" },
     { name = "seaborn", specifier = ">=0.13.0" },
 ]
 
