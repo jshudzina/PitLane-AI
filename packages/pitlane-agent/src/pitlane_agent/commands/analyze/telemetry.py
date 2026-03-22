@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from scipy.signal import savgol_filter
 
 from pitlane_agent.utils.constants import (
     DEFAULT_TELEMETRY_CHANNELS,
@@ -36,6 +37,8 @@ from pitlane_agent.utils.plotting import (
     get_driver_team,
 )
 from pitlane_agent.utils.telemetry_analysis import analyze_telemetry
+
+logger = logging.getLogger(__name__)
 
 
 def _format_sector_time(sector_time: pd.Timedelta) -> str | None:
@@ -147,7 +150,7 @@ def _add_time_delta(
     Args:
         entries: List of entry dicts containing 'telemetry' DataFrames.
         smooth: Apply Savitzky-Golay smoothing to remove merge_asof jitter (default: True).
-        window: Savitzky-Golay window size in samples (default: 25). Must be odd and ≥ 5.
+        window: Savitzky-Golay window size in samples (default: 25). Auto-corrected to odd if even; minimum 5.
     """
     for entry in entries:
         entry["telemetry"]["TimeDelta"] = 0.0
@@ -174,12 +177,12 @@ def _add_time_delta(
             index=sorted_tel.index,
         )
         if smooth and len(delta_series) > window:
-            from scipy.signal import savgol_filter
-
             _win = window if window % 2 == 1 else window + 1
-            _win = max(_win, DELTA_SMOOTH_POLY_ORDER + 2)
+            if _win != window:
+                logger.warning("delta_window %d is even; auto-corrected to %d", window, _win)
+            _win = max(_win, DELTA_SMOOTH_MIN_WINDOW)
             smoothed: np.ndarray = np.asarray(
-                savgol_filter(delta_series.fillna(0.0).values, _win, DELTA_SMOOTH_POLY_ORDER)
+                savgol_filter(delta_series.ffill().bfill().values, _win, DELTA_SMOOTH_POLY_ORDER)
             )
             delta_series = pd.Series(smoothed, index=delta_series.index)
         # Restore to original (unsorted) index order
@@ -262,7 +265,6 @@ def _build_customdata(
 
 def _build_hover_template(
     label: str,
-    channel_key: str,
     channel_label: str,
     unit: str,
     fmt: str,
@@ -275,7 +277,7 @@ def _build_hover_template(
         f"{channel_label}: %{{y:{fmt}}}{unit}",
     ]
     for i, other in enumerate(other_labels):
-        lines.append(f"\u0394 vs {other}: %{{customdata[{i}]:+.1f}}{unit}")
+        lines.append(f"\u0394 vs {other}: %{{customdata[{i}]:+.3f}}{unit}")
     lines.append("<extra></extra>")
     return "<br>".join(lines)
 
@@ -386,7 +388,8 @@ def _render_telemetry_chart(
 
                 # Hover template
                 if channel_key == "TimeDelta":
-                    # Delta channel: simple hover showing gap value
+                    # Delta channel: round to 3 dp before Plotly serializes to JSON
+                    y_values = y_values.round(3)
                     hovertemplate = (
                         f"<b>{lbl}</b><br>Distance: %{{x:.0f}}m<br>Δ vs {ref_label}: %{{y:+.3f}}s<br><extra></extra>"
                     )
@@ -403,7 +406,6 @@ def _render_telemetry_chart(
                     )
                     hovertemplate = _build_hover_template(
                         lbl,
-                        channel_key,
                         grp["label"] if len(grp["traces"]) == 1 else channel_key,
                         unit,
                         fmt,
@@ -518,8 +520,8 @@ def _render_telemetry_chart(
 
         # Secondary y-axis styling (RPM/Gear right axis)
         if grp.get("secondary_y") and "secondary_yaxis" in grp:
-            # Plotly secondary y-axis key: yaxis{N}2 for rows > 1, yaxis2 for row 1
-            sec_key = f"yaxis{row}2" if row > 1 else "yaxis2"
+            # Plotly secondary y-axis key: yaxis{2*row} (row 1 → yaxis2, row 2 → yaxis4, …)
+            sec_key = f"yaxis{2 * row}"
             fig.update_layout(
                 **{
                     sec_key: {

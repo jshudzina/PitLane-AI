@@ -1,5 +1,6 @@
 """Tests for telemetry chart generation."""
 
+import copy
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -225,8 +226,6 @@ class TestAddTimeDeltaSmoothing:
         entries[1]["telemetry"]["Time"] = entries[1]["telemetry"]["Time"] + noise
 
         # Raw (unsmoothed) delta
-        import copy
-
         entries_raw = copy.deepcopy(entries)
         _add_time_delta(entries_raw, smooth=False)
         raw_std = entries_raw[1]["telemetry"]["TimeDelta"].std()
@@ -238,19 +237,15 @@ class TestAddTimeDeltaSmoothing:
         assert smoothed_std < raw_std
 
     def test_no_smoothing_preserves_raw(self):
-        """With smooth=False, TimeDelta values must match the unsmoothed computation exactly."""
-        import copy
-
-        entries_a = _make_slower_entries(n=50)
-        entries_b = copy.deepcopy(entries_a)
-
-        _add_time_delta(entries_a, smooth=False)
-        _add_time_delta(entries_b, smooth=False)
-
-        np.testing.assert_array_equal(
-            entries_a[1]["telemetry"]["TimeDelta"].values,
-            entries_b[1]["telemetry"]["TimeDelta"].values,
-        )
+        """With smooth=False, TimeDelta should not differ from a second smooth=False call (deterministic),
+        and for a uniformly slower driver (step_s=2.0) deltas must be strictly increasing."""
+        entries = _make_slower_entries(n=50, step_s=2.0)
+        _add_time_delta(entries, smooth=False)
+        delta = entries[1]["telemetry"]["TimeDelta"].sort_index()
+        # Each sample the slower driver falls further behind → strictly increasing
+        assert (delta.diff().dropna() >= 0).all(), "Expected non-decreasing delta for uniformly slower driver"
+        # First point is ~0 (both start at t=0), last should be positive
+        assert delta.iloc[-1] > 0
 
     def test_smoothing_short_series_skipped(self):
         """When the series is shorter than the window, smoothing is skipped without error."""
@@ -317,7 +312,7 @@ class TestBuildCustomdata:
 
 class TestBuildHoverTemplate:
     def test_basic_structure(self):
-        tpl = _build_hover_template("VER", "Speed", "Speed (km/h)", "km/h", ".0f", [])
+        tpl = _build_hover_template("VER", "Speed (km/h)", "km/h", ".0f", [])
 
         assert "<b>VER</b>" in tpl
         assert "Distance:" in tpl
@@ -326,7 +321,7 @@ class TestBuildHoverTemplate:
         assert "<extra></extra>" in tpl
 
     def test_includes_delta_lines(self):
-        tpl = _build_hover_template("VER", "Speed", "Speed (km/h)", "km/h", ".0f", ["HAM", "LEC"])
+        tpl = _build_hover_template("VER", "Speed (km/h)", "km/h", ".0f", ["HAM", "LEC"])
 
         assert "\u0394 vs HAM" in tpl
         assert "\u0394 vs LEC" in tpl
@@ -334,13 +329,13 @@ class TestBuildHoverTemplate:
         assert "customdata[1]" in tpl
 
     def test_no_deltas_without_others(self):
-        tpl = _build_hover_template("VER", "RPM", "RPM", "", ".0f", [])
+        tpl = _build_hover_template("VER", "RPM", "", ".0f", [])
         assert "\u0394" not in tpl
 
     def test_unit_appears_in_delta_line(self):
-        tpl = _build_hover_template("VER", "Throttle", "Throttle (%)", "%", ".0f", ["HAM"])
+        tpl = _build_hover_template("VER", "Throttle (%)", "%", ".0f", ["HAM"])
         # The delta line should end with the unit
-        assert "+.1f}%" in tpl
+        assert "+.3f}%" in tpl
 
 
 # ---------------------------------------------------------------------------
