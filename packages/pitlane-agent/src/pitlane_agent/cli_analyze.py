@@ -279,10 +279,21 @@ def speed_trace(
     help="Driver abbreviations to compare (2-5 drivers: --drivers VER --drivers HAM)",
 )
 @click.option(
-    "--annotate-corners",
-    is_flag=True,
-    default=False,
-    help="Add corner markers and labels to the chart",
+    "--corners/--no-corners",
+    "annotate_corners",
+    default=True,
+    help="Disable corner markers (shown by default)",
+)
+@click.option(
+    "--channel",
+    "channels",
+    multiple=True,
+    type=click.Choice(["delta", "speed", "throttle_brake", "rpm_gear", "superclip"]),
+    default=[],
+    help=(
+        "Channels to display. Specify multiple times: --channel speed --channel delta. "
+        "Default: delta speed throttle_brake rpm_gear"
+    ),
 )
 def telemetry(
     year: int,
@@ -292,8 +303,20 @@ def telemetry(
     session_number: int | None,
     drivers: tuple[str, ...],
     annotate_corners: bool,
+    channels: tuple[str, ...],
 ):
-    """Generate interactive telemetry chart (speed, RPM, gear, throttle, brake) for fastest laps."""
+    """Generate interactive telemetry chart for fastest laps.
+
+    Default layout (pro 'outcome first' ordering): Δ Time, Speed, Throttle/Brake, RPM/Gear.
+    Corners are annotated by default; use --no-corners to suppress.
+
+    Example (default channels with corners):
+      pitlane analyze telemetry --year 2025 --gp China --session Q --drivers ANT --drivers RUS
+
+    Example (speed and delta only, no corners):
+      pitlane analyze telemetry --year 2025 --gp Monaco --session Q
+        --drivers VER --drivers NOR --channel speed --channel delta --no-corners
+    """
     validate_session_or_test(gp, session, test_number, session_number)
 
     workspace_id = _get_workspace_id()
@@ -319,6 +342,7 @@ def telemetry(
             drivers=list(drivers),
             workspace_dir=workspace_path,
             annotate_corners=annotate_corners,
+            channels=list(channels) if channels else None,
             test_number=test_number,
             session_number=session_number,
         )

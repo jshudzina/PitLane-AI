@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 from pitlane_agent.commands.analyze.telemetry import (
-    CHANNELS,
+    CHANNEL_GROUPS,
+    _add_time_delta,
     _build_customdata,
     _build_hover_template,
     _build_merged_telemetry,
@@ -18,19 +19,21 @@ from pitlane_agent.commands.analyze.telemetry import (
 # ---------------------------------------------------------------------------
 
 
-def _make_telemetry_df(speed_vals, rpm_vals=None, distance_vals=None):
-    """Build a minimal telemetry DataFrame matching CHANNELS keys."""
+def _make_telemetry_df(speed_vals, rpm_vals=None, distance_vals=None, time_offset_s=0.0):
+    """Build a minimal telemetry DataFrame matching channel keys."""
     n = len(speed_vals)
+    distances = distance_vals if distance_vals is not None else [float(i * 100) for i in range(n)]
     return pd.DataFrame(
         {
-            "Distance": distance_vals if distance_vals is not None else [float(i * 100) for i in range(n)],
+            "Distance": distances,
             "Speed": speed_vals,
             "RPM": rpm_vals if rpm_vals is not None else [10000.0] * n,
             "nGear": [7.0] * n,
             "Throttle": [100.0] * n,
             "Brake": [0] * n,
             "SuperClip": [0] * n,
-            "Time": pd.to_timedelta([float(i) for i in range(n)], unit="s"),
+            "TimeDelta": [0.0] * n,
+            "Time": pd.to_timedelta([float(i) + time_offset_s for i in range(n)], unit="s"),
         }
     )
 
@@ -51,7 +54,8 @@ def _make_mock_fastest_lap(data: dict) -> MagicMock:
     return mock
 
 
-CHANNEL_KEYS = [ch["key"] for ch in CHANNELS]
+# Raw channel keys available in the test helper df (excludes computed TimeDelta)
+CHANNEL_KEYS = [t["key"] for grp in CHANNEL_GROUPS.values() for t in grp["traces"] if t["key"] != "TimeDelta"]
 
 
 # ---------------------------------------------------------------------------
@@ -73,7 +77,7 @@ class TestBuildMergedTelemetry:
 
         assert merged is not None
         assert "Distance" in merged.columns
-        for ch in CHANNEL_KEYS:
+        for ch in ["Speed", "RPM", "nGear", "Throttle", "Brake", "SuperClip"]:
             assert f"{ch}_VER" in merged.columns
             assert f"{ch}_HAM" in merged.columns
 
@@ -92,6 +96,84 @@ class TestBuildMergedTelemetry:
         # Both drivers share the same distance grid so values should be present
         assert not merged["Speed_VER"].isna().any()
         assert not merged["Speed_HAM"].isna().any()
+
+
+# ---------------------------------------------------------------------------
+# _add_time_delta
+# ---------------------------------------------------------------------------
+
+
+class TestAddTimeDelta:
+    def test_reference_driver_is_zero(self):
+        entries = _make_all_telemetry({"VER": [300, 310, 320], "HAM": [295, 305, 315]})
+        _add_time_delta(entries)
+        np.testing.assert_array_equal(entries[0]["telemetry"]["TimeDelta"].values, [0.0, 0.0, 0.0])
+
+    def test_single_entry_leaves_zero(self):
+        entries = _make_all_telemetry({"VER": [300, 310, 320]})
+        _add_time_delta(entries)
+        np.testing.assert_array_equal(entries[0]["telemetry"]["TimeDelta"].values, [0.0, 0.0, 0.0])
+
+    def test_faster_driver_has_negative_delta(self):
+        # HAM's Time starts 2s earlier at same distances → HAM is "faster" to each point
+        # delta for HAM = HAM_laptime - VER_laptime; HAM laptime relative = 0,1,2 vs VER = 0,1,2
+        # Both have same lap-relative times (sequential seconds), so delta should be ~0
+        entries = _make_all_telemetry({"VER": [300, 310, 320], "HAM": [295, 305, 315]})
+        _add_time_delta(entries)
+        # Both have Time = 0s, 1s, 2s relative to start → lap-relative times are equal → delta ≈ 0
+        ham_delta = entries[1]["telemetry"]["TimeDelta"].values
+        np.testing.assert_array_almost_equal(ham_delta, [0.0, 0.0, 0.0], decimal=3)
+
+    def test_absolute_time_offset_is_normalized_away(self):
+        # HAM's session timestamps start 5s later than VER, but lap-relative
+        # elapsed time is identical (both 0,1,2s step) → delta should be 0
+        ref_tel = _make_telemetry_df([300, 310, 320], time_offset_s=0.0)  # VER: Time = 0,1,2
+        other_tel = _make_telemetry_df([295, 305, 315], time_offset_s=5.0)  # HAM: Time = 5,6,7 → relative 0,1,2
+
+        entries = [
+            {"driver": "VER", "key": "VER", "label": "VER", "telemetry": ref_tel},
+            {"driver": "HAM", "key": "HAM", "label": "HAM", "telemetry": other_tel},
+        ]
+        _add_time_delta(entries)
+        # Normalizing by Time.iloc[0] cancels the offset → both have relative 0,1,2 → delta ≈ 0
+        ham_delta = entries[1]["telemetry"]["TimeDelta"].values
+        np.testing.assert_array_almost_equal(ham_delta, [0.0, 0.0, 0.0], decimal=3)
+
+    def test_delta_positive_when_other_is_slower(self):
+        # HAM has laptime 0,2,4 vs VER 0,1,2 at the same distances → HAM is slower
+        ref_tel = _make_telemetry_df([300, 310, 320], time_offset_s=0.0)  # VER: Time = 0,1,2
+        # Build HAM manually with 2s per step
+        ham_tel = pd.DataFrame(
+            {
+                "Distance": [0.0, 100.0, 200.0],
+                "Speed": [295.0, 305.0, 315.0],
+                "RPM": [10000.0] * 3,
+                "nGear": [7.0] * 3,
+                "Throttle": [100.0] * 3,
+                "Brake": [0] * 3,
+                "SuperClip": [0] * 3,
+                "TimeDelta": [0.0] * 3,
+                "Time": pd.to_timedelta([0.0, 2.0, 4.0], unit="s"),  # 2s per step vs VER's 1s
+            }
+        )
+
+        entries = [
+            {"driver": "VER", "key": "VER", "label": "VER", "telemetry": ref_tel},
+            {"driver": "HAM", "key": "HAM", "label": "HAM", "telemetry": ham_tel},
+        ]
+        _add_time_delta(entries)
+        ham_delta = entries[1]["telemetry"]["TimeDelta"].values
+        # At distance 100m: HAM lap time = 2.0, VER lap time = 1.0 → delta = +1.0
+        # At distance 200m: HAM lap time = 4.0, VER lap time = 2.0 → delta = +2.0
+        assert ham_delta[1] == pytest.approx(1.0, abs=0.1)
+        assert ham_delta[2] == pytest.approx(2.0, abs=0.1)
+
+    def test_multiple_entries_all_receive_delta(self):
+        entries = _make_all_telemetry({"VER": [300, 310], "HAM": [295, 305], "LEC": [290, 300]})
+        _add_time_delta(entries)
+        assert "TimeDelta" in entries[0]["telemetry"].columns
+        assert "TimeDelta" in entries[1]["telemetry"].columns
+        assert "TimeDelta" in entries[2]["telemetry"].columns
 
 
 # ---------------------------------------------------------------------------
@@ -144,8 +226,7 @@ class TestBuildCustomdata:
 
 class TestBuildHoverTemplate:
     def test_basic_structure(self):
-        channel = {"key": "Speed", "label": "Speed (km/h)", "fmt": ".0f", "unit": "km/h"}
-        tpl = _build_hover_template("VER", channel, [])
+        tpl = _build_hover_template("VER", "Speed (km/h)", "km/h", ".0f", [])
 
         assert "<b>VER</b>" in tpl
         assert "Distance:" in tpl
@@ -154,8 +235,7 @@ class TestBuildHoverTemplate:
         assert "<extra></extra>" in tpl
 
     def test_includes_delta_lines(self):
-        channel = {"key": "Speed", "label": "Speed (km/h)", "fmt": ".0f", "unit": "km/h"}
-        tpl = _build_hover_template("VER", channel, ["HAM", "LEC"])
+        tpl = _build_hover_template("VER", "Speed (km/h)", "km/h", ".0f", ["HAM", "LEC"])
 
         assert "\u0394 vs HAM" in tpl
         assert "\u0394 vs LEC" in tpl
@@ -163,13 +243,11 @@ class TestBuildHoverTemplate:
         assert "customdata[1]" in tpl
 
     def test_no_deltas_without_others(self):
-        channel = {"key": "RPM", "label": "RPM", "fmt": ".0f", "unit": ""}
-        tpl = _build_hover_template("VER", channel, [])
+        tpl = _build_hover_template("VER", "RPM", "", ".0f", [])
         assert "\u0394" not in tpl
 
     def test_unit_appears_in_delta_line(self):
-        channel = {"key": "Throttle", "label": "Throttle (%)", "fmt": ".0f", "unit": "%"}
-        tpl = _build_hover_template("VER", channel, ["HAM"])
+        tpl = _build_hover_template("VER", "Throttle (%)", "%", ".0f", ["HAM"])
         # The delta line should end with the unit
         assert "+.1f}%" in tpl
 
@@ -198,6 +276,17 @@ class TestGenerateTelemetryChart:
                 session_type="Q",
                 drivers=["VER", "HAM", "LEC", "NOR", "PIA", "SAI"],
                 workspace_dir=tmp_output_dir,
+            )
+
+    def test_unknown_channel_raises(self, tmp_output_dir):
+        with pytest.raises(ValueError, match="Unknown channel"):
+            generate_telemetry_chart(
+                year=2024,
+                gp="Monaco",
+                session_type="Q",
+                drivers=["VER", "HAM"],
+                workspace_dir=tmp_output_dir,
+                channels=["speed", "bogus_channel"],
             )
 
     @patch("pitlane_agent.commands.analyze.telemetry.load_session_or_testing")
@@ -253,6 +342,7 @@ class TestGenerateTelemetryChart:
             session_type="Q",
             drivers=["VER", "HAM"],
             workspace_dir=tmp_output_dir,
+            annotate_corners=False,
         )
 
         assert result["year"] == 2024
@@ -267,8 +357,61 @@ class TestGenerateTelemetryChart:
         assert result["statistics"][0]["sector_3_time"] == "30.921"
         assert result["statistics"][0]["speed_trap"] == 315.0
         assert result["statistics"][0]["speed_fl"] == 298.0
+        assert "channels" in result
         assert result["corners_annotated"] is False
         assert output_file.exists()
+
+    @patch("pitlane_agent.commands.analyze.telemetry.load_session_or_testing")
+    @patch("pitlane_agent.commands.analyze.telemetry.get_driver_color_safe")
+    @patch("pitlane_agent.commands.analyze.telemetry.get_driver_team")
+    @patch("pitlane_agent.commands.analyze.telemetry.build_chart_path")
+    def test_custom_channels_respected(
+        self,
+        mock_build_path,
+        mock_get_team,
+        mock_get_color,
+        mock_load_session,
+        tmp_output_dir,
+        mock_fastf1_session,
+    ):
+        output_file = tmp_output_dir / "charts" / "telemetry_custom.html"
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        mock_build_path.return_value = output_file
+
+        mock_load_session.return_value = mock_fastf1_session
+        mock_get_color.return_value = "#0600EF"
+        mock_get_team.return_value = "Red Bull Racing"
+
+        mock_telemetry = _make_telemetry_df([250, 280, 310])
+        mock_fastest_lap = _make_mock_fastest_lap(
+            {
+                "LapTime": pd.Timedelta(seconds=89.5),
+                "LapNumber": 12,
+                "Sector1Time": pd.Timedelta(seconds=28.123),
+                "Sector2Time": pd.Timedelta(seconds=30.456),
+                "Sector3Time": pd.Timedelta(seconds=30.921),
+                "SpeedST": 315.0,
+                "SpeedFL": 298.0,
+            }
+        )
+        mock_car_data = MagicMock()
+        mock_car_data.add_distance.return_value = mock_telemetry
+        mock_fastest_lap.get_car_data.return_value = mock_car_data
+        mock_driver_laps = MagicMock()
+        mock_driver_laps.empty = False
+        mock_driver_laps.pick_fastest.return_value = mock_fastest_lap
+        mock_fastf1_session.laps.pick_drivers.return_value = mock_driver_laps
+
+        result = generate_telemetry_chart(
+            year=2024,
+            gp="Monaco",
+            session_type="Q",
+            drivers=["VER", "HAM"],
+            workspace_dir=tmp_output_dir,
+            channels=["speed", "delta"],
+        )
+
+        assert result["channels"] == ["speed", "delta"]
 
     @patch("pitlane_agent.commands.analyze.telemetry.load_session_or_testing")
     def test_session_error_propagates(self, mock_load_session, tmp_output_dir):
