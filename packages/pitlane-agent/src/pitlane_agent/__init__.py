@@ -2,5 +2,5 @@
 
 from pitlane_agent.agent import F1Agent
 
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 __all__ = ["F1Agent", "__version__"]
