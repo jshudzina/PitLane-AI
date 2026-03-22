@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2026-03-22
+
+### Bug Fixes
+
+- **chart**: Include grid position as Lap 0 in position changes chart and stats ([#124](https://github.com/jshudzina/PitLane-AI/pull/124))
+
+- **fetch**: Support pre-2018 season summary with results-based stats fallback ([#127](https://github.com/jshudzina/PitLane-AI/pull/127))
+
+- **fetch**: Use FullName fallback when driver Abbreviation is empty for pre-2018 seasons ([#128](https://github.com/jshudzina/PitLane-AI/pull/128))
+
+
+### Features
+
+- **infra**: Add DuckDB infrastructure and stats_db module ([#125](https://github.com/jshudzina/PitLane-AI/pull/125))
+
+- **stats**: Add Wikipedia-sourced circuit length fallback ([#126](https://github.com/jshudzina/PitLane-AI/pull/126))
+
+- **stats**: Add DuckDB-first season summary and stats update script ([#129](https://github.com/jshudzina/PitLane-AI/pull/129))
+
+- **fetch**: Enhance session-info with richer driver result fields ([#130](https://github.com/jshudzina/PitLane-AI/pull/130))
+
+- **skills**: Add f1-2026-season skill and 2026 regulation constants ([#131](https://github.com/jshudzina/PitLane-AI/pull/131))
+
+- **telemetry**: Pro-layout chart with channel groups, time delta, and channel selection ([#132](https://github.com/jshudzina/PitLane-AI/pull/132))
+
+- **telemetry**: Smooth time delta trace with Savitzky-Golay filter ([#134](https://github.com/jshudzina/PitLane-AI/pull/134))
+
+
+### Miscellaneous Tasks
+
+- Add py.typed markers for PEP 561 type checking support ([#123](https://github.com/jshudzina/PitLane-AI/pull/123))
+
 ## [0.4.3] - 2026-03-07
 
 ### Features
