@@ -160,6 +160,8 @@ def _extract_qualifying_entries(
     session: object,
     year: int,
     round_number: int,
+    session_type: str,
+    abbrev_to_driver_id: dict[str, str] | None = None,
 ) -> list[QualifyingEntry]:
     """Extract per-driver QualifyingEntry records from a loaded qualifying session.
 
@@ -185,11 +187,21 @@ def _extract_qualifying_entries(
 
     for _, driver in results.iterrows():
         driver_id = str(driver.get("DriverId", "")).strip()
+        if not driver_id and abbrev_to_driver_id:
+            abbr_raw = driver.get("Abbreviation")
+            abbr_key = str(abbr_raw).strip() if abbr_raw is not None else ""
+            driver_id = abbrev_to_driver_id.get(abbr_key, "")
         if not driver_id:
             logger.warning("Skipping driver row with no DriverId in qualifying round %d", round_number)
             continue
 
+        # FastF1 populates Position for Q but leaves it NaN for SQ sessions;
+        # fall back to ClassifiedPosition then GridPosition.
         pos_raw = driver.get("Position")
+        if pd.isna(pos_raw):
+            pos_raw = driver.get("ClassifiedPosition")
+        if pd.isna(pos_raw):
+            pos_raw = driver.get("GridPosition")
         if pd.isna(pos_raw):
             continue
         position = int(pos_raw)
@@ -212,6 +224,7 @@ def _extract_qualifying_entries(
             QualifyingEntry(
                 year=year,
                 round=round_number,
+                session_type=session_type,
                 driver_id=driver_id,
                 abbreviation=abbreviation,
                 team=team,
@@ -263,17 +276,17 @@ def update_elo_data(
 
     # Build sets of already-processed keys for skip logic
     existing_race_rounds: set[tuple[int, str]] = set()
-    existing_qual_rounds: set[int] = set()
+    existing_qual_rounds: set[tuple[int, str]] = set()
     if not force:
         existing_race = get_race_entries(db_path, year)
         if existing_race:
             existing_race_rounds = {(r["round"], r["session_type"]) for r in existing_race}
         existing_qual = get_qualifying_entries(db_path, year)
         if existing_qual:
-            existing_qual_rounds = {r["round"] for r in existing_qual}
+            existing_qual_rounds = {(r["round"], r["session_type"]) for r in existing_qual}
         click.echo(
             f"Found {len(existing_race_rounds)} race sessions, "
-            f"{len(existing_qual_rounds)} qualifying rounds already in DB for {year}",
+            f"{len(existing_qual_rounds)} qualifying sessions already in DB for {year}",
             err=True,
         )
 
@@ -288,6 +301,20 @@ def update_elo_data(
     processed = 0
     skipped = 0
     errors = 0
+
+    # Qualifying session types to fetch per event format.
+    # "Q" is always fetched (sets the race grid; used for Xun's Rc).
+    # "SQ" is fetched for sprint_shootout/sprint_qualifying formats (2023+) to
+    # preserve the data for future analysis — whether to include it in Rc or ELO
+    # computation is deferred to the metrics implementation phase.
+    # The "sprint" format (2021-2022) has no separate SQ session; "Q" sets both
+    # the sprint and race grid, so no additional session is needed.
+    _QUAL_SESSIONS_BY_FORMAT: dict[str, list[str]] = {
+        "conventional": ["Q"],
+        "sprint": ["Q"],
+        "sprint_shootout": ["Q", "SQ"],
+        "sprint_qualifying": ["Q", "SQ"],
+    }
 
     for _, event in schedule.iterrows():
         rn = int(event["RoundNumber"])
@@ -320,21 +347,43 @@ def update_elo_data(
                 logger.exception("Failed to process race round %d %s: %s", rn, st, event_name)
                 errors += 1
 
-        # Qualifying session (SQ/sprint qualifying deferred to a future phase)
-        if rn not in existing_qual_rounds:
-            click.echo(f"  Processing qualifying round {rn}: {event_name}...", err=True)
+        qual_session_types = _QUAL_SESSIONS_BY_FORMAT.get(event_format, ["Q"])
+        # abbrev → driver_id map built from Q; passed to SQ as fallback since
+        # Ergast does not cover Sprint Qualifying sessions (DriverId is blank).
+        abbrev_to_driver_id: dict[str, str] = {}
+        for qt in qual_session_types:
+            if (rn, qt) in existing_qual_rounds:
+                click.echo(f"  Skipping qualifying round {rn} {qt}: {event_name} (already in DB)", err=True)
+                skipped += 1
+                continue
+            click.echo(f"  Processing qualifying round {rn} {qt}: {event_name}...", err=True)
             try:
-                session = load_session(year, event_name, "Q")
-                entries = _extract_qualifying_entries(session, year, rn)
+                # SQ sessions require messages=True: FastF1 computes qualifying
+                # results from timing data and needs race control messages to
+                # identify deleted laps. Without it, Q1/Q2/Q3 are NaT.
+                session = load_session(year, event_name, qt, messages=(qt == "SQ"))
+                entries = _extract_qualifying_entries(
+                    session, year, rn, qt,
+                    abbrev_to_driver_id=abbrev_to_driver_id if qt == "SQ" else None,
+                )
+                # Build lookup from Q results for any subsequent SQ session.
+                if qt == "Q":
+                    abbrev_to_driver_id = {
+                        e["abbreviation"]: e["driver_id"]
+                        for e in entries
+                        if e.get("abbreviation") and e.get("driver_id")
+                    }
+                if not entries:
+                    click.echo(
+                        f"  WARNING qualifying round {rn} {qt}: {event_name} — 0 entries extracted",
+                        err=True,
+                    )
                 qual_records.extend(entries)
                 processed += 1
             except Exception as e:
-                click.echo(f"  ERROR qualifying round {rn}: {event_name} — {e}", err=True)
-                logger.exception("Failed to process qualifying round %d: %s", rn, event_name)
+                click.echo(f"  ERROR qualifying round {rn} {qt}: {event_name} — {e}", err=True)
+                logger.exception("Failed to process qualifying round %d %s: %s", rn, qt, event_name)
                 errors += 1
-        else:
-            click.echo(f"  Skipping qualifying round {rn}: {event_name} (already in DB)", err=True)
-            skipped += 1
 
     if race_records:
         upsert_race_entries(db_path, race_records)

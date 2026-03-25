@@ -10,7 +10,23 @@ import duckdb
 from pitlane_agent.utils.stats_db import get_db_path
 
 
-class RaceEntry(TypedDict, total=False):
+class _RaceEntryRequired(TypedDict):
+    year: int
+    round: int
+    session_type: str  # "R" or "S" (sprint)
+    driver_id: str  # Ergast driverId slug, e.g. "hamilton" — stable across all history
+    team: str
+    laps_completed: int
+    status: str  # raw FastF1 status string, e.g. "Finished", "Engine", "Accident"
+    dnf_category: str  # "none", "mechanical", or "crash"
+    # Phase 1 stubs: always False until dedicated detection is implemented.
+    # is_wet_race: derive from session.weather_data in a future phase.
+    # is_street_circuit: derive from a static location lookup in a future phase.
+    is_wet_race: bool
+    is_street_circuit: bool
+
+
+class RaceEntry(_RaceEntryRequired, total=False):
     """Per-driver result for a race or sprint session.
 
     driver_id is the stable Ergast driverId slug (e.g. "hamilton",
@@ -23,25 +39,21 @@ class RaceEntry(TypedDict, total=False):
     session.weather_data and is_street_circuit from a static location lookup.
     """
 
-    year: int
-    round: int
-    session_type: str  # "R" or "S" (sprint)
-    driver_id: str  # Ergast driverId slug, e.g. "hamilton" — stable across all history
     abbreviation: str | None  # 3-letter code; None for pre-1994 historical drivers
-    team: str
     grid_position: int | None  # None = pit lane start
     finish_position: int | None  # None = mechanical DNF (Xun's approach)
-    laps_completed: int
-    status: str  # raw FastF1 status string, e.g. "Finished", "Engine", "Accident"
-    dnf_category: str  # "none", "mechanical", or "crash"
-    # Phase 1 stubs: always False until dedicated detection is implemented.
-    # is_wet_race: derive from session.weather_data in a future phase.
-    # is_street_circuit: derive from a static location lookup in a future phase.
-    is_wet_race: bool
-    is_street_circuit: bool
 
 
-class QualifyingEntry(TypedDict, total=False):
+class _QualifyingEntryRequired(TypedDict):
+    year: int
+    round: int
+    session_type: str  # "Q" for main qualifying, "SQ" for sprint qualifying/shootout
+    driver_id: str  # Ergast driverId slug — same identifier as RaceEntry
+    team: str
+    position: int  # classified qualifying position
+
+
+class QualifyingEntry(_QualifyingEntryRequired, total=False):
     """Per-driver result for a qualifying session.
 
     Used to compute Xun's Car Rating (Rc = team_avg_qual / fastest_qual).
@@ -54,16 +66,11 @@ class QualifyingEntry(TypedDict, total=False):
     Reliable data starts from 2006.
     """
 
-    year: int
-    round: int
-    driver_id: str  # Ergast driverId slug — same identifier as RaceEntry
     abbreviation: str | None  # 3-letter code; None for pre-1994 historical drivers
-    team: str
     q1_time_s: float | None  # None if driver did not set a time or pre-2006
     q2_time_s: float | None  # None if eliminated in Q1 or pre-2006
     q3_time_s: float | None  # None if eliminated in Q2 or pre-2006
     best_q_time_s: float | None  # min() of available times; None if no times recorded
-    position: int  # classified qualifying position
 
 
 # Schema version 1. No migration path — if columns change, drop and recreate
@@ -92,6 +99,9 @@ _CREATE_QUALIFYING_ENTRIES_SQL = """
 CREATE TABLE IF NOT EXISTS qualifying_entries (
     year          INTEGER NOT NULL,
     round         INTEGER NOT NULL,
+    -- "Q" = main qualifying (sets race grid); "SQ" = sprint qualifying/shootout (sets sprint grid).
+    -- Xun's Rc uses "Q" only. "SQ" data is collected for future analysis.
+    session_type  VARCHAR NOT NULL,
     driver_id     VARCHAR NOT NULL,
     abbreviation  VARCHAR,
     team          VARCHAR NOT NULL,
@@ -102,7 +112,7 @@ CREATE TABLE IF NOT EXISTS qualifying_entries (
     q3_time_s     DOUBLE,
     best_q_time_s DOUBLE,
     position      INTEGER NOT NULL,
-    PRIMARY KEY (year, round, driver_id)
+    PRIMARY KEY (year, round, session_type, driver_id)
 )
 """
 
@@ -116,9 +126,9 @@ INSERT OR REPLACE INTO race_entries (
 
 _UPSERT_QUALIFYING_ENTRY_SQL = """
 INSERT OR REPLACE INTO qualifying_entries (
-    year, round, driver_id, abbreviation, team,
+    year, round, session_type, driver_id, abbreviation, team,
     q1_time_s, q2_time_s, q3_time_s, best_q_time_s, position
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 _RACE_COLUMNS = (
@@ -140,6 +150,7 @@ _RACE_COLUMNS = (
 _QUALIFYING_COLUMNS = (
     "year",
     "round",
+    "session_type",
     "driver_id",
     "abbreviation",
     "team",

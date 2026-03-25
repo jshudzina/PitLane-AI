@@ -35,6 +35,7 @@ _SAMPLE_RACE_ENTRY: RaceEntry = {
 _SAMPLE_QUALIFYING_ENTRY: QualifyingEntry = {
     "year": 2024,
     "round": 1,
+    "session_type": "Q",
     "driver_id": "max_verstappen",
     "abbreviation": "VER",
     "team": "Red Bull Racing",
@@ -250,7 +251,7 @@ class TestUpsertQualifyingEntries:
 
         con = duckdb.connect(str(db_path))
         result = con.execute(
-            "SELECT best_q_time_s FROM qualifying_entries WHERE driver_id = 'max_verstappen'"
+            "SELECT best_q_time_s FROM qualifying_entries WHERE driver_id = 'max_verstappen' AND session_type = 'Q'"
         ).fetchone()
         con.close()
 
@@ -292,6 +293,22 @@ class TestUpsertQualifyingEntries:
         assert result[0] is None
         assert result[1] is None
 
+    def test_q_and_sq_coexist_for_same_round(self, tmp_path):
+        db_path = tmp_path / "test.duckdb"
+        init_elo_tables(db_path)
+
+        q_entry = {**_SAMPLE_QUALIFYING_ENTRY, "session_type": "Q"}
+        sq_entry = {**_SAMPLE_QUALIFYING_ENTRY, "session_type": "SQ"}
+        upsert_qualifying_entries(db_path, [q_entry, sq_entry])
+
+        con = duckdb.connect(str(db_path))
+        result = con.execute(
+            "SELECT session_type FROM qualifying_entries WHERE driver_id = 'max_verstappen' ORDER BY session_type"
+        ).fetchall()
+        con.close()
+
+        assert [r[0] for r in result] == ["Q", "SQ"]
+
     def test_all_q_times_null_pre2006(self, tmp_path):
         db_path = tmp_path / "test.duckdb"
         init_elo_tables(db_path)
@@ -300,6 +317,7 @@ class TestUpsertQualifyingEntries:
         record: QualifyingEntry = {
             "year": 1995,
             "round": 1,
+            "session_type": "Q",
             "driver_id": "schumacher",
             "abbreviation": None,
             "team": "Benetton",
@@ -450,6 +468,7 @@ class TestGetQualifyingEntries:
         expected_keys = {
             "year",
             "round",
+            "session_type",
             "driver_id",
             "abbreviation",
             "team",
