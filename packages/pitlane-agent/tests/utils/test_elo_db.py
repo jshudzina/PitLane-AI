@@ -538,6 +538,15 @@ class TestCategorizeDnf:
     def test_mechanical_puncture(self):
         assert categorize_dnf("Puncture") == "mechanical"
 
+    def test_mechanical_alternator(self):
+        assert categorize_dnf("Alternator") == "mechanical"
+
+    def test_mechanical_halfshaft(self):
+        assert categorize_dnf("Halfshaft") == "mechanical"
+
+    def test_mechanical_handling(self):
+        assert categorize_dnf("Handling") == "mechanical"
+
     def test_non_competitive_withdrew(self):
         assert categorize_dnf("Withdrew") == "mechanical"
 

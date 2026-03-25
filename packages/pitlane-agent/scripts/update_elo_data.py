@@ -105,10 +105,13 @@ def _extract_race_entries(
 
         dnf_category = categorize_dnf(status)
 
-        # Per Xun's model: set finish_position to None for mechanical DNFs so
-        # the ELO computation can exclude them from the race ranking
-        if dnf_category == "mechanical":
-            finish_position = None
+        # Trust Ergast's stewards' classification as the source of truth.
+        # If Ergast gives a finish position (driver was officially classified),
+        # keep it even for mechanical dnf_category — e.g. a driver who had
+        # handling issues but completed enough laps to be classified.
+        # If Ergast already has None (driver was not classified), a mechanical
+        # dnf_category signals to the ELO layer to exclude them from ranking.
+        # Do not override a non-None finish_position here.
 
         entries.append(
             RaceEntry(
