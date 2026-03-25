@@ -198,11 +198,31 @@ _MECHANICAL_KEYWORDS: frozenset[str] = frozenset(
         "cv joint",
         "wishbone",
         "spill",
+        # Electrical/ignition components
+        "ignition",
+        "injection",
+        "distributor",
+        "electronics",
+        "spark plugs",
+        # Drivetrain/chassis
+        "axle",
+        "track rod",
+        # Generic mechanical/technical labels
+        "mechanical",
+        "technical",
         # Non-competitive withdrawals — exclude from ELO like mechanical DNFs
         "withdrew",
         "injury",
+        "injured",
         "illness",
         "did not start",
+        "unwell",
+        "physical",
+        "driver seat",
+        # Car legality / stewards' decisions — not driver error
+        "disqualified",
+        "excluded",
+        "underweight",
     }
 )
 

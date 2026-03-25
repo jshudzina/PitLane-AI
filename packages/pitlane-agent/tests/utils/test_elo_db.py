@@ -566,6 +566,24 @@ class TestCategorizeDnf:
     def test_mechanical_handling(self):
         assert categorize_dnf("Handling") == "mechanical"
 
+    def test_mechanical_ignition(self):
+        assert categorize_dnf("Ignition") == "mechanical"
+
+    def test_mechanical_injection(self):
+        assert categorize_dnf("Injection") == "mechanical"
+
+    def test_mechanical_distributor(self):
+        assert categorize_dnf("Distributor") == "mechanical"
+
+    def test_mechanical_electronics(self):
+        assert categorize_dnf("Electronics") == "mechanical"
+
+    def test_mechanical_spark_plugs(self):
+        assert categorize_dnf("Spark plugs") == "mechanical"
+
+    def test_mechanical_axle(self):
+        assert categorize_dnf("Axle") == "mechanical"
+
     def test_non_competitive_withdrew(self):
         assert categorize_dnf("Withdrew") == "mechanical"
 
@@ -574,6 +592,36 @@ class TestCategorizeDnf:
 
     def test_non_competitive_illness(self):
         assert categorize_dnf("Illness") == "mechanical"
+
+    def test_mechanical_track_rod(self):
+        assert categorize_dnf("Track rod") == "mechanical"
+
+    def test_mechanical_generic_mechanical(self):
+        assert categorize_dnf("Mechanical") == "mechanical"
+
+    def test_mechanical_technical(self):
+        assert categorize_dnf("Technical") == "mechanical"
+
+    def test_non_competitive_driver_unwell(self):
+        assert categorize_dnf("Driver unwell") == "mechanical"
+
+    def test_non_competitive_injured(self):
+        assert categorize_dnf("Injured") == "mechanical"
+
+    def test_non_competitive_physical(self):
+        assert categorize_dnf("Physical") == "mechanical"
+
+    def test_non_competitive_driver_seat(self):
+        assert categorize_dnf("Driver Seat") == "mechanical"
+
+    def test_legality_disqualified(self):
+        assert categorize_dnf("Disqualified") == "mechanical"
+
+    def test_legality_excluded(self):
+        assert categorize_dnf("Excluded") == "mechanical"
+
+    def test_legality_underweight(self):
+        assert categorize_dnf("Underweight") == "mechanical"
 
     def test_crash_accident(self):
         assert categorize_dnf("Accident") == "crash"
@@ -588,8 +636,8 @@ class TestCategorizeDnf:
         assert categorize_dnf("Retired") == "crash"
 
     def test_unknown_status_returns_crash(self):
-        # Unknown statuses fall through to crash (ambiguous retirement)
-        assert categorize_dnf("Disqualified") == "crash"
+        # Truly unknown statuses fall through to crash (ambiguous retirement)
+        assert categorize_dnf("SomeUnknownStatus") == "crash"
 
     def test_case_insensitive(self):
         assert categorize_dnf("ENGINE") == "mechanical"
