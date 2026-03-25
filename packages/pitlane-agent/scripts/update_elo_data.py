@@ -200,12 +200,15 @@ def _extract_qualifying_entries(
 
         # FastF1 populates Position for Q but leaves it NaN for SQ sessions;
         # fall back to ClassifiedPosition then GridPosition.
+        def _pos_usable(v) -> bool:
+            return v is not None and not pd.isna(v) and str(v).strip() != ""
+
         pos_raw = driver.get("Position")
-        if pd.isna(pos_raw):
+        if not _pos_usable(pos_raw):
             pos_raw = driver.get("ClassifiedPosition")
-        if pd.isna(pos_raw):
+        if not _pos_usable(pos_raw):
             pos_raw = driver.get("GridPosition")
-        if pd.isna(pos_raw):
+        if not _pos_usable(pos_raw):
             continue
         position = int(pos_raw)
 
