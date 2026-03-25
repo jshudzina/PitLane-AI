@@ -304,15 +304,17 @@ def update_elo_data(
 
     # Qualifying session types to fetch per event format.
     # "Q" is always fetched (sets the race grid; used for Xun's Rc).
-    # "SQ" is fetched for sprint_shootout/sprint_qualifying formats (2023+) to
-    # preserve the data for future analysis — whether to include it in Rc or ELO
-    # computation is deferred to the metrics implementation phase.
-    # The "sprint" format (2021-2022) has no separate SQ session; "Q" sets both
-    # the sprint and race grid, so no additional session is needed.
+    # "SS" (Sprint Shootout) is fetched for the 2023 sprint_shootout format.
+    # "SQ" (Sprint Qualifying) is fetched for the 2024+ sprint_qualifying format.
+    # FastF1 uses different identifiers: "SS" for 2023, "SQ" for 2024+ —
+    # "SQ" raises "Session type does not exist" on sprint_shootout events.
+    # The "sprint" format (2021-2022) has no separate qualifying session;
+    # "Q" sets both the sprint and race grid, so no additional session is needed.
+    # Decision on whether SS/SQ feeds into Rc or Elo is deferred to metrics phase.
     _QUAL_SESSIONS_BY_FORMAT: dict[str, list[str]] = {
         "conventional": ["Q"],
         "sprint": ["Q"],
-        "sprint_shootout": ["Q", "SQ"],
+        "sprint_shootout": ["Q", "SS"],
         "sprint_qualifying": ["Q", "SQ"],
     }
 
@@ -358,13 +360,14 @@ def update_elo_data(
                 continue
             click.echo(f"  Processing qualifying round {rn} {qt}: {event_name}...", err=True)
             try:
-                # SQ sessions require messages=True: FastF1 computes qualifying
+                # SS/SQ sessions require messages=True: FastF1 computes qualifying
                 # results from timing data and needs race control messages to
                 # identify deleted laps. Without it, Q1/Q2/Q3 are NaT.
-                session = load_session(year, event_name, qt, messages=(qt == "SQ"))
+                is_sprint_qual = qt in ("SS", "SQ")
+                session = load_session(year, event_name, qt, messages=is_sprint_qual)
                 entries = _extract_qualifying_entries(
                     session, year, rn, qt,
-                    abbrev_to_driver_id=abbrev_to_driver_id if qt == "SQ" else None,
+                    abbrev_to_driver_id=abbrev_to_driver_id if is_sprint_qual else None,
                 )
                 # Build lookup from Q results for any subsequent SQ session.
                 if qt == "Q":
