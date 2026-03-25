@@ -1,6 +1,5 @@
 """Tests for elo_db utility module using in-memory DuckDB."""
 
-from pathlib import Path
 
 import duckdb
 from pitlane_agent.utils.elo_db import (
@@ -14,7 +13,6 @@ from pitlane_agent.utils.elo_db import (
     upsert_race_entries,
 )
 from pitlane_agent.utils.stats_db import init_db
-
 
 _SAMPLE_RACE_ENTRY: RaceEntry = {
     "year": 2024,
@@ -331,7 +329,8 @@ class TestUpsertQualifyingEntries:
 
         con = duckdb.connect(str(db_path))
         result = con.execute(
-            "SELECT q1_time_s, q2_time_s, q3_time_s, best_q_time_s FROM qualifying_entries WHERE driver_id = 'schumacher'"
+            "SELECT q1_time_s, q2_time_s, q3_time_s, best_q_time_s"
+            " FROM qualifying_entries WHERE driver_id = 'schumacher'"
         ).fetchone()
         con.close()
 

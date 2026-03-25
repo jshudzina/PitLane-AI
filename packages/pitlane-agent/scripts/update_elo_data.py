@@ -321,7 +321,7 @@ def update_elo_data(
     # The "sprint" format (2021-2022) has no separate qualifying session;
     # "Q" sets both the sprint and race grid, so no additional session is needed.
     # Decision on whether SS/SQ feeds into Rc or Elo is deferred to metrics phase.
-    _QUAL_SESSIONS_BY_FORMAT: dict[str, list[str]] = {
+    qual_sessions_by_format: dict[str, list[str]] = {
         "conventional": ["Q"],
         "sprint": ["Q"],
         "sprint_shootout": ["Q", "SS"],
@@ -360,7 +360,7 @@ def update_elo_data(
                 logger.exception("Failed to process race round %d %s: %s", rn, st, event_name)
                 errors += 1
 
-        qual_session_types = _QUAL_SESSIONS_BY_FORMAT.get(event_format, ["Q"])
+        qual_session_types = qual_sessions_by_format.get(event_format, ["Q"])
         # abbrev → driver_id map built from Q; passed to SS/SQ as fallback since
         # Ergast does not cover Sprint Qualifying sessions (DriverId is blank).
         abbrev_to_driver_id: dict[str, str] = {}
