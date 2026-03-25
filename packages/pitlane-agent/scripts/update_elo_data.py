@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 from pathlib import Path
 
 import backoff
@@ -294,6 +295,10 @@ def update_elo_data(
     def _get_schedule() -> object:
         return fastf1.get_event_schedule(year, include_testing=False)
 
+    @backoff.on_exception(backoff.expo, RequestException, max_tries=5, jitter=backoff.full_jitter)
+    def _load_session(event_name: str, st: str, **kwargs: bool) -> object:
+        return load_session(year, event_name, st, **kwargs)
+
     schedule = _get_schedule()
 
     race_records: list[RaceEntry] = []
@@ -340,10 +345,11 @@ def update_elo_data(
                 continue
             click.echo(f"  Processing race round {rn} {st}: {event_name}...", err=True)
             try:
-                session = load_session(year, event_name, st)
+                session = _load_session(event_name, st)
                 entries = _extract_race_entries(session, year, rn, st)
                 race_records.extend(entries)
                 processed += 1
+                time.sleep(1)
             except Exception as e:
                 click.echo(f"  ERROR race round {rn} {st}: {event_name} — {e}", err=True)
                 logger.exception("Failed to process race round %d %s: %s", rn, st, event_name)
@@ -364,7 +370,7 @@ def update_elo_data(
                 # results from timing data and needs race control messages to
                 # identify deleted laps. Without it, Q1/Q2/Q3 are NaT.
                 is_sprint_qual = qt in ("SS", "SQ")
-                session = load_session(year, event_name, qt, messages=is_sprint_qual)
+                session = _load_session(event_name, qt, messages=is_sprint_qual)
                 entries = _extract_qualifying_entries(
                     session, year, rn, qt,
                     abbrev_to_driver_id=abbrev_to_driver_id if is_sprint_qual else None,
@@ -383,6 +389,7 @@ def update_elo_data(
                     )
                 qual_records.extend(entries)
                 processed += 1
+                time.sleep(1)
             except Exception as e:
                 click.echo(f"  ERROR qualifying round {rn} {qt}: {event_name} — {e}", err=True)
                 logger.exception("Failed to process qualifying round %d %s: %s", rn, qt, event_name)

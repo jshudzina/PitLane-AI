@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
+import time
 from pathlib import Path
 
 import backoff
@@ -204,6 +205,10 @@ def update_stats(
     def _get_schedule() -> object:
         return fastf1.get_event_schedule(year, include_testing=False)
 
+    @backoff.on_exception(backoff.expo, RequestException, max_tries=5, jitter=backoff.full_jitter)
+    def _load_session(event_name: str, st: str, **kwargs: bool) -> object:
+        return load_session(year, event_name, st, **kwargs)
+
     schedule = _get_schedule()
 
     records: list[SessionStats] = []
@@ -236,10 +241,11 @@ def update_stats(
 
             click.echo(f"  Processing round {rn} {st}: {event_name}...", err=True)
             try:
-                session = load_session(year, event_name, st, telemetry=with_telemetry)
+                session = _load_session(event_name, st, telemetry=with_telemetry)
                 record = _process_session(session, year, rn, event_name, country, date_str, st)
                 records.append(record)
                 processed += 1
+                time.sleep(1)
             except Exception as e:
                 click.echo(f"  ERROR round {rn} {st}: {event_name} — {e}", err=True)
                 logger.exception("Failed to process round %d %s: %s", rn, st, event_name)
