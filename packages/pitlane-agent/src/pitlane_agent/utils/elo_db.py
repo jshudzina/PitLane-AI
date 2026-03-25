@@ -163,11 +163,20 @@ _MECHANICAL_KEYWORDS: frozenset[str] = frozenset(
         "transmission",
         "turbo",
         "oil pressure",
+        "oil leak",
+        "water leak",
         "fuel",
         "wheel",
         "tyre",
         "throttle",
         "clutch",
+        "vibrations",
+        "exhaust",
+        "pneumatics",
+        "driveshaft",
+        "radiator",
+        "differential",
+        "puncture",
     }
 )
 

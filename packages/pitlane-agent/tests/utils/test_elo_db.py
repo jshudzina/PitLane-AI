@@ -529,6 +529,15 @@ class TestCategorizeDnf:
     def test_mechanical_hydraulics(self):
         assert categorize_dnf("Hydraulics") == "mechanical"
 
+    def test_mechanical_vibrations(self):
+        assert categorize_dnf("Vibrations") == "mechanical"
+
+    def test_mechanical_oil_leak(self):
+        assert categorize_dnf("Oil Leak") == "mechanical"
+
+    def test_mechanical_puncture(self):
+        assert categorize_dnf("Puncture") == "mechanical"
+
     def test_crash_accident(self):
         assert categorize_dnf("Accident") == "crash"
 
