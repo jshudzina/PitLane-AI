@@ -58,9 +58,9 @@ def load_elo_history(
     failed_years: list[int] = []
 
     for year in years:
-        click.echo(f"\n{'='*60}", err=True)
+        click.echo(f"\n{'=' * 60}", err=True)
         click.echo(f"Season {year}", err=True)
-        click.echo(f"{'='*60}", err=True)
+        click.echo(f"{'=' * 60}", err=True)
 
         cmd = [sys.executable, str(update_script), "--year", str(year)]
         if db_path_str:
@@ -74,7 +74,7 @@ def load_elo_history(
             click.echo(f"  FAILED: season {year} exited with code {result.returncode}", err=True)
             failed_years.append(year)
 
-    click.echo(f"\n{'='*60}", err=True)
+    click.echo(f"\n{'=' * 60}", err=True)
     total = len(years)
     succeeded = total - len(failed_years)
     click.echo(f"Done. {succeeded}/{total} seasons succeeded.", err=True)

@@ -1,6 +1,5 @@
 """Tests for elo_db utility module using in-memory DuckDB."""
 
-
 import duckdb
 from pitlane_agent.utils.elo_db import (
     QualifyingEntry,
@@ -87,7 +86,7 @@ class TestInitEloTables:
 
     def test_additive_with_session_stats(self, tmp_path):
         db_path = tmp_path / "test.duckdb"
-        init_db(db_path)       # creates session_stats
+        init_db(db_path)  # creates session_stats
         init_elo_tables(db_path)  # adds race_entries and qualifying_entries
 
         con = duckdb.connect(str(db_path))
@@ -199,9 +198,7 @@ class TestUpsertRaceEntries:
         upsert_race_entries(db_path, [record])
 
         con = duckdb.connect(str(db_path))
-        result = con.execute(
-            "SELECT abbreviation FROM race_entries WHERE driver_id = 'farina'"
-        ).fetchone()
+        result = con.execute("SELECT abbreviation FROM race_entries WHERE driver_id = 'farina'").fetchone()
         con.close()
 
         assert result[0] is None

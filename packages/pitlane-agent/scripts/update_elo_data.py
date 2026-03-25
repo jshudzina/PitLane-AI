@@ -95,9 +95,7 @@ def _extract_race_entries(
         status = str(status_raw) if pd.notna(status_raw) else ""
 
         grid_raw = driver.get("GridPosition")
-        grid_position: int | None = (
-            int(grid_raw) if pd.notna(grid_raw) and float(grid_raw) > 0 else None
-        )
+        grid_position: int | None = int(grid_raw) if pd.notna(grid_raw) and float(grid_raw) > 0 else None
 
         finish_raw = driver.get("Position")
         finish_position: int | None = int(finish_raw) if pd.notna(finish_raw) else None
@@ -390,7 +388,10 @@ def update_elo_data(
                 is_sprint_qual = qt in ("SS", "SQ")
                 session = _load_session(event_name, qt, messages=is_sprint_qual)
                 entries = _extract_qualifying_entries(
-                    session, year, rn, qt,
+                    session,
+                    year,
+                    rn,
+                    qt,
                     abbrev_to_driver_id=abbrev_to_driver_id if is_sprint_qual else None,
                 )
                 # Build lookup from Q results for any subsequent SS/SQ session.
