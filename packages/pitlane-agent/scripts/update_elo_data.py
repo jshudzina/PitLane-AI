@@ -41,7 +41,9 @@ from pitlane_agent.utils.fastf1_helpers import load_session, setup_fastf1_cache
 from pitlane_agent.utils.stats_db import get_db_path
 from requests.exceptions import RequestException
 
-logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
+logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
+for _noisy in ("fastf1", "urllib3", "requests", "asyncio"):
+    logging.getLogger(_noisy).setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
 
