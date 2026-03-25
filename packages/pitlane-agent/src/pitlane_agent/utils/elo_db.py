@@ -236,6 +236,12 @@ _CRASH_KEYWORDS: frozenset[str] = frozenset(
         "collision",
         "spun off",
         "damage",
+        # "Retired" is ambiguous: Ergast uses it for both crash and mechanical
+        # DNFs when no specific cause is recorded. Defaulting to "crash" is
+        # incorrect for mechanical retirements labelled this way, but defaulting
+        # to "mechanical" is equally wrong for crash retirements. Post-2021 a
+        # supplementary source (e.g. FIA stewards' documents or race control
+        # messages) is needed to correctly classify these. Accepted for now.
         "retired",
     }
 )

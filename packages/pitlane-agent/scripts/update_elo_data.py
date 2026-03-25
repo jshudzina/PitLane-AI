@@ -361,13 +361,26 @@ def update_elo_data(
                 errors += 1
 
         qual_session_types = _QUAL_SESSIONS_BY_FORMAT.get(event_format, ["Q"])
-        # abbrev → driver_id map built from Q; passed to SQ as fallback since
+        # abbrev → driver_id map built from Q; passed to SS/SQ as fallback since
         # Ergast does not cover Sprint Qualifying sessions (DriverId is blank).
         abbrev_to_driver_id: dict[str, str] = {}
         for qt in qual_session_types:
             if (rn, qt) in existing_qual_rounds:
                 click.echo(f"  Skipping qualifying round {rn} {qt}: {event_name} (already in DB)", err=True)
                 skipped += 1
+                # If Q is already in the DB but a subsequent SS/SQ session still
+                # needs to be processed, build the fallback map from the DB so
+                # that SQ entries with blank Ergast DriverIds can still be resolved.
+                if qt == "Q":
+                    existing_q = get_qualifying_entries(db_path, year) or []
+                    abbrev_to_driver_id = {
+                        e["abbreviation"]: e["driver_id"]
+                        for e in existing_q
+                        if e.get("round") == rn
+                        and e.get("session_type") == "Q"
+                        and e.get("abbreviation")
+                        and e.get("driver_id")
+                    }
                 continue
             click.echo(f"  Processing qualifying round {rn} {qt}: {event_name}...", err=True)
             try:
@@ -380,7 +393,7 @@ def update_elo_data(
                     session, year, rn, qt,
                     abbrev_to_driver_id=abbrev_to_driver_id if is_sprint_qual else None,
                 )
-                # Build lookup from Q results for any subsequent SQ session.
+                # Build lookup from Q results for any subsequent SS/SQ session.
                 if qt == "Q":
                     abbrev_to_driver_id = {
                         e["abbreviation"]: e["driver_id"]
