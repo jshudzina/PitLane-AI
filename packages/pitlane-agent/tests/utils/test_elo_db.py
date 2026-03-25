@@ -508,6 +508,7 @@ class TestCategorizeDnf:
     def test_lapped_returns_none(self):
         assert categorize_dnf("+1 Lap") == "none"
         assert categorize_dnf("+3 Laps") == "none"
+        assert categorize_dnf("Lapped") == "none"
 
     def test_empty_string_returns_none(self):
         assert categorize_dnf("") == "none"

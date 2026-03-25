@@ -202,7 +202,7 @@ def categorize_dnf(status: str) -> str:
     if not status:
         return "none"
     lower = status.lower().strip()
-    if lower == "finished" or lower.startswith("+"):
+    if lower in ("finished", "lapped") or lower.startswith("+"):
         return "none"
     # Exact-match check (O(1) frozenset lookup)
     if lower in _MECHANICAL_KEYWORDS:
