@@ -207,6 +207,9 @@ _MECHANICAL_KEYWORDS: frozenset[str] = frozenset(
         # Drivetrain/chassis
         "axle",
         "track rod",
+        "drivetrain",
+        "power loss",
+        "stalled",
         # Generic mechanical/technical labels
         "mechanical",
         "technical",
@@ -219,6 +222,7 @@ _MECHANICAL_KEYWORDS: frozenset[str] = frozenset(
         "unwell",
         "physical",
         "driver seat",
+        "safety concerns",
         # Car legality / stewards' decisions — not driver error
         "disqualified",
         "excluded",

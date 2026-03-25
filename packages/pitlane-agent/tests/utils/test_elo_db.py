@@ -584,6 +584,15 @@ class TestCategorizeDnf:
     def test_mechanical_axle(self):
         assert categorize_dnf("Axle") == "mechanical"
 
+    def test_mechanical_drivetrain(self):
+        assert categorize_dnf("Drivetrain") == "mechanical"
+
+    def test_mechanical_power_loss(self):
+        assert categorize_dnf("Power loss") == "mechanical"
+
+    def test_mechanical_stalled(self):
+        assert categorize_dnf("Stalled") == "mechanical"
+
     def test_non_competitive_withdrew(self):
         assert categorize_dnf("Withdrew") == "mechanical"
 
@@ -613,6 +622,9 @@ class TestCategorizeDnf:
 
     def test_non_competitive_driver_seat(self):
         assert categorize_dnf("Driver Seat") == "mechanical"
+
+    def test_non_competitive_safety_concerns(self):
+        assert categorize_dnf("Safety concerns") == "mechanical"
 
     def test_legality_disqualified(self):
         assert categorize_dnf("Disqualified") == "mechanical"
