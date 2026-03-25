@@ -177,6 +177,11 @@ _MECHANICAL_KEYWORDS: frozenset[str] = frozenset(
         "radiator",
         "differential",
         "puncture",
+        # Non-competitive withdrawals — exclude from ELO like mechanical DNFs
+        "withdrew",
+        "injury",
+        "illness",
+        "did not start",
     }
 )
 

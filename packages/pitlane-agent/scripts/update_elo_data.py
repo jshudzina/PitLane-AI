@@ -82,7 +82,8 @@ def _extract_race_entries(
             continue
 
         abbr_raw = driver.get("Abbreviation")
-        abbreviation: str | None = str(abbr_raw).strip() if pd.notna(abbr_raw) and str(abbr_raw).strip() else None
+        abbr_str = str(abbr_raw).strip() if abbr_raw is not None else ""
+        abbreviation: str | None = abbr_str if abbr_str and abbr_str.lower() != "nan" else None
 
         team_raw = driver.get("TeamName")
         team = str(team_raw) if pd.notna(team_raw) else ""
@@ -191,7 +192,8 @@ def _extract_qualifying_entries(
         position = int(pos_raw)
 
         abbr_raw = driver.get("Abbreviation")
-        abbreviation: str | None = str(abbr_raw).strip() if pd.notna(abbr_raw) and str(abbr_raw).strip() else None
+        abbr_str = str(abbr_raw).strip() if abbr_raw is not None else ""
+        abbreviation: str | None = abbr_str if abbr_str and abbr_str.lower() != "nan" else None
 
         team_raw = driver.get("TeamName")
         team = str(team_raw) if pd.notna(team_raw) else ""

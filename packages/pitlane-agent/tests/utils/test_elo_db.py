@@ -538,6 +538,15 @@ class TestCategorizeDnf:
     def test_mechanical_puncture(self):
         assert categorize_dnf("Puncture") == "mechanical"
 
+    def test_non_competitive_withdrew(self):
+        assert categorize_dnf("Withdrew") == "mechanical"
+
+    def test_non_competitive_injury(self):
+        assert categorize_dnf("Injury") == "mechanical"
+
+    def test_non_competitive_illness(self):
+        assert categorize_dnf("Illness") == "mechanical"
+
     def test_crash_accident(self):
         assert categorize_dnf("Accident") == "crash"
 
@@ -552,7 +561,7 @@ class TestCategorizeDnf:
 
     def test_unknown_status_returns_crash(self):
         # Unknown statuses fall through to crash (ambiguous retirement)
-        assert categorize_dnf("Illness") == "crash"
+        assert categorize_dnf("Disqualified") == "crash"
 
     def test_case_insensitive(self):
         assert categorize_dnf("ENGINE") == "mechanical"
