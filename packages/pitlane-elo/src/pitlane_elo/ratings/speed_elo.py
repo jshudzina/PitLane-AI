@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from pitlane_elo.config import EloConfig
+from pitlane_elo.config import SPEED_ELO_DEFAULT, EloConfig
 from pitlane_elo.data import RaceEntry
 from pitlane_elo.ratings.base import RatingModel
 
@@ -18,8 +18,6 @@ class SpeedElo(RatingModel):
     """Round-robin pairwise Elo rating model."""
 
     def __init__(self, config: EloConfig | None = None) -> None:
-        from pitlane_elo.config import SPEED_ELO_DEFAULT
-
         super().__init__(config or SPEED_ELO_DEFAULT)
 
     def process_race(self, entries: list[RaceEntry]) -> None:

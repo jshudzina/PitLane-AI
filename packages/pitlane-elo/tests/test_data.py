@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from pitlane_elo.data import (
     get_db_path,
     get_qualifying_entries,
@@ -16,16 +17,10 @@ class TestGetDbPath:
         path = get_db_path()
         assert isinstance(path, Path)
 
-    def test_env_override(self, monkeypatch: object, tmp_path: Path) -> None:
-        import pytest
-
-        mp = pytest.MonkeyPatch()
+    def test_env_override(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         fake = tmp_path / "override.duckdb"
-        mp.setenv("PITLANE_DB_PATH", str(fake))
-        try:
-            assert get_db_path() == fake
-        finally:
-            mp.undo()
+        monkeypatch.setenv("PITLANE_DB_PATH", str(fake))
+        assert get_db_path() == fake
 
 
 class TestGetRaceEntries:

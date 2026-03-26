@@ -87,38 +87,41 @@ def get_db_path() -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Column tuples (for dict construction from rows)
+# Explicit column lists (used in SELECT to avoid fragility from schema changes)
 # ---------------------------------------------------------------------------
 
-_RACE_COLUMNS = (
-    "year",
-    "round",
-    "session_type",
-    "driver_id",
-    "abbreviation",
-    "team",
-    "grid_position",
-    "finish_position",
-    "laps_completed",
-    "status",
-    "dnf_category",
-    "is_wet_race",
-    "is_street_circuit",
+_RACE_COLS = (
+    "year, round, session_type, driver_id, abbreviation, team, "
+    "grid_position, finish_position, laps_completed, status, "
+    "dnf_category, is_wet_race, is_street_circuit"
 )
 
-_QUALIFYING_COLUMNS = (
-    "year",
-    "round",
-    "session_type",
-    "driver_id",
-    "abbreviation",
-    "team",
-    "q1_time_s",
-    "q2_time_s",
-    "q3_time_s",
-    "best_q_time_s",
-    "position",
+_QUALIFYING_COLS = (
+    "year, round, session_type, driver_id, abbreviation, team, "
+    "q1_time_s, q2_time_s, q3_time_s, best_q_time_s, position"
 )
+
+
+# ---------------------------------------------------------------------------
+# Read-only query helpers
+# ---------------------------------------------------------------------------
+
+
+def _query(
+    path: Path,
+    sql: str,
+    params: list[object],
+) -> list[tuple[object, ...]] | None:
+    """Execute a read-only query and return (columns, rows) or None."""
+    if not path.exists():
+        return None
+    with duckdb.connect(str(path), read_only=True) as con:
+        cursor = con.execute(sql, params)
+        rows = cursor.fetchall()
+        if not rows:
+            return None
+        columns = [desc[0] for desc in cursor.description]
+    return [dict(zip(columns, row, strict=True)) for row in rows]
 
 
 # ---------------------------------------------------------------------------
@@ -144,27 +147,13 @@ def get_race_entries(
         no rows match.
     """
     path = db_path or get_db_path()
-    if not path.exists():
-        return None
-    con = duckdb.connect(str(path), read_only=True)
-    try:
-        if session_type is not None:
-            cursor = con.execute(
-                "SELECT * FROM race_entries WHERE year = ? AND session_type = ? ORDER BY round, driver_id",
-                [year, session_type],
-            )
-        else:
-            cursor = con.execute(
-                "SELECT * FROM race_entries WHERE year = ? ORDER BY round, driver_id",
-                [year],
-            )
-        rows = cursor.fetchall()
-        if not rows:
-            return None
-        columns = [desc[0] for desc in cursor.description]
-    finally:
-        con.close()
-    return [cast(RaceEntry, dict(zip(columns, row, strict=True))) for row in rows]
+    if session_type is not None:
+        sql = f"SELECT {_RACE_COLS} FROM race_entries WHERE year = ? AND session_type = ? ORDER BY round, driver_id"
+        result = _query(path, sql, [year, session_type])
+    else:
+        sql = f"SELECT {_RACE_COLS} FROM race_entries WHERE year = ? ORDER BY round, driver_id"
+        result = _query(path, sql, [year])
+    return cast(list[RaceEntry], result) if result else None
 
 
 def get_qualifying_entries(
@@ -185,27 +174,19 @@ def get_qualifying_entries(
         or no rows match.
     """
     path = db_path or get_db_path()
-    if not path.exists():
-        return None
-    con = duckdb.connect(str(path), read_only=True)
-    try:
-        if session_type is not None:
-            cursor = con.execute(
-                "SELECT * FROM qualifying_entries WHERE year = ? AND session_type = ? ORDER BY round, driver_id",
-                [year, session_type],
-            )
-        else:
-            cursor = con.execute(
-                "SELECT * FROM qualifying_entries WHERE year = ? ORDER BY round, driver_id",
-                [year],
-            )
-        rows = cursor.fetchall()
-        if not rows:
-            return None
-        columns = [desc[0] for desc in cursor.description]
-    finally:
-        con.close()
-    return [cast(QualifyingEntry, dict(zip(columns, row, strict=True))) for row in rows]
+    if session_type is not None:
+        sql = (
+            f"SELECT {_QUALIFYING_COLS} FROM qualifying_entries"
+            " WHERE year = ? AND session_type = ? ORDER BY round, driver_id"
+        )
+        result = _query(path, sql, [year, session_type])
+    else:
+        sql = (
+            f"SELECT {_QUALIFYING_COLS} FROM qualifying_entries"
+            " WHERE year = ? ORDER BY round, driver_id"
+        )
+        result = _query(path, sql, [year])
+    return cast(list[QualifyingEntry], result) if result else None
 
 
 def get_race_entries_range(
@@ -225,21 +206,9 @@ def get_race_entries_range(
         List of RaceEntry dicts, or None if no rows match.
     """
     path = db_path or get_db_path()
-    if not path.exists():
-        return None
-    con = duckdb.connect(str(path), read_only=True)
-    try:
-        cursor = con.execute(
-            "SELECT * FROM race_entries WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id",
-            [start_year, end_year],
-        )
-        rows = cursor.fetchall()
-        if not rows:
-            return None
-        columns = [desc[0] for desc in cursor.description]
-    finally:
-        con.close()
-    return [cast(RaceEntry, dict(zip(columns, row, strict=True))) for row in rows]
+    sql = f"SELECT {_RACE_COLS} FROM race_entries WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id"
+    result = _query(path, sql, [start_year, end_year])
+    return cast(list[RaceEntry], result) if result else None
 
 
 def get_qualifying_entries_range(
@@ -259,21 +228,12 @@ def get_qualifying_entries_range(
         List of QualifyingEntry dicts, or None if no rows match.
     """
     path = db_path or get_db_path()
-    if not path.exists():
-        return None
-    con = duckdb.connect(str(path), read_only=True)
-    try:
-        cursor = con.execute(
-            "SELECT * FROM qualifying_entries WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id",
-            [start_year, end_year],
-        )
-        rows = cursor.fetchall()
-        if not rows:
-            return None
-        columns = [desc[0] for desc in cursor.description]
-    finally:
-        con.close()
-    return [cast(QualifyingEntry, dict(zip(columns, row, strict=True))) for row in rows]
+    sql = (
+        f"SELECT {_QUALIFYING_COLS} FROM qualifying_entries"
+        " WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id"
+    )
+    result = _query(path, sql, [start_year, end_year])
+    return cast(list[QualifyingEntry], result) if result else None
 
 
 __all__ = [
