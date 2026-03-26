@@ -20,6 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "pitlane-agent",
+    "pitlane-elo",
     "pitlane-web",
 ]
 
@@ -33,6 +34,7 @@ config-settings = { editable_mode = "compat" }
 
 [tool.uv.sources]
 pitlane-agent = { workspace = true }
+pitlane-elo = { workspace = true }
 pitlane-web = { workspace = true }
 
 [dependency-groups]
