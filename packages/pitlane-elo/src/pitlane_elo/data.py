@@ -110,8 +110,8 @@ def _query(
     path: Path,
     sql: str,
     params: list[object],
-) -> list[tuple[object, ...]] | None:
-    """Execute a read-only query and return (columns, rows) or None."""
+) -> list[dict[str, object]] | None:
+    """Execute a read-only query and return a list of row dicts, or None."""
     if not path.exists():
         return None
     with duckdb.connect(str(path), read_only=True) as con:
@@ -120,7 +120,7 @@ def _query(
         if not rows:
             return None
         columns = [desc[0] for desc in cursor.description]
-    return [dict(zip(columns, row, strict=True)) for row in rows]
+        return [dict(zip(columns, row, strict=True)) for row in rows]
 
 
 # ---------------------------------------------------------------------------

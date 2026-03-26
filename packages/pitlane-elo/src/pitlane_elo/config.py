@@ -29,7 +29,7 @@ class EloConfig:
     phi_regulation: float = 0.70  # major regulation change decay
 
     # Seasons with major regulation changes (larger reset applied)
-    regulation_years: tuple[int, ...] = (2009, 2014, 2017, 2022)
+    regulation_years: tuple[int, ...] = (2009, 2014, 2017, 2022, 2026)
 
     # DNF handling
     exclude_mechanical_dnf: bool = True  # Xun's approach: exclude mechanical DNFs from ELO
