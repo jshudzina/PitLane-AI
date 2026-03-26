@@ -7,6 +7,7 @@ included here so that pitlane-elo has no dependency on pitlane-agent.
 
 from __future__ import annotations
 
+import itertools
 import os
 from pathlib import Path
 from typing import TypedDict, cast
@@ -231,6 +232,42 @@ def get_qualifying_entries_range(
     return cast(list[QualifyingEntry], result) if result else None
 
 
+# ---------------------------------------------------------------------------
+# Data shaping helpers
+# ---------------------------------------------------------------------------
+
+
+def _finish_sort_key(entry: RaceEntry) -> tuple[int, int]:
+    """Sort key that puts finishers first (by position), then DNFs (by laps desc)."""
+    fp = entry.get("finish_position")
+    if fp is not None:
+        return (0, fp)
+    # DNFs without finish_position: rank by laps completed (more laps = better)
+    return (1, -(entry.get("laps_completed", 0) or 0))
+
+
+def order_race_entries(entries: list[RaceEntry]) -> list[RaceEntry]:
+    """Sort race entries into finishing order (best first).
+
+    Finishers are sorted by ``finish_position``. DNFs without a finish position
+    are appended after finishers, ordered by ``laps_completed`` descending
+    (more laps = retired later = higher implied position).
+    """
+    return sorted(entries, key=_finish_sort_key)
+
+
+def group_entries_by_race(entries: list[RaceEntry]) -> list[list[RaceEntry]]:
+    """Group a flat list of race entries into per-race lists in finishing order.
+
+    Entries are grouped by ``(year, round, session_type)`` and each group is
+    sorted via :func:`order_race_entries`.  The groups themselves are returned
+    in chronological order.
+    """
+    key_fn = lambda e: (e["year"], e["round"], e["session_type"])
+    sorted_entries = sorted(entries, key=key_fn)
+    return [order_race_entries(list(group)) for _, group in itertools.groupby(sorted_entries, key=key_fn)]
+
+
 __all__ = [
     "RaceEntry",
     "QualifyingEntry",
@@ -239,4 +276,6 @@ __all__ = [
     "get_qualifying_entries",
     "get_race_entries_range",
     "get_qualifying_entries_range",
+    "order_race_entries",
+    "group_entries_by_race",
 ]

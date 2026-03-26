@@ -45,16 +45,16 @@ class EloConfig:
 ENDURE_ELO_DEFAULT = EloConfig(
     name="endure-elo-default",
     initial_rating=0.0,
-    k_factor=32.0,
+    k_factor=0.36,
     phi_race=0.99,
     phi_season=0.90,
-    exclude_mechanical_dnf=True,
+    exclude_mechanical_dnf=False,
 )
 
 SPEED_ELO_DEFAULT = EloConfig(
     name="speed-elo-default",
     initial_rating=0.0,
-    k_factor=32.0,
+    k_factor=0.36,
     phi_race=0.99,
     phi_season=0.90,
     exclude_mechanical_dnf=False,
