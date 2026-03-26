@@ -97,8 +97,7 @@ _RACE_COLS = (
 )
 
 _QUALIFYING_COLS = (
-    "year, round, session_type, driver_id, abbreviation, team, "
-    "q1_time_s, q2_time_s, q3_time_s, best_q_time_s, position"
+    "year, round, session_type, driver_id, abbreviation, team, q1_time_s, q2_time_s, q3_time_s, best_q_time_s, position"
 )
 
 
@@ -181,10 +180,7 @@ def get_qualifying_entries(
         )
         result = _query(path, sql, [year, session_type])
     else:
-        sql = (
-            f"SELECT {_QUALIFYING_COLS} FROM qualifying_entries"
-            " WHERE year = ? ORDER BY round, driver_id"
-        )
+        sql = f"SELECT {_QUALIFYING_COLS} FROM qualifying_entries WHERE year = ? ORDER BY round, driver_id"
         result = _query(path, sql, [year])
     return cast(list[QualifyingEntry], result) if result else None
 
@@ -229,8 +225,7 @@ def get_qualifying_entries_range(
     """
     path = db_path or get_db_path()
     sql = (
-        f"SELECT {_QUALIFYING_COLS} FROM qualifying_entries"
-        " WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id"
+        f"SELECT {_QUALIFYING_COLS} FROM qualifying_entries WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id"
     )
     result = _query(path, sql, [start_year, end_year])
     return cast(list[QualifyingEntry], result) if result else None
