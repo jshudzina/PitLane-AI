@@ -26,7 +26,12 @@ def main() -> None:
 @click.option("--model", "model_name", type=click.Choice(["endure-elo", "speed-elo"]), default="endure-elo")
 @click.option("--per-season-reset", is_flag=True, help="Reset ratings each season (Powell baseline).")
 def run(start_year: int, end_year: int, model_name: str, per_season_reset: bool) -> None:
-    """Compute ratings across a range of seasons."""
+    """Run a single model over historical races and print results.
+
+    For each race the model predicts FIRST (from current ratings), then
+    updates ratings from the actual result. Metrics are computed over all
+    processed races.
+    """
     click.echo(f"Running {model_name} from {start_year} to {end_year}...")
     model = _make_model(model_name)
     preds = run_historical(model, start_year=start_year, end_year=end_year, per_season_reset=per_season_reset)
@@ -49,19 +54,26 @@ def run(start_year: int, end_year: int, model_name: str, per_season_reset: bool)
 
 
 @main.command()
-@click.option("--start-year", type=int, default=1970, help="First season to process.")
-@click.option("--end-year", type=int, default=2026, help="Last season to process (inclusive).")
+@click.option("--warmup-start", type=int, default=1970, help="First season for rating warm-up (not evaluated).")
 @click.option("--eval-start", type=int, default=2015, help="First year of evaluation window.")
-@click.option("--eval-end", type=int, default=2021, help="Last year of evaluation window.")
+@click.option("--eval-end", type=int, default=2024, help="Last year of evaluation window (inclusive).")
 @click.option("--per-season-reset", is_flag=True, help="Reset ratings each season (Powell baseline).")
-def evaluate(start_year: int, end_year: int, eval_start: int, eval_end: int, per_season_reset: bool) -> None:
-    """Evaluate endure-Elo vs speed-Elo on historical data."""
-    click.echo(f"Training both models {start_year}–{end_year}, evaluating {eval_start}–{eval_end}...")
+def evaluate(warmup_start: int, eval_start: int, eval_end: int, per_season_reset: bool) -> None:
+    """Compare endure-Elo vs speed-Elo in two phases.
+
+    \b
+    Phase 1 — Warm-up (warmup-start to eval-start-1):
+      Races are processed to build up ratings, but predictions are not scored.
+    Phase 2 — Evaluation (eval-start to eval-end):
+      Predictions are scored. Each race is still predict-then-update, so every
+      prediction is out-of-sample (made before seeing the result).
+    """
+    click.echo(f"Warm-up {warmup_start}–{eval_start - 1}, evaluating {eval_start}–{eval_end}...")
 
     endure = EndureElo()
     speed = SpeedElo()
-    preds_e = run_historical(endure, start_year=start_year, end_year=end_year, per_season_reset=per_season_reset)
-    preds_s = run_historical(speed, start_year=start_year, end_year=end_year, per_season_reset=per_season_reset)
+    preds_e = run_historical(endure, start_year=warmup_start, end_year=eval_end, per_season_reset=per_season_reset)
+    preds_s = run_historical(speed, start_year=warmup_start, end_year=eval_end, per_season_reset=per_season_reset)
 
     metrics_e = evaluate_model(preds_e, eval_start_year=eval_start, eval_end_year=eval_end)
     metrics_s = evaluate_model(preds_s, eval_start_year=eval_start, eval_end_year=eval_end)
