@@ -52,10 +52,10 @@ class SpeedElo(RatingModel):
         for d in driver_ids:
             self.ratings[d] *= self.config.phi_race
 
-        # Sequential selection: m-1 rounds, selecting 1st place first
-        remaining = list(driver_ids)  # in finishing order (best first)
-
-        for _ in range(m - 1):
+        # Sequential selection: m-1 rounds, selecting 1st place first.
+        # Iterate by start index to avoid O(n) list.pop(0) each round.
+        for start in range(m - 1):
+            remaining = driver_ids[start:]
             # The driver selected this round is the best in the remaining set
             selected = remaining[0]
 
@@ -77,9 +77,6 @@ class SpeedElo(RatingModel):
             for idx, d in enumerate(remaining):
                 won = 1.0 if d == selected else 0.0
                 self.ratings[d] += self.k_factors[d] * (won - win_probs[idx])
-
-            # Remove selected driver from remaining set
-            remaining.pop(0)
 
     def predict_win_probabilities(self, driver_ids: list[str]) -> np.ndarray:
         """Compute win probability using softmax (eq 51).

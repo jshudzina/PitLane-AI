@@ -27,7 +27,7 @@ class RacePrediction:
     round: int
     driver_ids: list[str] = field(default_factory=list)
     predicted_probs: np.ndarray = field(default_factory=lambda: np.array([]))
-    actual_winner_idx: int = 0
+    actual_winner_idx: int = -1  # -1 = winner not in prediction set
     actual_winner_id: str = ""
     winner_prob: float = 0.0
 
@@ -116,8 +116,8 @@ def run_historical(
             winner_idx = predict_ids.index(winner_id)
             winner_prob = float(probs[winner_idx])
         else:
-            # Winner was outside the capped set — record zero probability
-            winner_idx = 0
+            # Winner was outside the capped set — sentinel index, zero probability
+            winner_idx = -1
             winner_prob = 0.0
 
         predictions.append(
@@ -126,7 +126,7 @@ def run_historical(
                 round=rnd,
                 driver_ids=predict_ids,
                 predicted_probs=probs,
-                actual_winner_idx=predict_ids.index(winner_id) if winner_id in predict_ids else 0,
+                actual_winner_idx=winner_idx,
                 actual_winner_id=winner_id,
                 winner_prob=winner_prob,
             )
@@ -175,7 +175,12 @@ def evaluate_model(
         return {"log_likelihood": 0.0, "brier_score": 0.0, "n_races": 0}
 
     winner_probs = np.array([p.winner_prob for p in filtered])
-    brier_inputs = [(p.predicted_probs, p.actual_winner_idx) for p in filtered]
+    # Only include races where the winner was in the prediction set for Brier
+    brier_inputs = [
+        (p.predicted_probs, p.actual_winner_idx)
+        for p in filtered
+        if p.actual_winner_idx >= 0
+    ]
 
     return {
         "log_likelihood": log_likelihood(winner_probs),
