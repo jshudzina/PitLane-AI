@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 from pitlane_elo.data import RaceEntry
 from pitlane_elo.ratings.speed_elo import SpeedElo
 

@@ -103,8 +103,9 @@ def evaluate(
     click.echo(f"{'Races evaluated':<25} {metrics_e['n_races']:>12} {metrics_s['n_races']:>12}")
     click.echo(f"{'Log-likelihood':<25} {metrics_e['log_likelihood']:>12.2f} {metrics_s['log_likelihood']:>12.2f}")
     click.echo(f"{'Brier score':<25} {metrics_e['brier_score']:>12.4f} {metrics_s['brier_score']:>12.4f}")
-    click.echo(f"{'Mean winner prob':<25} {metrics_e['mean_winner_prob']:>12.4f} {metrics_s['mean_winner_prob']:>12.4f}")
-    click.echo(f"{'Median winner prob':<25} {metrics_e['median_winner_prob']:>12.4f} {metrics_s['median_winner_prob']:>12.4f}")
+    me, ms = metrics_e, metrics_s
+    click.echo(f"{'Mean winner prob':<25} {me['mean_winner_prob']:>12.4f} {ms['mean_winner_prob']:>12.4f}")
+    click.echo(f"{'Median winner prob':<25} {me['median_winner_prob']:>12.4f} {ms['median_winner_prob']:>12.4f}")
 
     click.echo(f"\n{'Comparison (eval window)':<25}")
     click.echo("-" * 51)

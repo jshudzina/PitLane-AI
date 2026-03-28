@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 from pitlane_elo.config import EloConfig
 from pitlane_elo.data import RaceEntry
 from pitlane_elo.ratings.endure_elo import EndureElo
@@ -74,7 +73,7 @@ class TestEndureElo:
     def test_k_factor_decreases_with_more_data(self) -> None:
         """K-factor should decrease as more data accumulates (Glicko-style)."""
         model = EndureElo()
-        k_initial = model.get_rating("A")  # triggers init
+        model.get_rating("A")  # triggers init
         k_before = model.k_factors["A"]
 
         for _ in range(10):

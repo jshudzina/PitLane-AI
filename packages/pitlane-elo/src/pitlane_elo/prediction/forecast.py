@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from pitlane_elo.data import RaceEntry, get_race_entries_range, group_entries_by_race
+from pitlane_elo.data import get_race_entries_range, group_entries_by_race
 from pitlane_elo.prediction.scoring import brier_score, log_likelihood, log_wealth_ratio, race_level_comparison
 from pitlane_elo.ratings.base import RatingModel
 
