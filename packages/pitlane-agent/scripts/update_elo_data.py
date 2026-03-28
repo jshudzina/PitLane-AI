@@ -379,11 +379,18 @@ def update_elo_data(
         "sprint_qualifying": ["Q", "SQ"],
     }
 
+    now = pd.Timestamp.now(tz="UTC")
+
     for _, event in schedule.iterrows():
         rn = int(event["RoundNumber"])
         if rn == 0:
             continue
         if round_number is not None and rn != round_number:
+            continue
+
+        race_date = pd.Timestamp(event["Session5Date"])
+        if race_date > now:
+            click.echo(f"  Skipping round {rn}: {event['EventName']} (future event)", err=True)
             continue
 
         event_name = str(event["EventName"])
@@ -403,7 +410,10 @@ def update_elo_data(
             try:
                 load_messages = year >= 2023
                 session = _load_session(event_name, st, messages=load_messages)
-                rcm: pd.DataFrame | None = session.race_control_messages if load_messages else None
+                try:
+                    rcm: pd.DataFrame | None = session.race_control_messages if load_messages else None
+                except Exception:
+                    rcm = None
                 entries = _extract_race_entries(session, year, rn, st, rcm=rcm)
                 race_records.extend(entries)
                 processed += 1
