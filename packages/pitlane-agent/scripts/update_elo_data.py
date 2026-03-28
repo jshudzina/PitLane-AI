@@ -22,11 +22,13 @@ import logging
 import sys
 import time
 from pathlib import Path
+from typing import cast
 
 import backoff
 import click
 import fastf1
 import pandas as pd
+from fastf1.events import EventSchedule, Session
 from pitlane_agent.utils.elo_db import (
     QualifyingEntry,
     RaceEntry,
@@ -158,7 +160,7 @@ def _td_to_seconds(val: object) -> float | None:
 
 
 def _extract_qualifying_entries(
-    session: object,
+    session: Session,
     year: int,
     round_number: int,
     session_type: str,
@@ -208,6 +210,7 @@ def _extract_qualifying_entries(
             pos_raw = driver.get("GridPosition")
         if not _pos_usable(pos_raw):
             continue
+        assert pos_raw is not None
         position = int(pos_raw)
 
         abbr_raw = driver.get("Abbreviation")
@@ -215,7 +218,7 @@ def _extract_qualifying_entries(
         abbreviation: str | None = abbr_str if abbr_str and abbr_str.lower() != "nan" else None
 
         team_raw = driver.get("TeamName")
-        team = str(team_raw) if pd.notna(team_raw) else ""
+        team = str(team_raw) if bool(pd.notna(team_raw)) else ""
 
         q1_s = _td_to_seconds(driver.get("Q1"))
         q2_s = _td_to_seconds(driver.get("Q2"))
@@ -295,11 +298,11 @@ def update_elo_data(
         )
 
     @backoff.on_exception(backoff.expo, RequestException, max_tries=5, jitter=backoff.full_jitter)
-    def _get_schedule() -> object:
+    def _get_schedule() -> EventSchedule:
         return fastf1.get_event_schedule(year, include_testing=False)
 
     @backoff.on_exception(backoff.expo, RequestException, max_tries=5, jitter=backoff.full_jitter)
-    def _load_session(event_name: str, st: str, **kwargs: bool) -> object:
+    def _load_session(event_name: str, st: str, **kwargs: bool) -> Session:
         return load_session(year, event_name, st, **kwargs)
 
     schedule = _get_schedule()
@@ -334,7 +337,7 @@ def update_elo_data(
             continue
 
         event_name = str(event["EventName"])
-        event_format = event.get("EventFormat", "conventional")
+        event_format = str(event.get("EventFormat") or "conventional")
 
         # Race sessions: regular race + sprint if applicable
         race_session_types = ["R"]
@@ -372,7 +375,7 @@ def update_elo_data(
                 if qt == "Q":
                     existing_q = get_qualifying_entries(db_path, year) or []
                     abbrev_to_driver_id = {
-                        e["abbreviation"]: e["driver_id"]
+                        cast(str, e.get("abbreviation")): e["driver_id"]
                         for e in existing_q
                         if e.get("round") == rn
                         and e.get("session_type") == "Q"
@@ -397,7 +400,7 @@ def update_elo_data(
                 # Build lookup from Q results for any subsequent SS/SQ session.
                 if qt == "Q":
                     abbrev_to_driver_id = {
-                        e["abbreviation"]: e["driver_id"]
+                        cast(str, e.get("abbreviation")): e["driver_id"]
                         for e in entries
                         if e.get("abbreviation") and e.get("driver_id")
                     }
