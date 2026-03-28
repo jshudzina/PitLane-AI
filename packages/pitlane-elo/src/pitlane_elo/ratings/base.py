@@ -52,6 +52,12 @@ class RatingModel(ABC):
             Array of probabilities summing to 1.0, same order as driver_ids.
         """
 
+    def _filter_entries(self, entries: list[RaceEntry]) -> list[RaceEntry]:
+        """Remove mechanical DNFs when configured to do so."""
+        if self.config.exclude_mechanical_dnf:
+            return [e for e in entries if e["dnf_category"] != "mechanical"]
+        return list(entries)
+
     def apply_season_decay(self, year: int) -> None:
         """Apply between-season rating decay.
 
