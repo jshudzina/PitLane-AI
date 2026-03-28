@@ -6,6 +6,8 @@ collects predictions for scoring.
 
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -13,6 +15,8 @@ import numpy as np
 from pitlane_elo.data import RaceEntry, get_race_entries_range, group_entries_by_race
 from pitlane_elo.prediction.scoring import brier_score, log_likelihood, log_wealth_ratio, race_level_comparison
 from pitlane_elo.ratings.base import RatingModel
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -35,6 +39,7 @@ def run_historical(
     *,
     session_type: str = "R",
     per_season_reset: bool = False,
+    predict_cap: int | None = None,
 ) -> list[RacePrediction]:
     """Run a model over historical data, collecting predictions.
 
@@ -48,10 +53,14 @@ def run_historical(
         session_type: Filter to this session type ("R" for races).
         per_season_reset: If True, reset all ratings to 0 at each season
             boundary (Powell's approach for the historical comparison).
+        predict_cap: If set, only pass the top-N drivers (by current rating)
+            to predict_win_probabilities. All drivers still get rating updates.
 
     Returns:
         List of RacePrediction objects, one per race.
     """
+    t_start = time.perf_counter()
+
     all_entries = get_race_entries_range(start_year, end_year)
     if not all_entries:
         return []
@@ -61,9 +70,14 @@ def run_historical(
     if not filtered:
         return []
 
+    t_load = time.perf_counter()
+    logger.info("Data loaded: %d entries in %.3fs", len(filtered), t_load - t_start)
+
     races = group_entries_by_race(filtered)
     predictions: list[RacePrediction] = []
     current_year: int | None = None
+    predict_total = 0.0
+    update_total = 0.0
 
     for race_entries in races:
         year = race_entries[0]["year"]
@@ -84,28 +98,54 @@ def run_historical(
             continue
 
         # PREDICT before updating
-        probs = model.predict_win_probabilities(driver_ids)
+        t0 = time.perf_counter()
 
-        # Determine actual winner (first in ordered list = position 1)
+        # Optionally cap the driver set for prediction (top-N by rating)
+        if predict_cap is not None and len(driver_ids) > predict_cap:
+            ranked = sorted(driver_ids, key=lambda d: model.get_rating(d), reverse=True)
+            predict_ids = ranked[:predict_cap]
+        else:
+            predict_ids = driver_ids
+
+        probs = model.predict_win_probabilities(predict_ids)
+        predict_total += time.perf_counter() - t0
+
+        # Determine actual winner (first in finishing order = position 1)
         winner_id = driver_ids[0]
-        winner_idx = 0
-        winner_prob = float(probs[winner_idx]) if len(probs) > 0 else 0.0
+        if winner_id in predict_ids:
+            winner_idx = predict_ids.index(winner_id)
+            winner_prob = float(probs[winner_idx])
+        else:
+            # Winner was outside the capped set — record zero probability
+            winner_idx = 0
+            winner_prob = 0.0
 
         predictions.append(
             RacePrediction(
                 year=year,
                 round=rnd,
-                driver_ids=driver_ids,
+                driver_ids=predict_ids,
                 predicted_probs=probs,
-                actual_winner_idx=winner_idx,
+                actual_winner_idx=predict_ids.index(winner_id) if winner_id in predict_ids else 0,
                 actual_winner_id=winner_id,
                 winner_prob=winner_prob,
             )
         )
 
         # THEN update ratings
+        t0 = time.perf_counter()
         model.process_race(race_entries)
+        update_total += time.perf_counter() - t0
 
+    elapsed = time.perf_counter() - t_start
+    logger.info(
+        "%s: %d races in %.3fs (predict=%.3fs, update=%.3fs)",
+        model.__class__.__name__,
+        len(predictions),
+        elapsed,
+        predict_total,
+        update_total,
+    )
     return predictions
 
 

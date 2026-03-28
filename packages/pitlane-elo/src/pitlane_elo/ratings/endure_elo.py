@@ -18,11 +18,43 @@ Key equations (from the paper):
 
 from __future__ import annotations
 
+import numba as nb
 import numpy as np
 
 from pitlane_elo.config import ENDURE_ELO_DEFAULT, EloConfig
 from pitlane_elo.data import RaceEntry, order_race_entries
 from pitlane_elo.ratings.base import RatingModel
+
+
+@nb.njit(cache=True, parallel=True)
+def _inclusion_exclusion(lambdas: np.ndarray) -> np.ndarray:
+    """Compute win probabilities via inclusion-exclusion (eq 60).
+
+    JIT-compiled to native ARM with parallel driver iteration.
+    """
+    n = len(lambdas)
+    probs = np.zeros(n)
+    for i in nb.prange(n):
+        lambda_i = lambdas[i]
+        # Build the "others" array excluding driver i
+        others = np.empty(n - 1)
+        idx = 0
+        for j in range(n):
+            if j != i:
+                others[idx] = lambdas[j]
+                idx += 1
+        m = n - 1
+        total = 0.0
+        for bits in range(1 << m):
+            denom = lambda_i
+            sign = 1.0
+            for k in range(m):
+                if bits & (1 << k):
+                    denom += others[k]
+                    sign = -sign
+            total += sign * lambda_i / denom
+        probs[i] = total
+    return probs
 
 
 class EndureElo(RatingModel):
@@ -103,23 +135,7 @@ class EndureElo(RatingModel):
             return np.array([1.0])
 
         lambdas = np.array([np.exp(-self.get_rating(d)) for d in driver_ids])
-        probs = np.zeros(n)
-
-        for i in range(n):
-            lambda_i = lambdas[i]
-            # Build denominators and signs recursively over rivals
-            # Start with just lambda_i as the sole denominator, sign +1
-            others = np.delete(lambdas, i)
-            denominators = np.array([lambda_i])
-            signs = np.array([1.0])
-
-            for k in range(n - 1):
-                # Each existing denominator spawns a copy with others[k] added
-                # and the sign flipped
-                denominators = np.concatenate([denominators, denominators + others[k]])
-                signs = np.concatenate([signs, -signs])
-
-            probs[i] = np.sum(lambda_i / denominators * signs)
+        probs = _inclusion_exclusion(lambdas)
 
         # Clamp small numerical errors
         probs = np.clip(probs, 0.0, 1.0)

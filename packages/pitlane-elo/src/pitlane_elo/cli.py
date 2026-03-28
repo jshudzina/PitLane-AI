@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import click
 
 from pitlane_elo.prediction.forecast import compare_models, evaluate_model, run_historical
@@ -16,8 +18,13 @@ def _make_model(name: str) -> EndureElo | SpeedElo:
 
 
 @click.group()
-def main() -> None:
+@click.option("-v", "--verbose", is_flag=True, help="Enable timing logs.")
+def main(verbose: bool) -> None:
     """PitLane ELO — F1 rating models and story detection."""
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.WARNING,
+        format="%(name)s %(message)s",
+    )
 
 
 @main.command()
@@ -25,16 +32,20 @@ def main() -> None:
 @click.option("--end-year", type=int, default=2026, help="Last season to process (inclusive).")
 @click.option("--model", "model_name", type=click.Choice(["endure-elo", "speed-elo"]), default="endure-elo")
 @click.option("--per-season-reset", is_flag=True, help="Reset ratings each season (Powell baseline).")
-def run(start_year: int, end_year: int, model_name: str, per_season_reset: bool) -> None:
+@click.option("--predict-cap", type=int, default=15, help="Cap prediction to top-N drivers by rating (0=no cap).")
+def run(start_year: int, end_year: int, model_name: str, per_season_reset: bool, predict_cap: int) -> None:
     """Run a single model over historical races and print results.
 
     For each race the model predicts FIRST (from current ratings), then
     updates ratings from the actual result. Metrics are computed over all
     processed races.
     """
+    cap = predict_cap or None
     click.echo(f"Running {model_name} from {start_year} to {end_year}...")
     model = _make_model(model_name)
-    preds = run_historical(model, start_year=start_year, end_year=end_year, per_season_reset=per_season_reset)
+    preds = run_historical(
+        model, start_year=start_year, end_year=end_year, per_season_reset=per_season_reset, predict_cap=cap,
+    )
     click.echo(f"Processed {len(preds)} races.")
 
     if not preds:
@@ -58,7 +69,10 @@ def run(start_year: int, end_year: int, model_name: str, per_season_reset: bool)
 @click.option("--eval-start", type=int, default=2015, help="First year of evaluation window.")
 @click.option("--eval-end", type=int, default=2024, help="Last year of evaluation window (inclusive).")
 @click.option("--per-season-reset", is_flag=True, help="Reset ratings each season (Powell baseline).")
-def evaluate(warmup_start: int, eval_start: int, eval_end: int, per_season_reset: bool) -> None:
+@click.option("--predict-cap", type=int, default=15, help="Cap prediction to top-N drivers by rating (0=no cap).")
+def evaluate(
+    warmup_start: int, eval_start: int, eval_end: int, per_season_reset: bool, predict_cap: int,
+) -> None:
     """Compare endure-Elo vs speed-Elo in two phases.
 
     \b
@@ -68,12 +82,17 @@ def evaluate(warmup_start: int, eval_start: int, eval_end: int, per_season_reset
       Predictions are scored. Each race is still predict-then-update, so every
       prediction is out-of-sample (made before seeing the result).
     """
+    cap = predict_cap or None
     click.echo(f"Warm-up {warmup_start}–{eval_start - 1}, evaluating {eval_start}–{eval_end}...")
 
     endure = EndureElo()
     speed = SpeedElo()
-    preds_e = run_historical(endure, start_year=warmup_start, end_year=eval_end, per_season_reset=per_season_reset)
-    preds_s = run_historical(speed, start_year=warmup_start, end_year=eval_end, per_season_reset=per_season_reset)
+    preds_e = run_historical(
+        endure, start_year=warmup_start, end_year=eval_end, per_season_reset=per_season_reset, predict_cap=cap,
+    )
+    preds_s = run_historical(
+        speed, start_year=warmup_start, end_year=eval_end, per_season_reset=per_season_reset, predict_cap=cap,
+    )
 
     metrics_e = evaluate_model(preds_e, eval_start_year=eval_start, eval_end_year=eval_end)
     metrics_s = evaluate_model(preds_s, eval_start_year=eval_start, eval_end_year=eval_end)
