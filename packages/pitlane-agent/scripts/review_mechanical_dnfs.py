@@ -16,8 +16,9 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
-import time
+import re
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,7 @@ from claude_agent_sdk import ClaudeAgentOptions, query
 from claude_agent_sdk.types import ResultMessage
 from pitlane_agent.utils.elo_db import init_elo_tables
 from pitlane_agent.utils.stats_db import get_db_path
+from pitlane_agent.utils.stats_db import init_db as init_stats_db
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -34,6 +36,7 @@ logger = logging.getLogger(__name__)
 # Claude model for classification — Haiku is sufficient for a binary verdict
 # backed by web search evidence.
 _DEFAULT_MODEL = "haiku"
+_MAX_RETRIES = 2  # up to 3 total attempts per entry
 
 _SYSTEM_PROMPT = """\
 You are an F1 incident analyst.  You will be given the name of a driver and \
@@ -61,9 +64,7 @@ _VERDICT_SCHEMA: dict[str, Any] = {
         },
         "evidence": {
             "type": "string",
-            "description": (
-                "One-sentence summary of the evidence found (or lack thereof)."
-            ),
+            "description": ("One-sentence summary of the evidence found (or lack thereof)."),
         },
     },
     "required": ["verdict", "evidence"],
@@ -80,20 +81,29 @@ def _fetch_mechanical_dnfs(
     con = duckdb.connect(str(db_path), read_only=True)
     try:
         sql = (
-            "SELECT year, round, session_type, driver_id, abbreviation, "
-            "team, laps_completed, status "
-            "FROM race_entries "
-            "WHERE year = ? AND dnf_category = 'mechanical'"
+            "SELECT r.year, r.round, r.session_type, r.driver_id, r.abbreviation, "
+            "r.team, r.laps_completed, r.status, s.event_name "
+            "FROM race_entries r "
+            "LEFT JOIN session_stats s "
+            "ON r.year = s.year AND r.round = s.round AND r.session_type = s.session_type "
+            "WHERE r.year = ? AND r.dnf_category = 'mechanical'"
         )
         params: list[object] = [year]
         if round_number is not None:
-            sql += " AND round = ?"
+            sql += " AND r.round = ?"
             params.append(round_number)
-        sql += " ORDER BY round, driver_id"
+        sql += " ORDER BY r.round, r.driver_id"
         rows = con.execute(sql, params).fetchall()
         cols = [
-            "year", "round", "session_type", "driver_id", "abbreviation",
-            "team", "laps_completed", "status",
+            "year",
+            "round",
+            "session_type",
+            "driver_id",
+            "abbreviation",
+            "team",
+            "laps_completed",
+            "status",
+            "event_name",
         ]
         return [dict(zip(cols, row, strict=True)) for row in rows]
     finally:
@@ -104,10 +114,10 @@ def _build_user_prompt(entry: dict) -> str:
     """Build the per-entry prompt for the LLM."""
     driver = entry["abbreviation"] or entry["driver_id"]
     session_label = "Sprint" if entry["session_type"] == "S" else "Race"
+    event_name = entry.get("event_name") or f"Formula 1 Season, Round {entry['round']}"
     return (
         f"Driver: {driver} ({entry['team']})\n"
-        f"Event: {entry['year']} Formula 1 Season, Round {entry['round']}, {session_label}\n"
-        f"Status reported by timing system: \"{entry['status']}\"\n"
+        f"Event: {entry['year']} {event_name}, {session_label}\n"
         f"Laps completed before retirement: {entry['laps_completed']}\n\n"
         f"Did {driver} crash (hit a wall, barrier, or another car) during this "
         f"session, or was this a genuine mechanical / reliability retirement?"
@@ -156,9 +166,6 @@ def _parse_verdict_from_text(text: str) -> dict | None:
 
     Tries JSON parsing first, then falls back to keyword scanning.
     """
-    import json
-    import re
-
     # Try to find a JSON object in the text
     for match in re.finditer(r"\{[^{}]+\}", text):
         try:
@@ -208,23 +215,35 @@ async def _review_async(
 ) -> None:
     """Async core: iterate entries, classify via agent, apply updates."""
     reclassified: list[dict] = []
-    errors = 0
+    failed: list[dict] = []
 
     for i, entry in enumerate(entries, 1):
         driver = entry["abbreviation"] or entry["driver_id"]
         label = f"[{i}/{len(entries)}] Rd {entry['round']} {driver}"
         click.echo(f"  {label}: querying agent...", err=True)
 
-        try:
-            result = await _classify_with_agent(entry, model=model)
-        except Exception as exc:
-            click.echo(f"  {label}: agent error — {exc}", err=True)
-            errors += 1
-            continue
+        result: dict | None = None
+        for attempt in range(_MAX_RETRIES + 1):
+            try:
+                result = await _classify_with_agent(entry, model=model)
+            except Exception as exc:
+                if attempt < _MAX_RETRIES:
+                    click.echo(f"  {label}: error, retrying ({attempt + 1}/{_MAX_RETRIES})...", err=True)
+                    await asyncio.sleep(2)
+                else:
+                    click.echo(f"  {label}: agent error — {exc}", err=True)
+                continue
+
+            if result is not None:
+                break
+
+            if attempt < _MAX_RETRIES:
+                click.echo(f"  {label}: no output, retrying ({attempt + 1}/{_MAX_RETRIES})...", err=True)
+                await asyncio.sleep(2)
 
         if result is None:
-            click.echo(f"  {label}: no structured output in response", err=True)
-            errors += 1
+            click.echo(f"  {label}: no structured output after {_MAX_RETRIES + 1} attempts", err=True)
+            failed.append(entry)
             continue
 
         verdict = result.get("verdict", "mechanical")
@@ -235,11 +254,20 @@ async def _review_async(
             reclassified.append(entry)
 
         # Respect rate limits
-        time.sleep(1)
+        await asyncio.sleep(1)
 
-    click.echo(f"\nResults: {len(reclassified)} crash(es) found, "
-               f"{len(entries) - len(reclassified) - errors} confirmed mechanical, "
-               f"{errors} error(s)", err=True)
+    click.echo(
+        f"\nResults: {len(reclassified)} crash(es) found, "
+        f"{len(entries) - len(reclassified) - len(failed)} confirmed mechanical, "
+        f"{len(failed)} error(s)",
+        err=True,
+    )
+
+    if failed:
+        click.echo("\nFailed entries:", err=True)
+        for e in failed:
+            d = e["abbreviation"] or e["driver_id"]
+            click.echo(f"  Year {e['year']} Rd {e['round']} {d}", err=True)
 
     if not reclassified:
         click.echo("No updates needed.", err=True)
@@ -301,11 +329,14 @@ def review_mechanical_dnfs(
 
     db_path = Path(db_path_str) if db_path_str else get_db_path()
     init_elo_tables(db_path)
+    init_stats_db(db_path)
     click.echo(f"DB: {db_path}", err=True)
 
     entries = _fetch_mechanical_dnfs(db_path, year, round_number)
-    click.echo(f"Found {len(entries)} mechanical DNF(s) for {year}" +
-               (f" round {round_number}" if round_number else ""), err=True)
+    click.echo(
+        f"Found {len(entries)} mechanical DNF(s) for {year}" + (f" round {round_number}" if round_number else ""),
+        err=True,
+    )
     if not entries:
         return
 
