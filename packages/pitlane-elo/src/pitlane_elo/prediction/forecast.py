@@ -176,11 +176,7 @@ def evaluate_model(
 
     winner_probs = np.array([p.winner_prob for p in filtered])
     # Only include races where the winner was in the prediction set for Brier
-    brier_inputs = [
-        (p.predicted_probs, p.actual_winner_idx)
-        for p in filtered
-        if p.actual_winner_idx >= 0
-    ]
+    brier_inputs = [(p.predicted_probs, p.actual_winner_idx) for p in filtered if p.actual_winner_idx >= 0]
 
     return {
         "log_likelihood": log_likelihood(winner_probs),

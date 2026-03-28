@@ -8,7 +8,6 @@ import duckdb
 import pytest
 from pitlane_elo.data import QualifyingEntry, RaceEntry
 
-
 # ---------------------------------------------------------------------------
 # Reusable test helpers
 # ---------------------------------------------------------------------------
@@ -35,6 +34,7 @@ def make_race_entry(
         "is_street_circuit": False,
         "finish_position": finish,
     }
+
 
 # ---------------------------------------------------------------------------
 # Sample data matching the pitlane-agent schema

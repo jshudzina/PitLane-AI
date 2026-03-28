@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 from pitlane_elo.config import EloConfig
 from pitlane_elo.ratings.endure_elo import EndureElo
+
 from tests.conftest import make_race_entry
 
 

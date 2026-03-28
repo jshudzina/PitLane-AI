@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 from pitlane_elo.ratings.speed_elo import SpeedElo
+
 from tests.conftest import make_race_entry
 
 
