@@ -30,6 +30,7 @@ Repository = "https://github.com/jshudzina/PitLane-AI"
 Issues = "https://github.com/jshudzina/PitLane-AI/issues"
 
 [tool.uv]
+package = false
 config-settings = { editable_mode = "compat" }
 
 [tool.uv.sources]
