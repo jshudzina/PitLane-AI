@@ -263,8 +263,10 @@ def group_entries_by_race(entries: list[RaceEntry]) -> list[list[RaceEntry]]:
     sorted via :func:`order_race_entries`.  The groups themselves are returned
     in chronological order.
     """
+
     def key_fn(e: RaceEntry) -> tuple[int, int, str]:
         return (e["year"], e["round"], e["session_type"])
+
     sorted_entries = sorted(entries, key=key_fn)
     return [order_race_entries(list(group)) for _, group in itertools.groupby(sorted_entries, key=key_fn)]
 

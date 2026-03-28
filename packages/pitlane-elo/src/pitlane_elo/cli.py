@@ -44,7 +44,11 @@ def run(start_year: int, end_year: int, model_name: str, per_season_reset: bool,
     click.echo(f"Running {model_name} from {start_year} to {end_year}...")
     model = _make_model(model_name)
     preds = run_historical(
-        model, start_year=start_year, end_year=end_year, per_season_reset=per_season_reset, predict_cap=cap,
+        model,
+        start_year=start_year,
+        end_year=end_year,
+        per_season_reset=per_season_reset,
+        predict_cap=cap,
     )
     click.echo(f"Processed {len(preds)} races.")
 
@@ -71,7 +75,11 @@ def run(start_year: int, end_year: int, model_name: str, per_season_reset: bool,
 @click.option("--per-season-reset", is_flag=True, help="Reset ratings each season (Powell baseline).")
 @click.option("--predict-cap", type=int, default=15, help="Cap prediction to top-N drivers by rating (0=no cap).")
 def evaluate(
-    warmup_start: int, eval_start: int, eval_end: int, per_season_reset: bool, predict_cap: int,
+    warmup_start: int,
+    eval_start: int,
+    eval_end: int,
+    per_season_reset: bool,
+    predict_cap: int,
 ) -> None:
     """Compare endure-Elo vs speed-Elo in two phases.
 
@@ -88,10 +96,18 @@ def evaluate(
     endure = EndureElo()
     speed = SpeedElo()
     preds_e = run_historical(
-        endure, start_year=warmup_start, end_year=eval_end, per_season_reset=per_season_reset, predict_cap=cap,
+        endure,
+        start_year=warmup_start,
+        end_year=eval_end,
+        per_season_reset=per_season_reset,
+        predict_cap=cap,
     )
     preds_s = run_historical(
-        speed, start_year=warmup_start, end_year=eval_end, per_season_reset=per_season_reset, predict_cap=cap,
+        speed,
+        start_year=warmup_start,
+        end_year=eval_end,
+        per_season_reset=per_season_reset,
+        predict_cap=cap,
     )
 
     metrics_e = evaluate_model(preds_e, eval_start_year=eval_start, eval_end_year=eval_end)
