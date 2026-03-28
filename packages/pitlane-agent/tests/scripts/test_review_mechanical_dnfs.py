@@ -337,6 +337,24 @@ class TestParseVerdictFromText:
         assert result is not None
         assert result["verdict"] == "crash"
 
+    def test_keyword_fallback_spun_out(self):
+        text = "Perez spun out at turn 4 and ended up in the gravel trap."
+        result = _parse_verdict_from_text(text)
+        assert result is not None
+        assert result["verdict"] == "crash"
+
+    def test_keyword_fallback_beached(self):
+        text = "Tsunoda beached his car in the gravel at turn 9."
+        result = _parse_verdict_from_text(text)
+        assert result is not None
+        assert result["verdict"] == "crash"
+
+    def test_keyword_fallback_off_track(self):
+        text = "Sainz went off track and into the tyre barrier on lap 12."
+        result = _parse_verdict_from_text(text)
+        assert result is not None
+        assert result["verdict"] == "crash"
+
     def test_keyword_fallback_mechanical_engine(self):
         text = "Alonso retired due to a power unit failure on lap 30."
         result = _parse_verdict_from_text(text)
