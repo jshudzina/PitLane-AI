@@ -49,11 +49,47 @@ for _noisy in ("fastf1", "urllib3", "requests", "asyncio"):
 logger = logging.getLogger(__name__)
 
 
+def _classify_retired_via_rcm(
+    rcm: pd.DataFrame,
+    racing_number: str,
+    retirement_lap: int,
+    window: int = 3,
+) -> str:
+    """Return "crash" or "mechanical" for a "Retired" driver using RCM text.
+
+    Searches all RCM messages in a ±window-lap range for the driver's car
+    number alongside explicit crash keywords ("COLLISION", "ACCIDENT",
+    "INCIDENT"). This catches multi-car collisions where Ergast records only
+    "Retired". Single-car wall crashes that produce no collision-keyword
+    message default to "mechanical" — accepted as a known v1 gap.
+
+    Args:
+        rcm: race_control_messages DataFrame from a loaded FastF1 Session.
+        racing_number: The driver's car number string (e.g. "18").
+        retirement_lap: Number of laps completed before retirement.
+        window: Laps before/after retirement_lap to search.
+
+    Returns:
+        "crash" if crash evidence found, else "mechanical".
+    """
+    lo = max(0, retirement_lap - window)
+    hi = retirement_lap + window
+    msgs = rcm.loc[rcm["Lap"].between(lo, hi), "Message"].fillna("").str.upper()
+    # Match "CAR 18 (STR)" or "CARS 3 (RIC)" — always formatted as " N (" in RCM text.
+    car_pattern = f" {racing_number} ("
+    crash_keywords = ("COLLISION", "ACCIDENT", "INCIDENT")
+    for msg in msgs:
+        if car_pattern in msg and any(kw in msg for kw in crash_keywords):
+            return "crash"
+    return "mechanical"
+
+
 def _extract_race_entries(
-    session: object,
+    session: Session,
     year: int,
     round_number: int,
     session_type: str,
+    rcm: pd.DataFrame | None = None,
 ) -> list[RaceEntry]:
     """Extract per-driver RaceEntry records from a loaded race session.
 
@@ -64,6 +100,10 @@ def _extract_race_entries(
     (excluding them from ELO computation improves RMSE). Crash DNFs are
     included and ranked at their elimination position.
 
+    When rcm is provided (years >= 2023 where Ergast collapses all DNF reasons
+    into "Retired"), drivers with status "Retired" are reclassified via
+    _classify_retired_via_rcm instead of defaulting to "crash".
+
     is_wet_race and is_street_circuit are Phase 1 stubs — always False.
     Future phases should derive these from session.weather_data and a static
     street circuit lookup respectively.
@@ -73,11 +113,12 @@ def _extract_race_entries(
         year: Season year.
         round_number: Round number.
         session_type: "R" for race, "S" for sprint.
+        rcm: Optional race_control_messages DataFrame; pass for years >= 2023.
 
     Returns:
         List of RaceEntry dicts, one per driver row in session.results.
     """
-    results = session.results  # type: ignore[union-attr]
+    results = session.results
     entries: list[RaceEntry] = []
 
     for _, driver in results.iterrows():
@@ -91,22 +132,31 @@ def _extract_race_entries(
         abbreviation: str | None = abbr_str if abbr_str and abbr_str.lower() != "nan" else None
 
         team_raw = driver.get("TeamName")
-        team = str(team_raw) if pd.notna(team_raw) else ""
+        team = str(team_raw) if bool(pd.notna(team_raw)) else ""
 
         status_raw = driver.get("Status")
-        status = str(status_raw) if pd.notna(status_raw) else ""
+        status = str(status_raw) if bool(pd.notna(status_raw)) else ""
 
         grid_raw = driver.get("GridPosition")
-        grid_position: int | None = int(grid_raw) if pd.notna(grid_raw) and float(grid_raw) > 0 else None
+        grid_position: int | None = int(grid_raw) if bool(pd.notna(grid_raw)) and float(grid_raw) > 0 else None  # type: ignore[arg-type]
 
         finish_raw = driver.get("Position")
-        finish_position: int | None = int(finish_raw) if pd.notna(finish_raw) else None
+        finish_position: int | None = int(finish_raw) if bool(pd.notna(finish_raw)) else None  # type: ignore[arg-type]
 
         # FastF1 uses "NumberOfLaps" in some versions and "Laps" in others
         laps_raw = driver.get("NumberOfLaps", driver.get("Laps", 0))
-        laps_completed = int(laps_raw) if pd.notna(laps_raw) else 0
+        laps_completed = int(laps_raw) if bool(pd.notna(laps_raw)) else 0  # type: ignore[arg-type]
 
-        dnf_category = categorize_dnf(status)
+        if status == "Retired" and rcm is not None:
+            racing_num_raw = driver.get("DriverNumber")
+            racing_number = str(int(racing_num_raw)) if bool(pd.notna(racing_num_raw)) else ""  # type: ignore[arg-type]
+            dnf_category = (
+                _classify_retired_via_rcm(rcm, racing_number, laps_completed)
+                if racing_number
+                else "mechanical"
+            )
+        else:
+            dnf_category = categorize_dnf(status)
 
         # Trust Ergast's stewards' classification as the source of truth.
         # If Ergast gives a finish position (driver was officially classified),
@@ -351,8 +401,10 @@ def update_elo_data(
                 continue
             click.echo(f"  Processing race round {rn} {st}: {event_name}...", err=True)
             try:
-                session = _load_session(event_name, st)
-                entries = _extract_race_entries(session, year, rn, st)
+                load_messages = year >= 2023
+                session = _load_session(event_name, st, messages=load_messages)
+                rcm: pd.DataFrame | None = session.race_control_messages if load_messages else None
+                entries = _extract_race_entries(session, year, rn, st, rcm=rcm)
                 race_records.extend(entries)
                 processed += 1
                 time.sleep(1)
