@@ -178,18 +178,43 @@ def _parse_verdict_from_text(text: str) -> dict | None:
     # Keyword fallback: look for unambiguous crash/mechanical language
     lower = text.lower()
     crash_signals = (
-        "crash", "accident", "collision", "hit the wall", "hit the barrier",
-        "contact with", "spun", "spun out", "rolled", "flipped",
-        "off track", "into the gravel", "into the tyre barrier", "beached",
+        "crash",
+        "accident",
+        "collision",
+        "hit the wall",
+        "hit the barrier",
+        "contact with",
+        "spun",
+        "spun out",
+        "rolled",
+        "flipped",
+        "off track",
+        "into the gravel",
+        "into the tyre barrier",
+        "beached",
     )
     if any(kw in lower for kw in crash_signals):
         return {"verdict": "crash", "evidence": text[:200]}
 
     mechanical_signals = (
-        "engine", "power unit", "gearbox", "hydraulic", "brake failure",
-        "electrical", "overheating", "oil leak", "water leak", "suspension failure",
-        "mechanical failure", "reliability", "technical issue",
-        "disqualified", "excluded", "underweight", "skid block", "plank",
+        "engine",
+        "power unit",
+        "gearbox",
+        "hydraulic",
+        "brake failure",
+        "electrical",
+        "overheating",
+        "oil leak",
+        "water leak",
+        "suspension failure",
+        "mechanical failure",
+        "reliability",
+        "technical issue",
+        "disqualified",
+        "excluded",
+        "underweight",
+        "skid block",
+        "plank",
     )
     if any(kw in lower for kw in mechanical_signals):
         return {"verdict": "mechanical", "evidence": text[:200]}
