@@ -181,6 +181,15 @@ def _parse_verdict_from_text(text: str) -> dict | None:
     if any(kw in lower for kw in crash_signals):
         return {"verdict": "crash", "evidence": text[:200]}
 
+    mechanical_signals = (
+        "engine", "power unit", "gearbox", "hydraulic", "brake failure",
+        "electrical", "overheating", "oil leak", "water leak", "suspension failure",
+        "mechanical failure", "reliability", "technical issue",
+        "disqualified", "excluded", "underweight", "skid block", "plank",
+    )
+    if any(kw in lower for kw in mechanical_signals):
+        return {"verdict": "mechanical", "evidence": text[:200]}
+
     return None
 
 

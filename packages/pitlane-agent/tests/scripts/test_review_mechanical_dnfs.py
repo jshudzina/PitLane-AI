@@ -337,6 +337,36 @@ class TestParseVerdictFromText:
         assert result is not None
         assert result["verdict"] == "crash"
 
+    def test_keyword_fallback_mechanical_engine(self):
+        text = "Alonso retired due to a power unit failure on lap 30."
+        result = _parse_verdict_from_text(text)
+        assert result is not None
+        assert result["verdict"] == "mechanical"
+
+    def test_keyword_fallback_mechanical_gearbox(self):
+        text = "The team confirmed a gearbox issue forced the retirement."
+        result = _parse_verdict_from_text(text)
+        assert result is not None
+        assert result["verdict"] == "mechanical"
+
+    def test_keyword_fallback_mechanical_disqualified(self):
+        text = "The driver was disqualified after post-race scrutineering."
+        result = _parse_verdict_from_text(text)
+        assert result is not None
+        assert result["verdict"] == "mechanical"
+
+    def test_keyword_fallback_mechanical_plank(self):
+        text = "Hamilton was excluded due to excessive plank wear found in scrutineering."
+        result = _parse_verdict_from_text(text)
+        assert result is not None
+        assert result["verdict"] == "mechanical"
+
+    def test_crash_takes_priority_over_mechanical(self):
+        text = "The driver had a collision which caused suspension failure."
+        result = _parse_verdict_from_text(text)
+        assert result is not None
+        assert result["verdict"] == "crash"
+
     def test_returns_none_for_ambiguous_text(self):
         text = "The driver retired from the race due to an unspecified issue."
         result = _parse_verdict_from_text(text)
