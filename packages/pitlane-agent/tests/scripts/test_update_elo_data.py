@@ -41,9 +41,7 @@ class TestClassifyRetiredViaRcm:
         assert _classify_retired_via_rcm(rcm, "18", 2) == "crash"
 
     def test_incident_keyword_returns_crash(self):
-        rcm = _make_rcm(
-            {"Lap": 1, "Message": "INCIDENT INVOLVING CARS 3 (RIC) AND 23 (ALB) CAUSING A COLLISION"}
-        )
+        rcm = _make_rcm({"Lap": 1, "Message": "INCIDENT INVOLVING CARS 3 (RIC) AND 23 (ALB) CAUSING A COLLISION"})
         assert _classify_retired_via_rcm(rcm, "3", 1) == "crash"
 
     def test_stopped_only_no_crash_keyword_returns_mechanical(self):
@@ -81,8 +79,6 @@ class TestClassifyRetiredViaRcm:
         assert _classify_retired_via_rcm(rcm, "18", 5) == "crash"
 
     def test_multi_car_incident_both_cars_classified_crash(self):
-        rcm = _make_rcm(
-            {"Lap": 1, "Message": "INCIDENT INVOLVING CARS 3 (RIC) AND 23 (ALB) CAUSING A COLLISION"}
-        )
+        rcm = _make_rcm({"Lap": 1, "Message": "INCIDENT INVOLVING CARS 3 (RIC) AND 23 (ALB) CAUSING A COLLISION"})
         assert _classify_retired_via_rcm(rcm, "3", 1) == "crash"
         assert _classify_retired_via_rcm(rcm, "23", 1) == "crash"

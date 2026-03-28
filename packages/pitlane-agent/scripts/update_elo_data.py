@@ -151,9 +151,7 @@ def _extract_race_entries(
             racing_num_raw = driver.get("DriverNumber")
             racing_number = str(int(racing_num_raw)) if bool(pd.notna(racing_num_raw)) else ""  # type: ignore[arg-type]
             dnf_category = (
-                _classify_retired_via_rcm(rcm, racing_number, laps_completed)
-                if racing_number
-                else "mechanical"
+                _classify_retired_via_rcm(rcm, racing_number, laps_completed) if racing_number else "mechanical"
             )
         else:
             dnf_category = categorize_dnf(status)
