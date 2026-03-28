@@ -4,24 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 from pitlane_elo.config import EloConfig
-from pitlane_elo.data import RaceEntry
 from pitlane_elo.ratings.endure_elo import EndureElo
-
-
-def _make_entry(driver_id: str, finish: int | None, *, dnf_category: str = "none", laps: int = 57) -> RaceEntry:
-    return {
-        "year": 2024,
-        "round": 1,
-        "session_type": "R",
-        "driver_id": driver_id,
-        "team": "Team",
-        "laps_completed": laps,
-        "status": "Finished" if dnf_category == "none" else "Retired",
-        "dnf_category": dnf_category,
-        "is_wet_race": False,
-        "is_street_circuit": False,
-        "finish_position": finish,
-    }
+from tests.conftest import make_race_entry
 
 
 class TestEndureElo:
@@ -37,7 +21,7 @@ class TestEndureElo:
     def test_three_driver_race(self) -> None:
         """Winner's rating should increase, loser's should decrease."""
         model = EndureElo()
-        entries = [_make_entry("A", 1), _make_entry("B", 2), _make_entry("C", 3)]
+        entries = [make_race_entry("A", 1), make_race_entry("B", 2), make_race_entry("C", 3)]
         model.process_race(entries)
 
         assert model.ratings["A"] > 0.0, "Winner rating should increase"
@@ -47,7 +31,7 @@ class TestEndureElo:
         """After many races where A always beats B, ratings should diverge."""
         model = EndureElo()
         for _ in range(20):
-            entries = [_make_entry("A", 1), _make_entry("B", 2), _make_entry("C", 3)]
+            entries = [make_race_entry("A", 1), make_race_entry("B", 2), make_race_entry("C", 3)]
             model.process_race(entries)
 
         assert model.ratings["A"] > model.ratings["B"] > model.ratings["C"]
@@ -56,7 +40,7 @@ class TestEndureElo:
         model = EndureElo()
         # Give drivers some history
         for _ in range(5):
-            model.process_race([_make_entry("A", 1), _make_entry("B", 2), _make_entry("C", 3)])
+            model.process_race([make_race_entry("A", 1), make_race_entry("B", 2), make_race_entry("C", 3)])
 
         probs = model.predict_win_probabilities(["A", "B", "C"])
         assert probs.shape == (3,)
@@ -65,7 +49,7 @@ class TestEndureElo:
     def test_higher_rated_driver_has_higher_win_prob(self) -> None:
         model = EndureElo()
         for _ in range(10):
-            model.process_race([_make_entry("A", 1), _make_entry("B", 2), _make_entry("C", 3)])
+            model.process_race([make_race_entry("A", 1), make_race_entry("B", 2), make_race_entry("C", 3)])
 
         probs = model.predict_win_probabilities(["A", "B", "C"])
         assert probs[0] > probs[1] > probs[2]
@@ -77,7 +61,7 @@ class TestEndureElo:
         k_before = model.k_factors["A"]
 
         for _ in range(10):
-            model.process_race([_make_entry("A", 1), _make_entry("B", 2), _make_entry("C", 3)])
+            model.process_race([make_race_entry("A", 1), make_race_entry("B", 2), make_race_entry("C", 3)])
 
         k_after = model.k_factors["A"]
         assert k_after < k_before, "K-factor should decrease with more observations"
@@ -85,7 +69,7 @@ class TestEndureElo:
     def test_season_decay_reduces_ratings(self) -> None:
         model = EndureElo()
         for _ in range(5):
-            model.process_race([_make_entry("A", 1), _make_entry("B", 2)])
+            model.process_race([make_race_entry("A", 1), make_race_entry("B", 2)])
 
         rating_before = model.ratings["A"]
         model.apply_season_decay(2025)  # non-regulation year
@@ -95,9 +79,9 @@ class TestEndureElo:
         """Crash DNFs should be included and ranked by laps completed."""
         model = EndureElo()
         entries = [
-            _make_entry("A", 1),
-            _make_entry("B", 2),
-            _make_entry("C", None, dnf_category="crash", laps=10),
+            make_race_entry("A", 1),
+            make_race_entry("B", 2),
+            make_race_entry("C", None, dnf_category="crash", laps=10),
         ]
         model.process_race(entries)
         # C crashed, should have lowest rating
@@ -109,9 +93,9 @@ class TestEndureElo:
         config = EloConfig(name="test", exclude_mechanical_dnf=True)
         model = EndureElo(config)
         entries = [
-            _make_entry("A", 1),
-            _make_entry("B", 2),
-            _make_entry("C", None, dnf_category="mechanical", laps=10),
+            make_race_entry("A", 1),
+            make_race_entry("B", 2),
+            make_race_entry("C", None, dnf_category="mechanical", laps=10),
         ]
         model.process_race(entries)
         # C should not have been processed (no rating change from initial)
@@ -119,7 +103,7 @@ class TestEndureElo:
 
     def test_single_driver_race_is_noop(self) -> None:
         model = EndureElo()
-        model.process_race([_make_entry("A", 1)])
+        model.process_race([make_race_entry("A", 1)])
         assert "A" not in model.ratings  # never initialized since < 2 drivers
 
     def test_win_probability_equal_ratings(self) -> None:

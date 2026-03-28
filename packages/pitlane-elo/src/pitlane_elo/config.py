@@ -45,17 +45,21 @@ class EloConfig:
 ENDURE_ELO_DEFAULT = EloConfig(
     name="endure-elo-default",
     initial_rating=0.0,
+    # Powell (2023) Table 1: k = 0.36 for both endure- and speed-Elo
     k_factor=0.36,
     phi_race=0.99,
     phi_season=0.90,
+    # Disabled: 2025 data classifies all DNFs as "retired" so we can't
+    # distinguish mechanical failures from crashes. Re-enable once the
+    # DNF classification pipeline is fixed.
     exclude_mechanical_dnf=False,
 )
 
 SPEED_ELO_DEFAULT = EloConfig(
     name="speed-elo-default",
     initial_rating=0.0,
-    k_factor=0.36,
+    k_factor=0.36,  # Powell (2023) Table 1
     phi_race=0.99,
     phi_season=0.90,
-    exclude_mechanical_dnf=False,
+    exclude_mechanical_dnf=False,  # see endure-Elo comment re: 2025 data
 )

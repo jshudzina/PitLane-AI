@@ -8,6 +8,34 @@ import duckdb
 import pytest
 from pitlane_elo.data import QualifyingEntry, RaceEntry
 
+
+# ---------------------------------------------------------------------------
+# Reusable test helpers
+# ---------------------------------------------------------------------------
+
+
+def make_race_entry(
+    driver_id: str,
+    finish: int | None,
+    *,
+    dnf_category: str = "none",
+    laps: int = 57,
+) -> RaceEntry:
+    """Build a minimal RaceEntry dict for unit tests."""
+    return {
+        "year": 2024,
+        "round": 1,
+        "session_type": "R",
+        "driver_id": driver_id,
+        "team": "Team",
+        "laps_completed": laps,
+        "status": "Finished" if dnf_category == "none" else "Retired",
+        "dnf_category": dnf_category,
+        "is_wet_race": False,
+        "is_street_circuit": False,
+        "finish_position": finish,
+    }
+
 # ---------------------------------------------------------------------------
 # Sample data matching the pitlane-agent schema
 # ---------------------------------------------------------------------------

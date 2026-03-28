@@ -3,24 +3,8 @@
 from __future__ import annotations
 
 import numpy as np
-from pitlane_elo.data import RaceEntry
 from pitlane_elo.ratings.speed_elo import SpeedElo
-
-
-def _make_entry(driver_id: str, finish: int | None, *, dnf_category: str = "none", laps: int = 57) -> RaceEntry:
-    return {
-        "year": 2024,
-        "round": 1,
-        "session_type": "R",
-        "driver_id": driver_id,
-        "team": "Team",
-        "laps_completed": laps,
-        "status": "Finished" if dnf_category == "none" else "Retired",
-        "dnf_category": dnf_category,
-        "is_wet_race": False,
-        "is_street_circuit": False,
-        "finish_position": finish,
-    }
+from tests.conftest import make_race_entry
 
 
 class TestSpeedElo:
@@ -36,7 +20,7 @@ class TestSpeedElo:
     def test_three_driver_race(self) -> None:
         """Winner's rating should increase, loser's should decrease."""
         model = SpeedElo()
-        entries = [_make_entry("A", 1), _make_entry("B", 2), _make_entry("C", 3)]
+        entries = [make_race_entry("A", 1), make_race_entry("B", 2), make_race_entry("C", 3)]
         model.process_race(entries)
 
         assert model.ratings["A"] > 0.0, "Winner rating should increase"
@@ -45,7 +29,7 @@ class TestSpeedElo:
     def test_repeated_races_diverge_ratings(self) -> None:
         model = SpeedElo()
         for _ in range(20):
-            entries = [_make_entry("A", 1), _make_entry("B", 2), _make_entry("C", 3)]
+            entries = [make_race_entry("A", 1), make_race_entry("B", 2), make_race_entry("C", 3)]
             model.process_race(entries)
 
         assert model.ratings["A"] > model.ratings["B"] > model.ratings["C"]
@@ -53,7 +37,7 @@ class TestSpeedElo:
     def test_probabilities_sum_to_one(self) -> None:
         model = SpeedElo()
         for _ in range(5):
-            model.process_race([_make_entry("A", 1), _make_entry("B", 2), _make_entry("C", 3)])
+            model.process_race([make_race_entry("A", 1), make_race_entry("B", 2), make_race_entry("C", 3)])
 
         probs = model.predict_win_probabilities(["A", "B", "C"])
         assert probs.shape == (3,)
@@ -62,7 +46,7 @@ class TestSpeedElo:
     def test_higher_rated_driver_has_higher_win_prob(self) -> None:
         model = SpeedElo()
         for _ in range(10):
-            model.process_race([_make_entry("A", 1), _make_entry("B", 2), _make_entry("C", 3)])
+            model.process_race([make_race_entry("A", 1), make_race_entry("B", 2), make_race_entry("C", 3)])
 
         probs = model.predict_win_probabilities(["A", "B", "C"])
         assert probs[0] > probs[1] > probs[2]
@@ -70,7 +54,7 @@ class TestSpeedElo:
     def test_two_driver_symmetry(self) -> None:
         """For a 2-driver race, rating changes should be equal and opposite."""
         model = SpeedElo()
-        entries = [_make_entry("A", 1), _make_entry("B", 2)]
+        entries = [make_race_entry("A", 1), make_race_entry("B", 2)]
         model.process_race(entries)
 
         # With equal starting ratings, changes should be symmetric
@@ -88,6 +72,6 @@ class TestSpeedElo:
         k_before = model.k_factors["A"]
 
         for _ in range(10):
-            model.process_race([_make_entry("A", 1), _make_entry("B", 2), _make_entry("C", 3)])
+            model.process_race([make_race_entry("A", 1), make_race_entry("B", 2), make_race_entry("C", 3)])
 
         assert model.k_factors["A"] < k_before
