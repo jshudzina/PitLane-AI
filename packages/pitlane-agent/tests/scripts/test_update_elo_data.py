@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 # Import the script module directly since it lives outside the package src tree.
 _SCRIPT_PATH = Path(__file__).parents[2] / "scripts" / "update_elo_data.py"
