@@ -285,10 +285,7 @@ def group_qualifying_by_session(
         return (e["year"], e["round"], e["session_type"])
 
     sorted_entries = sorted(entries, key=key_fn)
-    return [
-        sorted(group, key=lambda e: e["position"])
-        for _, group in itertools.groupby(sorted_entries, key=key_fn)
-    ]
+    return [sorted(group, key=lambda e: e["position"]) for _, group in itertools.groupby(sorted_entries, key=key_fn)]
 
 
 __all__ = [
