@@ -184,7 +184,18 @@ def calibrate(
         f"Calibrating {model_name}: warmup {warmup_start}, "
         f"cal {cal_start}–{cal_end}, val {val_start}–{val_end}"
     )
-    click.echo(f"Running {n_trials} random trials" + (f" (seed={seed})" if seed is not None else "") + "...")
+    seed_suffix = f" (seed={seed})" if seed is not None else ""
+    click.echo(f"Random search: {n_trials} trials{seed_suffix}")
+
+    best_ll_so_far: list[float] = []  # mutable cell for closure
+
+    def _on_trial(trial: int, total: int, ll: float) -> None:
+        if not best_ll_so_far or ll > best_ll_so_far[0]:
+            best_ll_so_far[:] = [ll]
+        click.echo(
+            f"  [{trial:>{len(str(total))}}/{total}] ll={ll:>10.2f}  best={best_ll_so_far[0]:>10.2f}",
+            nl=True,
+        )
 
     result = run_calibrate(
         model_class,
@@ -196,7 +207,9 @@ def calibrate(
         val_end,
         n_trials=n_trials,
         seed=seed,
+        on_trial=_on_trial,
     )
+    click.echo("Random search done. Running Nelder-Mead refinement...")
 
     # Top-N random search results
     click.echo(f"\nTop {min(top_n, len(result.random_results))} random search results:")

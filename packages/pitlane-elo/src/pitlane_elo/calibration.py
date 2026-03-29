@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
-from typing import Type
+from typing import Callable, Type
 
 import numpy as np
 from scipy.optimize import minimize
@@ -81,11 +81,16 @@ def random_search(
     *,
     n_trials: int = 100,
     seed: int | None = None,
+    on_trial: Callable[[int, int, float], None] | None = None,
 ) -> list[dict]:
     """Random search over (k_max, phi_race, phi_season).
 
     k_max is sampled log-uniformly (spans an order of magnitude).
     phi values are sampled uniformly over their bounded ranges.
+
+    Args:
+        on_trial: Optional callback called after each trial with
+            (trial_number, n_trials, log_likelihood).
 
     Returns:
         List of dicts with keys k_max, phi_race, phi_season, log_likelihood,
@@ -93,7 +98,7 @@ def random_search(
     """
     rng = np.random.default_rng(seed)
     results = []
-    for _ in range(n_trials):
+    for i in range(n_trials):
         k_max = float(np.exp(rng.uniform(np.log(BOUNDS["k_max"][0]), np.log(BOUNDS["k_max"][1]))))
         phi_race = float(rng.uniform(*BOUNDS["phi_race"]))
         phi_season = float(rng.uniform(*BOUNDS["phi_season"]))
@@ -106,6 +111,8 @@ def random_search(
             cal_end=cal_end,
         )
         results.append({"k_max": k_max, "phi_race": phi_race, "phi_season": phi_season, "log_likelihood": ll})
+        if on_trial is not None:
+            on_trial(i + 1, n_trials, ll)
     return sorted(results, key=lambda r: r["log_likelihood"], reverse=True)
 
 
@@ -120,6 +127,7 @@ def calibrate(
     *,
     n_trials: int = 100,
     seed: int | None = None,
+    on_trial: Callable[[int, int, float], None] | None = None,
 ) -> CalibrationResult:
     """Random search + Nelder-Mead refinement, then score on validation window.
 
@@ -143,6 +151,7 @@ def calibrate(
         warmup_start, cal_start, cal_end,
         n_trials=n_trials,
         seed=seed,
+        on_trial=on_trial,
     )
     best = rand_results[0]
 
