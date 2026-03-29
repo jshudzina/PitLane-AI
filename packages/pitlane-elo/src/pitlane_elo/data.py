@@ -271,6 +271,23 @@ def group_entries_by_race(entries: list[RaceEntry]) -> list[list[RaceEntry]]:
     return [order_race_entries(list(group)) for _, group in itertools.groupby(sorted_entries, key=key_fn)]
 
 
+def group_qualifying_by_session(
+    entries: list[QualifyingEntry],
+) -> list[list[QualifyingEntry]]:
+    """Group a flat list of qualifying entries into per-session lists.
+
+    Entries are grouped by ``(year, round, session_type)`` and each group is
+    sorted by ``position``.  The groups themselves are returned in
+    chronological order.
+    """
+
+    def key_fn(e: QualifyingEntry) -> tuple[int, int, str]:
+        return (e["year"], e["round"], e["session_type"])
+
+    sorted_entries = sorted(entries, key=key_fn)
+    return [sorted(group, key=lambda e: e["position"]) for _, group in itertools.groupby(sorted_entries, key=key_fn)]
+
+
 __all__ = [
     "RaceEntry",
     "QualifyingEntry",
@@ -281,4 +298,5 @@ __all__ = [
     "get_qualifying_entries_range",
     "order_race_entries",
     "group_entries_by_race",
+    "group_qualifying_by_session",
 ]
