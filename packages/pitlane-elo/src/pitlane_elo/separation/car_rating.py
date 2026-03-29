@@ -9,7 +9,6 @@ track-specific signal of raw car pace independent of race outcomes.
 
 from __future__ import annotations
 
-import itertools
 from pathlib import Path
 from typing import TypedDict
 

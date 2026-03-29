@@ -5,9 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from pitlane_elo.data import QualifyingEntry, get_qualifying_entries, group_qualifying_by_session
-from pitlane_elo.separation.car_rating import CarRating, compute_rc_range, compute_session_rc
-
+from pitlane_elo.data import QualifyingEntry, group_qualifying_by_session
+from pitlane_elo.separation.car_rating import compute_rc_range, compute_session_rc
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -204,9 +203,7 @@ class TestComputeRcRange:
 
         # Spot-check: 2023 R1, Red Bull has drivers at 89.0 and 89.5
         # t_team_avg = 89.25, t_fastest = 89.0
-        rb_2023_r1 = [
-            r for r in result if r["year"] == 2023 and r["round"] == 1 and r["team"] == "Red Bull Racing"
-        ]
+        rb_2023_r1 = [r for r in result if r["year"] == 2023 and r["round"] == 1 and r["team"] == "Red Bull Racing"]
         assert len(rb_2023_r1) == 1
         assert rb_2023_r1[0]["rc"] == pytest.approx((89.25 - 89.0) / 89.0)
         assert rb_2023_r1[0]["t_team_avg"] == pytest.approx(89.25)
