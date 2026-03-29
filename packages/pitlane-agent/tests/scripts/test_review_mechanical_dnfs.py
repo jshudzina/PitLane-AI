@@ -102,7 +102,7 @@ class TestFetchMechanicalDnfs:
         ]
         upsert_race_entries(db, entries)
 
-        result = _fetch_mechanical_dnfs(db, 2024, round_number=2)
+        result = _fetch_mechanical_dnfs(db, 2024, round_numbers=[2])
         assert len(result) == 1
         assert result[0]["driver_id"] == "alonso"
 
