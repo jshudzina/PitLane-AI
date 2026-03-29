@@ -95,14 +95,14 @@ class TestSeasonSummaryIntegration:
 
     @pytest.mark.timeout(120)
     def test_pre_2018_circuit_length_graceful(self, fastf1_cache_dir):
-        """Test that circuit length returns None gracefully for pre-2018 races.
+        """Test that circuit length does not raise for pre-2018 sessions.
 
-        Telemetry data is not available before 2018, so get_circuit_length_km
-        should return None without raising an exception.
+        Telemetry is unavailable before 2018, but get_circuit_length_km may
+        still return a value from its static reference table (Tier 2). The
+        function must not raise; it returns a positive float or None.
         """
         session = load_session(2017, "Monaco", "R")
 
         result = get_circuit_length_km(session)
 
-        # Pre-2018 has no telemetry, so result should be None
-        assert result is None
+        assert result is None or result > 0

@@ -22,11 +22,13 @@ import logging
 import sys
 import time
 from pathlib import Path
+from typing import cast
 
 import backoff
 import click
 import fastf1
 import pandas as pd
+from fastf1.events import EventSchedule, Session
 from pitlane_agent.utils.elo_db import (
     QualifyingEntry,
     RaceEntry,
@@ -47,11 +49,47 @@ for _noisy in ("fastf1", "urllib3", "requests", "asyncio"):
 logger = logging.getLogger(__name__)
 
 
+def _classify_retired_via_rcm(
+    rcm: pd.DataFrame,
+    racing_number: str,
+    retirement_lap: int,
+    window: int = 3,
+) -> str:
+    """Return "crash" or "mechanical" for a "Retired" driver using RCM text.
+
+    Searches all RCM messages in a ±window-lap range for the driver's car
+    number alongside explicit crash keywords ("COLLISION", "ACCIDENT",
+    "INCIDENT"). This catches multi-car collisions where Ergast records only
+    "Retired". Single-car wall crashes that produce no collision-keyword
+    message default to "mechanical" — accepted as a known v1 gap.
+
+    Args:
+        rcm: race_control_messages DataFrame from a loaded FastF1 Session.
+        racing_number: The driver's car number string (e.g. "18").
+        retirement_lap: Number of laps completed before retirement.
+        window: Laps before/after retirement_lap to search.
+
+    Returns:
+        "crash" if crash evidence found, else "mechanical".
+    """
+    lo = max(0, retirement_lap - window)
+    hi = retirement_lap + window
+    msgs = rcm.loc[rcm["Lap"].between(lo, hi), "Message"].fillna("").str.upper()
+    # Match "CAR 18 (STR)" or "CARS 3 (RIC)" — always formatted as " N (" in RCM text.
+    car_pattern = f" {racing_number} ("
+    crash_keywords = ("COLLISION", "ACCIDENT", "INCIDENT")
+    for msg in msgs:
+        if car_pattern in msg and any(kw in msg for kw in crash_keywords):
+            return "crash"
+    return "mechanical"
+
+
 def _extract_race_entries(
-    session: object,
+    session: Session,
     year: int,
     round_number: int,
     session_type: str,
+    rcm: pd.DataFrame | None = None,
 ) -> list[RaceEntry]:
     """Extract per-driver RaceEntry records from a loaded race session.
 
@@ -62,6 +100,10 @@ def _extract_race_entries(
     (excluding them from ELO computation improves RMSE). Crash DNFs are
     included and ranked at their elimination position.
 
+    When rcm is provided (years >= 2023 where Ergast collapses all DNF reasons
+    into "Retired"), drivers with status "Retired" are reclassified via
+    _classify_retired_via_rcm instead of defaulting to "crash".
+
     is_wet_race and is_street_circuit are Phase 1 stubs — always False.
     Future phases should derive these from session.weather_data and a static
     street circuit lookup respectively.
@@ -71,11 +113,12 @@ def _extract_race_entries(
         year: Season year.
         round_number: Round number.
         session_type: "R" for race, "S" for sprint.
+        rcm: Optional race_control_messages DataFrame; pass for years >= 2023.
 
     Returns:
         List of RaceEntry dicts, one per driver row in session.results.
     """
-    results = session.results  # type: ignore[union-attr]
+    results = session.results
     entries: list[RaceEntry] = []
 
     for _, driver in results.iterrows():
@@ -89,22 +132,29 @@ def _extract_race_entries(
         abbreviation: str | None = abbr_str if abbr_str and abbr_str.lower() != "nan" else None
 
         team_raw = driver.get("TeamName")
-        team = str(team_raw) if pd.notna(team_raw) else ""
+        team = str(team_raw) if bool(pd.notna(team_raw)) else ""
 
         status_raw = driver.get("Status")
-        status = str(status_raw) if pd.notna(status_raw) else ""
+        status = str(status_raw) if bool(pd.notna(status_raw)) else ""
 
         grid_raw = driver.get("GridPosition")
-        grid_position: int | None = int(grid_raw) if pd.notna(grid_raw) and float(grid_raw) > 0 else None
+        grid_position: int | None = int(grid_raw) if bool(pd.notna(grid_raw)) and float(grid_raw) > 0 else None  # type: ignore[arg-type]
 
         finish_raw = driver.get("Position")
-        finish_position: int | None = int(finish_raw) if pd.notna(finish_raw) else None
+        finish_position: int | None = int(finish_raw) if bool(pd.notna(finish_raw)) else None  # type: ignore[arg-type]
 
         # FastF1 uses "NumberOfLaps" in some versions and "Laps" in others
         laps_raw = driver.get("NumberOfLaps", driver.get("Laps", 0))
-        laps_completed = int(laps_raw) if pd.notna(laps_raw) else 0
+        laps_completed = int(laps_raw) if bool(pd.notna(laps_raw)) else 0  # type: ignore[arg-type]
 
-        dnf_category = categorize_dnf(status)
+        if status == "Retired" and rcm is not None:
+            racing_num_raw = driver.get("DriverNumber")
+            racing_number = str(int(racing_num_raw)) if bool(pd.notna(racing_num_raw)) else ""  # type: ignore[arg-type]
+            dnf_category = (
+                _classify_retired_via_rcm(rcm, racing_number, laps_completed) if racing_number else "mechanical"
+            )
+        else:
+            dnf_category = categorize_dnf(status)
 
         # Trust Ergast's stewards' classification as the source of truth.
         # If Ergast gives a finish position (driver was officially classified),
@@ -158,7 +208,7 @@ def _td_to_seconds(val: object) -> float | None:
 
 
 def _extract_qualifying_entries(
-    session: object,
+    session: Session,
     year: int,
     round_number: int,
     session_type: str,
@@ -208,6 +258,7 @@ def _extract_qualifying_entries(
             pos_raw = driver.get("GridPosition")
         if not _pos_usable(pos_raw):
             continue
+        assert pos_raw is not None
         position = int(pos_raw)
 
         abbr_raw = driver.get("Abbreviation")
@@ -215,7 +266,7 @@ def _extract_qualifying_entries(
         abbreviation: str | None = abbr_str if abbr_str and abbr_str.lower() != "nan" else None
 
         team_raw = driver.get("TeamName")
-        team = str(team_raw) if pd.notna(team_raw) else ""
+        team = str(team_raw) if bool(pd.notna(team_raw)) else ""
 
         q1_s = _td_to_seconds(driver.get("Q1"))
         q2_s = _td_to_seconds(driver.get("Q2"))
@@ -295,11 +346,11 @@ def update_elo_data(
         )
 
     @backoff.on_exception(backoff.expo, RequestException, max_tries=5, jitter=backoff.full_jitter)
-    def _get_schedule() -> object:
+    def _get_schedule() -> EventSchedule:
         return fastf1.get_event_schedule(year, include_testing=False)
 
     @backoff.on_exception(backoff.expo, RequestException, max_tries=5, jitter=backoff.full_jitter)
-    def _load_session(event_name: str, st: str, **kwargs: bool) -> object:
+    def _load_session(event_name: str, st: str, **kwargs: bool) -> Session:
         return load_session(year, event_name, st, **kwargs)
 
     schedule = _get_schedule()
@@ -326,6 +377,8 @@ def update_elo_data(
         "sprint_qualifying": ["Q", "SQ"],
     }
 
+    now = pd.Timestamp.now(tz="UTC")
+
     for _, event in schedule.iterrows():
         rn = int(event["RoundNumber"])
         if rn == 0:
@@ -333,8 +386,13 @@ def update_elo_data(
         if round_number is not None and rn != round_number:
             continue
 
+        race_date = pd.Timestamp(event["Session5Date"])
+        if race_date > now:
+            click.echo(f"  Skipping round {rn}: {event['EventName']} (future event)", err=True)
+            continue
+
         event_name = str(event["EventName"])
-        event_format = event.get("EventFormat", "conventional")
+        event_format = str(event.get("EventFormat") or "conventional")
 
         # Race sessions: regular race + sprint if applicable
         race_session_types = ["R"]
@@ -348,8 +406,13 @@ def update_elo_data(
                 continue
             click.echo(f"  Processing race round {rn} {st}: {event_name}...", err=True)
             try:
-                session = _load_session(event_name, st)
-                entries = _extract_race_entries(session, year, rn, st)
+                load_messages = year >= 2023
+                session = _load_session(event_name, st, messages=load_messages)
+                try:
+                    rcm: pd.DataFrame | None = session.race_control_messages if load_messages else None
+                except Exception:
+                    rcm = None
+                entries = _extract_race_entries(session, year, rn, st, rcm=rcm)
                 race_records.extend(entries)
                 processed += 1
                 time.sleep(1)
@@ -372,7 +435,7 @@ def update_elo_data(
                 if qt == "Q":
                     existing_q = get_qualifying_entries(db_path, year) or []
                     abbrev_to_driver_id = {
-                        e["abbreviation"]: e["driver_id"]
+                        cast(str, e.get("abbreviation")): e["driver_id"]
                         for e in existing_q
                         if e.get("round") == rn
                         and e.get("session_type") == "Q"
@@ -397,7 +460,7 @@ def update_elo_data(
                 # Build lookup from Q results for any subsequent SS/SQ session.
                 if qt == "Q":
                     abbrev_to_driver_id = {
-                        e["abbreviation"]: e["driver_id"]
+                        cast(str, e.get("abbreviation")): e["driver_id"]
                         for e in entries
                         if e.get("abbreviation") and e.get("driver_id")
                     }
