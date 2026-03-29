@@ -75,7 +75,7 @@ _VERDICT_SCHEMA: dict[str, Any] = {
 def _fetch_mechanical_dnfs(
     db_path: Path,
     year: int,
-    round_number: int | None = None,
+    round_numbers: tuple[int, ...] | None = None,
 ) -> list[dict]:
     """Return mechanical-DNF rows from race_entries for the given filters."""
     con = duckdb.connect(str(db_path), read_only=True)
@@ -89,9 +89,10 @@ def _fetch_mechanical_dnfs(
             "WHERE r.year = ? AND r.dnf_category = 'mechanical'"
         )
         params: list[object] = [year]
-        if round_number is not None:
-            sql += " AND r.round = ?"
-            params.append(round_number)
+        if round_numbers:
+            placeholders = ", ".join("?" * len(round_numbers))
+            sql += f" AND r.round IN ({placeholders})"
+            params.extend(round_numbers)
         sql += " ORDER BY r.round, r.driver_id"
         rows = con.execute(sql, params).fetchall()
         cols = [
@@ -326,10 +327,11 @@ async def _review_async(
 @click.option("--year", required=True, type=int, help="F1 season year (>= 2023)")
 @click.option(
     "--round",
-    "round_number",
+    "round_numbers",
     default=None,
     type=int,
-    help="Specific round number (default: all rounds)",
+    multiple=True,
+    help="Round number(s) to review (repeatable, default: all rounds)",
 )
 @click.option(
     "--db-path",
@@ -353,7 +355,7 @@ async def _review_async(
 )
 def review_mechanical_dnfs(
     year: int,
-    round_number: int | None,
+    round_numbers: tuple[int, ...],
     db_path_str: str | None,
     dry_run: bool,
     model_override: str | None,
@@ -370,9 +372,10 @@ def review_mechanical_dnfs(
     init_stats_db(db_path)
     click.echo(f"DB: {db_path}", err=True)
 
-    entries = _fetch_mechanical_dnfs(db_path, year, round_number)
+    entries = _fetch_mechanical_dnfs(db_path, year, round_numbers or None)
+    rounds_label = f" rounds {sorted(round_numbers)}" if round_numbers else ""
     click.echo(
-        f"Found {len(entries)} mechanical DNF(s) for {year}" + (f" round {round_number}" if round_number else ""),
+        f"Found {len(entries)} mechanical DNF(s) for {year}{rounds_label}",
         err=True,
     )
     if not entries:
