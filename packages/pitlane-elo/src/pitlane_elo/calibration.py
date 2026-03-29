@@ -18,8 +18,8 @@ References:
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Type
 
 import numpy as np
 from scipy.optimize import minimize
@@ -30,9 +30,9 @@ from pitlane_elo.ratings.base import RatingModel
 
 # Default search bounds
 BOUNDS: dict[str, tuple[float, float]] = {
-    "k_max": (0.05, 1.5),       # log-uniform; asymptotic variance / new-entrant k
+    "k_max": (0.05, 1.5),  # log-uniform; asymptotic variance / new-entrant k
     "phi_race": (0.90, 0.999),  # within-season AR(1) decay, per race
-    "phi_season": (0.60, 0.99), # between-season decay, per year boundary
+    "phi_season": (0.60, 0.99),  # between-season decay, per year boundary
 }
 
 
@@ -41,8 +41,8 @@ class CalibrationResult:
     """Output of a calibration run."""
 
     best_config: EloConfig
-    cal_log_likelihood: float   # on calibration window
-    val_log_likelihood: float   # on validation window
+    cal_log_likelihood: float  # on calibration window
+    val_log_likelihood: float  # on validation window
     n_cal_races: int
     n_val_races: int
     random_results: list[dict]  # all random-search trials, sorted by log_likelihood desc
@@ -53,7 +53,7 @@ def _score(
     phi_race: float,
     phi_season: float,
     *,
-    model_class: Type[RatingModel],
+    model_class: type[RatingModel],
     base_config: EloConfig,
     warmup_start: int,
     cal_start: int,
@@ -73,7 +73,7 @@ def _score(
 
 
 def random_search(
-    model_class: Type[RatingModel],
+    model_class: type[RatingModel],
     base_config: EloConfig,
     warmup_start: int,
     cal_start: int,
@@ -103,7 +103,9 @@ def random_search(
         phi_race = float(rng.uniform(*BOUNDS["phi_race"]))
         phi_season = float(rng.uniform(*BOUNDS["phi_season"]))
         ll = _score(
-            k_max, phi_race, phi_season,
+            k_max,
+            phi_race,
+            phi_season,
             model_class=model_class,
             base_config=base_config,
             warmup_start=warmup_start,
@@ -117,7 +119,7 @@ def random_search(
 
 
 def calibrate(
-    model_class: Type[RatingModel],
+    model_class: type[RatingModel],
     base_config: EloConfig,
     warmup_start: int,
     cal_start: int,
@@ -147,8 +149,11 @@ def calibrate(
         race counts, and the full sorted random-search trial list.
     """
     rand_results = random_search(
-        model_class, base_config,
-        warmup_start, cal_start, cal_end,
+        model_class,
+        base_config,
+        warmup_start,
+        cal_start,
+        cal_end,
         n_trials=n_trials,
         seed=seed,
         on_trial=on_trial,
@@ -161,7 +166,9 @@ def calibrate(
         if not (0.01 <= k_max <= 2.0 and 0.5 <= phi_race < 1.0 and 0.5 <= phi_season < 1.0):
             return 1e9
         return -_score(
-            k_max, phi_race, phi_season,
+            k_max,
+            phi_race,
+            phi_season,
             model_class=model_class,
             base_config=base_config,
             warmup_start=warmup_start,
