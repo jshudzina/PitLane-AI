@@ -6,6 +6,8 @@ import logging
 
 import click
 
+from pitlane_elo.calibration import calibrate as run_calibrate
+from pitlane_elo.config import ENDURE_ELO_DEFAULT, SPEED_ELO_DEFAULT
 from pitlane_elo.prediction.forecast import compare_models, evaluate_model, run_historical
 from pitlane_elo.ratings.endure_elo import EndureElo
 from pitlane_elo.ratings.speed_elo import SpeedElo
@@ -128,6 +130,107 @@ def evaluate(
     click.echo(f"{'Race-level % (E > S)':<25} {comparison['race_level_pct']:>12.1%}")
     click.echo(f"{'Log-wealth D(E,S)':<25} {comparison['log_wealth_ratio']:>12.2f}")
     click.echo(f"{'Races compared':<25} {comparison['n_races']:>12}")
+
+
+@main.command()
+@click.option("--warmup-start", type=int, default=1970, help="First season to process (burn-in; not scored).")
+@click.option("--cal-start", type=int, default=1980, help="First year scored during calibration.")
+@click.option("--cal-end", type=int, default=2013, help="Last year scored during calibration.")
+@click.option("--val-start", type=int, default=2014, help="First year of validation window.")
+@click.option("--val-end", type=int, default=2021, help="Last year of validation window.")
+@click.option("--holdout-start", type=int, default=None, help="First holdout year (reported only).")
+@click.option("--holdout-end", type=int, default=None, help="Last year of holdout.")
+@click.option("--model", "model_name", type=click.Choice(["endure-elo", "speed-elo"]), default="endure-elo")
+@click.option("--n-trials", type=int, default=100, help="Number of random-search trials.")
+@click.option("--seed", type=int, default=None, help="RNG seed for reproducibility.")
+@click.option("--top-n", type=int, default=10, help="Show top-N random search results.")
+def calibrate(
+    warmup_start: int,
+    cal_start: int,
+    cal_end: int,
+    val_start: int,
+    val_end: int,
+    holdout_start: int | None,
+    holdout_end: int | None,
+    model_name: str,
+    n_trials: int,
+    seed: int | None,
+    top_n: int,
+) -> None:
+    """Calibrate k_max, phi_race, phi_season via random search + Nelder-Mead.
+
+    \b
+    Phase 1 — Random search (n-trials evaluations):
+      Samples (k_max, phi_race, phi_season) from their bounds and scores each
+      on the calibration window. k_max is sampled log-uniformly.
+    Phase 2 — Nelder-Mead refinement:
+      Local optimizer starts from the best random-search point.
+    Phase 3 — Validation:
+      Best config is scored on val-start to val-end (not used for selection).
+    Phase 4 — Holdout (optional):
+      If --holdout-start/end are given, the final config is scored on that
+      window and reported. This is the truly unseen evaluation.
+
+    \b
+    Default temporal split (anchored to regulation changes):
+      Calibration: 1980–2013  (pre-hybrid era)
+      Validation:  2014–2021  (hybrid era, crosses 2014 regulation change)
+      Holdout:     2022–2025  (ground-effect era)
+    """
+    model_class = EndureElo if model_name == "endure-elo" else SpeedElo
+    base_config = ENDURE_ELO_DEFAULT if model_name == "endure-elo" else SPEED_ELO_DEFAULT
+
+    click.echo(
+        f"Calibrating {model_name}: warmup {warmup_start}, "
+        f"cal {cal_start}–{cal_end}, val {val_start}–{val_end}"
+    )
+    click.echo(f"Running {n_trials} random trials" + (f" (seed={seed})" if seed is not None else "") + "...")
+
+    result = run_calibrate(
+        model_class,
+        base_config,
+        warmup_start,
+        cal_start,
+        cal_end,
+        val_start,
+        val_end,
+        n_trials=n_trials,
+        seed=seed,
+    )
+
+    # Top-N random search results
+    click.echo(f"\nTop {min(top_n, len(result.random_results))} random search results:")
+    click.echo(f"  {'k_max':>8}  {'phi_race':>10}  {'phi_season':>10}  {'cal_ll':>10}")
+    click.echo("  " + "-" * 44)
+    for r in result.random_results[:top_n]:
+        click.echo(
+            f"  {r['k_max']:>8.4f}  {r['phi_race']:>10.4f}  {r['phi_season']:>10.4f}  {r['log_likelihood']:>10.2f}"
+        )
+
+    # Best config after refinement
+    cfg = result.best_config
+    click.echo("\nBest config (after Nelder-Mead refinement):")
+    click.echo(f"  k_max      = {cfg.k_max:.6f}")
+    click.echo(f"  phi_race   = {cfg.phi_race:.6f}")
+    click.echo(f"  phi_season = {cfg.phi_season:.6f}")
+
+    # Calibration / validation summary
+    click.echo(f"\n{'Window':<20} {'Log-likelihood':>15} {'Races':>8}")
+    click.echo("-" * 45)
+    click.echo(f"{'Calibration':<20} {result.cal_log_likelihood:>15.2f} {result.n_cal_races:>8}")
+    click.echo(f"{'Validation':<20} {result.val_log_likelihood:>15.2f} {result.n_val_races:>8}")
+
+    # Optional holdout
+    if holdout_start is not None and holdout_end is not None:
+        from pitlane_elo.prediction.forecast import evaluate_model, run_historical
+
+        click.echo(f"\nRunning holdout {holdout_start}–{holdout_end}...")
+        model = model_class(result.best_config)
+        preds = run_historical(model, warmup_start, holdout_end)
+        holdout_metrics = evaluate_model(preds, holdout_start, holdout_end)
+        click.echo(
+            f"{'Holdout':<20} {holdout_metrics['log_likelihood']:>15.2f} {holdout_metrics['n_races']:>8}"
+        )
 
 
 @main.command()
