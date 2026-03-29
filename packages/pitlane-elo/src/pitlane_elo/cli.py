@@ -143,6 +143,7 @@ def evaluate(
 @click.option("--model", "model_name", type=click.Choice(["endure-elo", "speed-elo"]), default="endure-elo")
 @click.option("--n-trials", type=int, default=100, help="Number of random-search trials.")
 @click.option("--seed", type=int, default=None, help="RNG seed for reproducibility.")
+@click.option("--predict-cap", type=int, default=15, help="Cap predictions to top-N drivers by rating (0=no cap).")
 @click.option("--top-n", type=int, default=10, help="Show top-N random search results.")
 def calibrate(
     warmup_start: int,
@@ -155,6 +156,7 @@ def calibrate(
     model_name: str,
     n_trials: int,
     seed: int | None,
+    predict_cap: int,
     top_n: int,
 ) -> None:
     """Calibrate k_max, phi_race, phi_season via random search + Nelder-Mead.
@@ -197,6 +199,7 @@ def calibrate(
             nl=True,
         )
 
+    cap = predict_cap or None
     result = run_calibrate(
         model_class,
         base_config,
@@ -207,6 +210,7 @@ def calibrate(
         val_end,
         n_trials=n_trials,
         seed=seed,
+        predict_cap=cap,
         on_trial=_on_trial,
     )
     click.echo("Random search done. Running Nelder-Mead refinement...")

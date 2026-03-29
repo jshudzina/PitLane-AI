@@ -58,6 +58,7 @@ def _score(
     warmup_start: int,
     cal_start: int,
     cal_end: int,
+    predict_cap: int | None = None,
 ) -> float:
     """Return calibration-window log-likelihood for a given parameter set."""
     config = dataclasses.replace(
@@ -68,7 +69,7 @@ def _score(
         phi_season=float(phi_season),
     )
     model = model_class(config)
-    preds = run_historical(model, warmup_start, cal_end)
+    preds = run_historical(model, warmup_start, cal_end, predict_cap=predict_cap)
     return evaluate_model(preds, cal_start, cal_end)["log_likelihood"]
 
 
@@ -81,6 +82,7 @@ def random_search(
     *,
     n_trials: int = 100,
     seed: int | None = None,
+    predict_cap: int | None = None,
     on_trial: Callable[[int, int, float], None] | None = None,
 ) -> list[dict]:
     """Random search over (k_max, phi_race, phi_season).
@@ -111,6 +113,7 @@ def random_search(
             warmup_start=warmup_start,
             cal_start=cal_start,
             cal_end=cal_end,
+            predict_cap=predict_cap,
         )
         results.append({"k_max": k_max, "phi_race": phi_race, "phi_season": phi_season, "log_likelihood": ll})
         if on_trial is not None:
@@ -129,6 +132,7 @@ def calibrate(
     *,
     n_trials: int = 100,
     seed: int | None = None,
+    predict_cap: int | None = None,
     on_trial: Callable[[int, int, float], None] | None = None,
 ) -> CalibrationResult:
     """Random search + Nelder-Mead refinement, then score on validation window.
@@ -143,6 +147,9 @@ def calibrate(
         val_end: Last year of validation window.
         n_trials: Number of random-search evaluations.
         seed: RNG seed for reproducibility.
+        predict_cap: Cap win-probability predictions to top-N drivers by
+            rating. Substantially reduces per-trial cost with minimal
+            impact on relative log-likelihood rankings.
 
     Returns:
         CalibrationResult with best_config, calibration LL, validation LL,
@@ -156,6 +163,7 @@ def calibrate(
         cal_end,
         n_trials=n_trials,
         seed=seed,
+        predict_cap=predict_cap,
         on_trial=on_trial,
     )
     best = rand_results[0]
@@ -174,6 +182,7 @@ def calibrate(
             warmup_start=warmup_start,
             cal_start=cal_start,
             cal_end=cal_end,
+            predict_cap=predict_cap,
         )
 
     x0 = [best["k_max"], best["phi_race"], best["phi_season"]]
