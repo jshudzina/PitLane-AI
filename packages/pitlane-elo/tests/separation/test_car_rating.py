@@ -194,8 +194,7 @@ class TestGroupQualifyingBySession:
 
 
 class TestComputeRcRange:
-    def test_with_multi_race_db(self, multi_race_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("PITLANE_DB_PATH", str(multi_race_db))
+    def test_with_multi_race_db(self, multi_race_db: Path) -> None:
         result = compute_rc_range(2023, 2024, db_path=multi_race_db)
 
         # 6 sessions * 3 teams = 18 CarRating entries

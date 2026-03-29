@@ -24,6 +24,7 @@ class CarRating(TypedDict):
 
     year: int
     round: int
+    session_type: str
     team: str
     rc: float  # Xun's Rc value (0.0 = fastest car)
     t_team_avg: float  # team's average best qualifying time (seconds)
@@ -46,6 +47,7 @@ def compute_session_rc(entries: list[QualifyingEntry]) -> list[CarRating]:
 
     year = entries[0]["year"]
     rnd = entries[0]["round"]
+    session_type = entries[0]["session_type"]
 
     # Collect valid times per team
     team_times: dict[str, list[float]] = {}
@@ -71,6 +73,7 @@ def compute_session_rc(entries: list[QualifyingEntry]) -> list[CarRating]:
             CarRating(
                 year=year,
                 round=rnd,
+                session_type=session_type,
                 team=team,
                 rc=rc,
                 t_team_avg=t_team_avg,
