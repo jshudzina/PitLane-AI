@@ -170,7 +170,9 @@ def calibrate(
 
     def neg_ll(x: list[float]) -> float:
         k_max, phi_race, phi_season = x
-        # Penalty for out-of-bounds (Nelder-Mead doesn't respect constraints)
+        # Penalty for out-of-bounds (Nelder-Mead doesn't respect constraints).
+        # Wider than BOUNDS intentionally: allows simplex to step beyond random-search region
+        # from a warm-start near a boundary without being hard-clipped.
         if not (0.01 <= k_max <= 2.0 and 0.5 <= phi_race < 1.0 and 0.5 <= phi_season < 1.0):
             return 1e9
         return -_score(
@@ -186,6 +188,7 @@ def calibrate(
         )
 
     x0 = [best["k_max"], best["phi_race"], best["phi_season"]]
+    # fatol=0.1: loose LL tolerance is fine here — we're refining a warm-start, not searching from scratch
     res = minimize(neg_ll, x0, method="Nelder-Mead", options={"maxiter": 300, "xatol": 1e-4, "fatol": 0.1})
     k_max, phi_race, phi_season = res.x
 
