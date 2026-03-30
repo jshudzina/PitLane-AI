@@ -256,7 +256,7 @@ def calibrate(
     if holdout_start is not None and holdout_end is not None:
         click.echo(f"\nRunning holdout {holdout_start}–{holdout_end}...")
         model = model_class(result.best_config)
-        preds = run_historical(model, warmup_start, holdout_end)
+        preds = run_historical(model, warmup_start, holdout_end, predict_cap=predict_cap)
         holdout_metrics = evaluate_model(preds, holdout_start, holdout_end)
         click.echo(f"{'Holdout':<20} {holdout_metrics['log_likelihood']:>15.2f} {holdout_metrics['n_races']:>8}")
 
