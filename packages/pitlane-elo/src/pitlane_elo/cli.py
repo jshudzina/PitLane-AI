@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import logging
+from pathlib import Path
 
 import click
 
@@ -145,6 +148,12 @@ def evaluate(
 @click.option("--seed", type=int, default=None, help="RNG seed for reproducibility.")
 @click.option("--predict-cap", type=int, default=15, help="Cap predictions to top-N drivers by rating (0=no cap).")
 @click.option("--top-n", type=int, default=10, help="Show top-N random search results.")
+@click.option(
+    "--output",
+    type=click.Path(dir_okay=False, writable=True),
+    default=None,
+    help="Write calibrated config to this JSON file.",
+)
 def calibrate(
     warmup_start: int,
     cal_start: int,
@@ -158,6 +167,7 @@ def calibrate(
     seed: int | None,
     predict_cap: int,
     top_n: int,
+    output: str | None,
 ) -> None:
     """Calibrate k_max, phi_race, phi_season via random search + Nelder-Mead.
 
@@ -224,9 +234,9 @@ def calibrate(
     # Best config after refinement
     cfg = result.best_config
     click.echo("\nBest config (after Nelder-Mead refinement):")
-    click.echo(f"  k_max      = {cfg.k_max:.6f}")
-    click.echo(f"  phi_race   = {cfg.phi_race:.6f}")
-    click.echo(f"  phi_season = {cfg.phi_season:.6f}")
+    click.echo(f"  k_max      = {cfg.k_max:.4f}")
+    click.echo(f"  phi_race   = {cfg.phi_race:.4f}")
+    click.echo(f"  phi_season = {cfg.phi_season:.4f}")
 
     # Calibration / validation summary
     click.echo(f"\n{'Window':<20} {'Log-likelihood':>15} {'Races':>8}")
@@ -236,13 +246,17 @@ def calibrate(
 
     # Optional holdout
     if holdout_start is not None and holdout_end is not None:
-        from pitlane_elo.prediction.forecast import evaluate_model, run_historical
-
         click.echo(f"\nRunning holdout {holdout_start}–{holdout_end}...")
         model = model_class(result.best_config)
         preds = run_historical(model, warmup_start, holdout_end)
         holdout_metrics = evaluate_model(preds, holdout_start, holdout_end)
         click.echo(f"{'Holdout':<20} {holdout_metrics['log_likelihood']:>15.2f} {holdout_metrics['n_races']:>8}")
+
+    if output is not None:
+        payload = dataclasses.asdict(result.best_config)
+        payload = {k: round(v, 4) if isinstance(v, float) else v for k, v in payload.items()}
+        Path(output).write_text(json.dumps(payload, indent=2))
+        click.echo(f"\nConfig written to {output}")
 
 
 @main.command()

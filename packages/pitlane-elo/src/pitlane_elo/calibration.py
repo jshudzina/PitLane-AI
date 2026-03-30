@@ -191,6 +191,11 @@ def calibrate(
     # fatol=0.1: loose LL tolerance is fine here — we're refining a warm-start, not searching from scratch
     res = minimize(neg_ll, x0, method="Nelder-Mead", options={"maxiter": 300, "xatol": 1e-4, "fatol": 0.1})
     k_max, phi_race, phi_season = res.x
+    # Clip back to BOUNDS: Nelder-Mead uses a wider penalty region to avoid
+    # hard-clipping the simplex, but the stored result must satisfy the bounds.
+    k_max = float(np.clip(k_max, *BOUNDS["k_max"]))
+    phi_race = float(np.clip(phi_race, *BOUNDS["phi_race"]))
+    phi_season = float(np.clip(phi_season, *BOUNDS["phi_season"]))
 
     best_config = dataclasses.replace(
         base_config,
