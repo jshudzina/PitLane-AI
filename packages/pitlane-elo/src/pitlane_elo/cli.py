@@ -182,10 +182,7 @@ def calibrate(
     model_class = EndureElo if model_name == "endure-elo" else SpeedElo
     base_config = ENDURE_ELO_DEFAULT if model_name == "endure-elo" else SPEED_ELO_DEFAULT
 
-    click.echo(
-        f"Calibrating {model_name}: warmup {warmup_start}, "
-        f"cal {cal_start}–{cal_end}, val {val_start}–{val_end}"
-    )
+    click.echo(f"Calibrating {model_name}: warmup {warmup_start}, cal {cal_start}–{cal_end}, val {val_start}–{val_end}")
     seed_suffix = f" (seed={seed})" if seed is not None else ""
     click.echo(f"Random search: {n_trials} trials{seed_suffix}")
 
@@ -245,9 +242,7 @@ def calibrate(
         model = model_class(result.best_config)
         preds = run_historical(model, warmup_start, holdout_end)
         holdout_metrics = evaluate_model(preds, holdout_start, holdout_end)
-        click.echo(
-            f"{'Holdout':<20} {holdout_metrics['log_likelihood']:>15.2f} {holdout_metrics['n_races']:>8}"
-        )
+        click.echo(f"{'Holdout':<20} {holdout_metrics['log_likelihood']:>15.2f} {holdout_metrics['n_races']:>8}")
 
 
 @main.command()
