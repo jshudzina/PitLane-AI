@@ -227,7 +227,7 @@ def calibrate(
 
     # Single run covers both calibration and validation windows
     model = model_class(best_config)
-    preds = run_historical(model, warmup_start, val_end)
+    preds = run_historical(model, warmup_start, val_end, predict_cap=predict_cap)
     cal_metrics = evaluate_model(preds, cal_start, cal_end)
     val_metrics = evaluate_model(preds, val_start, val_end)
 
