@@ -91,8 +91,10 @@ def random_search(
     phi values are sampled uniformly over their bounded ranges.
 
     Args:
-        on_trial: Optional callback called after each trial with
+        on_trial: Optional callback called after each random-search trial with
             (trial_number, n_trials, log_likelihood).
+        on_nm_iter: Optional callback called after each Nelder-Mead iteration
+            with (iteration, log_likelihood).
 
     Returns:
         List of dicts with keys k_max, phi_race, phi_season, log_likelihood,
@@ -134,6 +136,7 @@ def calibrate(
     seed: int | None = None,
     predict_cap: int | None = None,
     on_trial: Callable[[int, int, float], None] | None = None,
+    on_nm_iter: Callable[[int, float], None] | None = None,
 ) -> CalibrationResult:
     """Random search + Nelder-Mead refinement, then score on validation window.
 
@@ -168,6 +171,8 @@ def calibrate(
     )
     best = rand_results[0]
 
+    last_neg_ll: list[float] = [0.0]  # mutable cell so the callback can read the last evaluated LL
+
     def neg_ll(x: list[float]) -> float:
         k_max, phi_race, phi_season = x
         # Penalty for out-of-bounds (Nelder-Mead doesn't respect constraints).
@@ -175,7 +180,7 @@ def calibrate(
         # from a warm-start near a boundary without being hard-clipped.
         if not (0.01 <= k_max <= 2.0 and 0.5 <= phi_race < 1.0 and 0.5 <= phi_season < 1.0):
             return 1e9
-        return -_score(
+        result = -_score(
             k_max,
             phi_race,
             phi_season,
@@ -186,10 +191,25 @@ def calibrate(
             cal_end=cal_end,
             predict_cap=predict_cap,
         )
+        last_neg_ll[0] = result
+        return result
+
+    nm_iter: list[int] = [0]
+
+    def _nm_callback(_: object) -> None:
+        if on_nm_iter is not None:
+            nm_iter[0] += 1
+            on_nm_iter(nm_iter[0], -last_neg_ll[0])
 
     x0 = [best["k_max"], best["phi_race"], best["phi_season"]]
     # fatol=0.1: loose LL tolerance is fine here — we're refining a warm-start, not searching from scratch
-    res = minimize(neg_ll, x0, method="Nelder-Mead", options={"maxiter": 300, "xatol": 1e-4, "fatol": 0.1})
+    res = minimize(
+        neg_ll,
+        x0,
+        method="Nelder-Mead",
+        callback=_nm_callback,
+        options={"maxiter": 300, "xatol": 1e-4, "fatol": 0.1},
+    )
     k_max, phi_race, phi_season = res.x
     # Clip back to BOUNDS: Nelder-Mead uses a wider penalty region to avoid
     # hard-clipping the simplex, but the stored result must satisfy the bounds.

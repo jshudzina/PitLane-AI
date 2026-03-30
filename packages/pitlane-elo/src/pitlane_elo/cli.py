@@ -206,6 +206,13 @@ def calibrate(
             nl=True,
         )
 
+    nm_best_so_far: list[float] = []
+
+    def _on_nm_iter(iteration: int, ll: float) -> None:
+        if not nm_best_so_far or ll > nm_best_so_far[0]:
+            nm_best_so_far[:] = [ll]
+        click.echo(f"  [NM {iteration:>3}] ll={ll:>10.2f}  best={nm_best_so_far[0]:>10.2f}", nl=True)
+
     cap = predict_cap or None
     result = run_calibrate(
         model_class,
@@ -219,8 +226,9 @@ def calibrate(
         seed=seed,
         predict_cap=cap,
         on_trial=_on_trial,
+        on_nm_iter=_on_nm_iter,
     )
-    click.echo("Random search done. Running Nelder-Mead refinement...")
+    click.echo("Nelder-Mead done.")
 
     # Top-N random search results
     click.echo(f"\nTop {min(top_n, len(result.random_results))} random search results:")
