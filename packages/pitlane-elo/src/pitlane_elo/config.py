@@ -37,6 +37,9 @@ class EloConfig:
     # Car rating (Xun's Rc)
     car_rating_weight: float = 0.0  # 0 = pure driver Elo, >0 = Rc adjustment
 
+    # Constructor-adjustment weight (van Kesteren & Bergkamp: empirical value ~7.3)
+    alpha: float = 0.0  # 0 = no adjustment; set via estimate-alpha command
+
 
 # ---------------------------------------------------------------------------
 # Pre-built configurations for comparison experiments
