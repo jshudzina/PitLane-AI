@@ -93,6 +93,69 @@ class TestConstructorElo:
         probs = model.predict_win_probabilities(["TeamA", "TeamB"])
         assert probs[0] > probs[1]
 
+    def test_f1_points_ordering_1st_4th_beats_2nd_3rd(self) -> None:
+        """1st+4th (37 pts) should beat 2nd+3rd (33 pts) — average rank ties them."""
+        model = ConstructorElo()
+        entries = [
+            _make("A1", "TeamA", 1),
+            _make("B1", "TeamB", 2),
+            _make("B2", "TeamB", 3),
+            _make("A2", "TeamA", 4),
+        ]
+        for _ in range(20):
+            model.process_race(entries)
+        assert model.ratings["TeamA"] > model.ratings["TeamB"]
+
+    def test_f1_points_ordering_2nd_3rd_beats_1st_last(self) -> None:
+        """2nd+3rd (33 pts) should beat 1st+20th (25 pts) — best-driver ordering gets this wrong."""
+        model = ConstructorElo()
+        # 6-car field: TeamA gets P1+P6, TeamB gets P2+P3.
+        # F1 points: A=25+8=33, B=18+15=33. Tie — use a larger gap.
+        # TeamA gets P1+P6 (25+8=33), TeamB gets P2+P3 (18+15=33). Still a tie.
+        # Use P1+last vs P2+P3 with enough cars to push A's second driver to 0 pts.
+        # 12-car field: TeamA P1+P12=25+0=25, TeamB P2+P3=18+15=33.
+        entries = [
+            _make("A1", "TeamA", 1),
+            _make("B1", "TeamB", 2),
+            _make("B2", "TeamB", 3),
+            _make("C1", "TeamC", 4),
+            _make("C2", "TeamC", 5),
+            _make("D1", "TeamD", 6),
+            _make("D2", "TeamD", 7),
+            _make("E1", "TeamE", 8),
+            _make("E2", "TeamE", 9),
+            _make("F1", "TeamF", 10),
+            _make("F2", "TeamF", 11),
+            _make("A2", "TeamA", 12),
+        ]
+        for _ in range(20):
+            model.process_race(entries)
+        # TeamB (2nd+3rd, 33 pts) should outrank TeamA (1st+12th, 25 pts)
+        assert model.ratings["TeamB"] > model.ratings["TeamA"]
+
+    def test_zero_points_zone_ordered_by_best_rank(self) -> None:
+        """P11+P13 should beat P12+P14 even though both score 0 championship points."""
+        model = ConstructorElo()
+        entries = [
+            _make("X1", "Filler1", 1),
+            _make("X2", "Filler1", 2),
+            _make("X3", "Filler2", 3),
+            _make("X4", "Filler2", 4),
+            _make("X5", "Filler3", 5),
+            _make("X6", "Filler3", 6),
+            _make("X7", "Filler4", 7),
+            _make("X8", "Filler4", 8),
+            _make("X9", "Filler5", 9),
+            _make("X10", "Filler5", 10),
+            _make("A1", "TeamA", 11),   # 0 pts, best rank 11
+            _make("A2", "TeamA", 13),
+            _make("B1", "TeamB", 12),   # 0 pts, best rank 12
+            _make("B2", "TeamB", 14),
+        ]
+        for _ in range(20):
+            model.process_race(entries)
+        assert model.ratings["TeamA"] > model.ratings["TeamB"]
+
     def test_solo_finisher_uses_that_position(self) -> None:
         """If one driver DNFs (no finish_position), the team still participates."""
         model = ConstructorElo()

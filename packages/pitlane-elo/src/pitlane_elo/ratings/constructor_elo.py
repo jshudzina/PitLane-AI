@@ -1,9 +1,10 @@
 """Constructor endure-Elo: Powell's sequential knock-out model applied to constructors.
 
-Each constructor's per-race "performance position" is derived from the average
-implied finishing rank of its drivers. DNFs without finish_position are ranked
-by laps_completed (consistent with order_race_entries). If only one driver has
-a valid entry, that driver's implied rank is used directly.
+Each constructor's per-race performance is measured by the sum of F1 championship
+points earned by its drivers (using the current 25-18-15-12-10-8-6-4-2-1 scale).
+Constructors are ordered by descending points total — the same criterion used
+in the actual F1 constructor standings. DNFs and positions outside the top 10
+contribute 0 points, consistent with F1 rules.
 
 The sequential elimination algorithm is identical to EndureElo but operates
 over constructor entities rather than individual drivers.
@@ -18,6 +19,15 @@ from pitlane_elo.data import RaceEntry, order_race_entries
 from pitlane_elo.ratings.base import RatingModel
 from pitlane_elo.ratings.endure_elo import _inclusion_exclusion
 
+# F1 championship points by finishing position (current scale, applied universally).
+# Positions outside the top 10 and DNFs contribute 0 points.
+_F1_POINTS: dict[int, int] = {1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1}
+
+
+def _race_points(rank: int) -> int:
+    """Return F1 championship points for a given 1-based implied finishing rank."""
+    return _F1_POINTS.get(rank, 0)
+
 
 class ConstructorElo(RatingModel):
     """Endure-Elo applied to F1 constructors.
@@ -25,10 +35,10 @@ class ConstructorElo(RatingModel):
     Team names are used as keys in the ``ratings`` and ``k_factors`` dicts
     (matching the ``team`` field on :class:`~pitlane_elo.data.RaceEntry`).
 
-    Per-race constructor position is computed as the average 1-based rank of
-    the constructor's drivers in the full field ordering produced by
-    :func:`~pitlane_elo.data.order_race_entries`.  This handles DNFs
-    consistently without special-casing ``None`` finish positions.
+    Constructors are ordered each race by their total F1 championship points
+    (sum across both drivers), matching the criterion used in the actual F1
+    constructor standings. This correctly ranks 1st+4th (37 pts) above
+    2nd+3rd (33 pts), and 2nd+3rd above 1st+20th (25 pts).
     """
 
     def __init__(self, config: EloConfig | None = None) -> None:
@@ -47,19 +57,30 @@ class ConstructorElo(RatingModel):
         if len(ordered) < 2:
             return
 
-        # Assign each driver a 1-based rank by their index in the ordered list
-        driver_rank: dict[str, float] = {e["driver_id"]: float(i + 1) for i, e in enumerate(ordered)}
+        # Assign each driver a 1-based rank and F1 championship points.
+        driver_rank: dict[str, int] = {e["driver_id"]: i + 1 for i, e in enumerate(ordered)}
+        driver_points: dict[str, int] = {d: _race_points(r) for d, r in driver_rank.items()}
 
-        # Group by team and compute average rank
-        team_ranks: dict[str, list[float]] = {}
+        # Group by team: accumulate total points and track best (lowest) rank.
+        team_points: dict[str, int] = {}
+        team_best_rank: dict[str, int] = {}
         for e in ordered:
-            team_ranks.setdefault(e["team"], []).append(driver_rank[e["driver_id"]])
+            did = e["driver_id"]
+            team = e["team"]
+            team_points[team] = team_points.get(team, 0) + driver_points[did]
+            team_best_rank[team] = min(team_best_rank.get(team, 999), driver_rank[did])
 
-        if len(team_ranks) < 2:
+        if len(team_points) < 2:
             return
 
-        # Sort constructors by average rank ascending (lower = better)
-        constructor_order: list[str] = sorted(team_ranks, key=lambda t: sum(team_ranks[t]) / len(team_ranks[t]))
+        # Sort constructors best-first.
+        # Primary key: descending F1 points (correctly orders top-10 finishers).
+        # Tiebreaker: ascending best finishing rank (resolves ties in the 0-point
+        # zone, P11 and below, where all teams would otherwise score 0).
+        constructor_order: list[str] = sorted(
+            team_points,
+            key=lambda t: (-team_points[t], team_best_rank[t]),
+        )
 
         # Ensure all constructors are initialized
         for team in constructor_order:
@@ -94,22 +115,24 @@ class ConstructorElo(RatingModel):
 
             remaining.pop()
 
-    def predict_win_probabilities(self, constructor_ids: list[str]) -> np.ndarray:
+    def predict_win_probabilities(self, driver_ids: list[str]) -> np.ndarray:
         """Compute win probability for each constructor using inclusion-exclusion.
 
         Args:
-            constructor_ids: List of constructor (team) names.
+            driver_ids: List of constructor (team) names. The parameter name
+                matches the base class interface; for ConstructorElo the values
+                are team name strings rather than driver ID slugs.
 
         Returns:
-            Array of probabilities summing to 1.0, same order as constructor_ids.
+            Array of probabilities summing to 1.0, same order as driver_ids.
         """
-        n = len(constructor_ids)
+        n = len(driver_ids)
         if n == 0:
             return np.array([])
         if n == 1:
             return np.array([1.0])
 
-        lambdas = np.array([np.exp(-self.get_rating(t)) for t in constructor_ids])
+        lambdas = np.array([np.exp(-self.get_rating(t)) for t in driver_ids])
         probs = _inclusion_exclusion(lambdas)
         probs = np.clip(probs, 0.0, 1.0)
         total = probs.sum()
