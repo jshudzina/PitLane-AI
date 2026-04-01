@@ -60,3 +60,9 @@ addopts = [
 markers = [
     "slow: marks tests as slow running",
 ]
+
+[dependency-groups]
+dev = [
+    "py-spy>=0.4.1",
+    "pyinstrument>=5.1.2",
+]
