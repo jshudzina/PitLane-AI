@@ -56,7 +56,7 @@ class RatingModel(ABC):
         """Remove mechanical DNFs when configured to do so."""
         if self.config.exclude_mechanical_dnf:
             return [e for e in entries if e["dnf_category"] != "mechanical"]
-        return list(entries)
+        return entries
 
     def apply_season_decay(self, year: int) -> None:
         """Apply between-season rating decay.
