@@ -93,8 +93,6 @@ def random_search(
     Args:
         on_trial: Optional callback called after each random-search trial with
             (trial_number, n_trials, log_likelihood).
-        on_nm_iter: Optional callback called after each Nelder-Mead iteration
-            with (iteration, log_likelihood).
 
     Returns:
         List of dicts with keys k_max, phi_race, phi_season, log_likelihood,
