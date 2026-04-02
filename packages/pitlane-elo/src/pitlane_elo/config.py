@@ -37,8 +37,8 @@ class EloConfig:
     # Car rating (Xun's Rc)
     car_rating_weight: float = 0.0  # 0 = pure driver Elo, >0 = Rc adjustment
 
-    # Constructor-adjustment weight (van Kesteren & Bergkamp: empirical value ~7.3)
-    alpha: float = 0.0  # 0 = no adjustment; set via estimate-alpha command
+    # Constructor-adjustment weight; estimated via estimate-alpha command.
+    alpha: float = 0.0  # 0 = no adjustment
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +56,8 @@ ENDURE_ELO_DEFAULT = EloConfig(
     # distinguish mechanical failures from crashes. Re-enable once the
     # DNF classification pipeline is fixed.
     exclude_mechanical_dnf=False,
+    # OLS estimate over hybrid era (2014–2024); see estimate-alpha command.
+    alpha=0.77,
 )
 
 SPEED_ELO_DEFAULT = EloConfig(

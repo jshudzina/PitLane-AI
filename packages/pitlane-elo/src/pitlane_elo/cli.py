@@ -289,7 +289,7 @@ def estimate_alpha_cmd(start_year: int, end_year: int, output: str | None) -> No
 
         alpha = Cov(driver_ratings, constructor_ratings) / Var(constructor_ratings)
 
-    Expected result: alpha ~= 7.3  (van Kesteren & Bergkamp 2023).
+    Expected result: alpha ~= 0.77 over the hybrid era (2014–2024).
     """
     click.echo(f"Estimating alpha over {start_year}–{end_year} (OLS)...")
     alpha = estimate_alpha(start_year, end_year)
