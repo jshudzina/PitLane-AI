@@ -16,6 +16,7 @@ literature value (van Kesteren & Bergkamp 2023) is ~7.3.  Joint optimisation
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import TypedDict
 
@@ -42,6 +43,7 @@ def estimate_alpha(
     db_path: Path | None = None,
     alpha_bounds: tuple[float, float] = (0.0, 15.0),
     n_steps: int = 30,
+    on_step: Callable[[int, int, float, float, float], None] | None = None,
 ) -> float:
     """Estimate the constructor-adjustment weight alpha via grid search.
 
@@ -65,6 +67,8 @@ def estimate_alpha(
         db_path: Override the database path.
         alpha_bounds: ``(lo, hi)`` range for the grid search.
         n_steps: Number of evenly-spaced candidate alpha values.
+        on_step: Optional callback invoked after each grid-search step with
+            ``(step, total, alpha, log_likelihood, best_ll_so_far)``.
 
     Returns:
         Estimated alpha value in ``[alpha_bounds[0], alpha_bounds[1]]``.
@@ -125,8 +129,9 @@ def estimate_alpha(
     candidates = np.linspace(alpha_bounds[0], alpha_bounds[1], max(n_steps, 1))
     best_alpha = candidates[0]
     best_ll = float("-inf")
+    total_steps = len(candidates)
 
-    for alpha in candidates:
+    for step, alpha in enumerate(candidates, 1):
         total_ll = 0.0
         for race_obs in race_observations:
             if not race_obs:
@@ -148,6 +153,9 @@ def estimate_alpha(
         if total_ll > best_ll:
             best_ll = total_ll
             best_alpha = float(alpha)
+
+        if on_step is not None:
+            on_step(step, total_steps, float(alpha), total_ll, best_ll)
 
     return best_alpha
 

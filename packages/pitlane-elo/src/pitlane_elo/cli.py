@@ -292,7 +292,18 @@ def estimate_alpha_cmd(start_year: int, end_year: int, n_steps: int, output: str
     Expected result: alpha ~= 7.3  (van Kesteren & Bergkamp 2023).
     """
     click.echo(f"Estimating alpha over {start_year}–{end_year} ({n_steps} steps)...")
-    alpha = estimate_alpha(start_year, end_year, n_steps=n_steps)
+
+    best_ll_so_far: list[float] = []
+
+    def _on_step(step: int, total: int, alpha_val: float, ll: float, best_ll: float) -> None:
+        if not best_ll_so_far or best_ll > best_ll_so_far[0]:
+            best_ll_so_far[:] = [best_ll]
+        width = len(str(total))
+        click.echo(
+            f"  [{step:>{width}}/{total}] alpha={alpha_val:>6.3f}  ll={ll:>10.2f}  best={best_ll_so_far[0]:>10.2f}",
+        )
+
+    alpha = estimate_alpha(start_year, end_year, n_steps=n_steps, on_step=_on_step)
     click.echo(f"Estimated alpha: {alpha:.4f}")
     if output is not None:
         Path(output).write_text(json.dumps({"alpha": round(alpha, 4)}, indent=2))
