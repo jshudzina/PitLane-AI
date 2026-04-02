@@ -271,39 +271,28 @@ def calibrate(
 @main.command("estimate-alpha")
 @click.option("--start-year", type=int, default=1970, help="First season to process (warm-up and estimation).")
 @click.option("--end-year", type=int, default=2024, help="Last season (inclusive).")
-@click.option("--n-steps", type=int, default=30, help="Grid search resolution over alpha_bounds.")
 @click.option(
     "--output",
     type=click.Path(dir_okay=False, writable=True),
     default=None,
     help="Write result to JSON: {alpha: <float>}.",
 )
-def estimate_alpha_cmd(start_year: int, end_year: int, n_steps: int, output: str | None) -> None:
-    """Estimate the constructor-adjustment weight alpha via grid search.
+def estimate_alpha_cmd(start_year: int, end_year: int, output: str | None) -> None:
+    """Estimate the constructor-adjustment weight alpha via OLS variance decomposition.
 
     \b
     Runs EndureElo (driver) and ConstructorElo (constructor) in parallel over
-    [start-year, end-year].  After each race both models are updated and
-    per-driver (R_driver, R_constructor) pairs are recorded.
+    [start-year, end-year].  Before each race, records the current pre-race
+    (R_driver, R_constructor) pair for each entry.
 
-    Alpha is fit by grid search [0, 15], maximising sum of log P(winner) when
-    adjusted_i = R_driver_i - alpha * R_constructor_i.
+    Alpha is estimated as:
+
+        alpha = Cov(driver_ratings, constructor_ratings) / Var(constructor_ratings)
 
     Expected result: alpha ~= 7.3  (van Kesteren & Bergkamp 2023).
     """
-    click.echo(f"Estimating alpha over {start_year}–{end_year} ({n_steps} steps)...")
-
-    best_ll_so_far: list[float] = []
-
-    def _on_step(step: int, total: int, alpha_val: float, ll: float, best_ll: float) -> None:
-        if not best_ll_so_far or best_ll > best_ll_so_far[0]:
-            best_ll_so_far[:] = [best_ll]
-        width = len(str(total))
-        click.echo(
-            f"  [{step:>{width}}/{total}] alpha={alpha_val:>6.3f}  ll={ll:>10.2f}  best={best_ll_so_far[0]:>10.2f}",
-        )
-
-    alpha = estimate_alpha(start_year, end_year, n_steps=n_steps, on_step=_on_step)
+    click.echo(f"Estimating alpha over {start_year}–{end_year} (OLS)...")
+    alpha = estimate_alpha(start_year, end_year)
     click.echo(f"Estimated alpha: {alpha:.4f}")
     if output is not None:
         Path(output).write_text(json.dumps({"alpha": round(alpha, 4)}, indent=2))
