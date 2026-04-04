@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from pitlane_elo.config import ENDURE_ELO_DEFAULT, EloConfig
+from pitlane_elo.config import CONSTRUCTOR_ELO_DEFAULT, EloConfig
 from pitlane_elo.data import RaceEntry, order_race_entries
 from pitlane_elo.ratings.base import RatingModel
 from pitlane_elo.ratings.endure_elo import _inclusion_exclusion
@@ -42,7 +42,7 @@ class ConstructorElo(RatingModel):
     """
 
     def __init__(self, config: EloConfig | None = None) -> None:
-        super().__init__(config or ENDURE_ELO_DEFAULT)
+        super().__init__(config or CONSTRUCTOR_ELO_DEFAULT)
 
     def process_race(self, entries: list[RaceEntry]) -> None:
         """Update constructor ratings from a single race.
@@ -141,6 +141,5 @@ class ConstructorElo(RatingModel):
         return probs
 
 
-CONSTRUCTOR_ELO_DEFAULT = ENDURE_ELO_DEFAULT
 
 __all__ = ["ConstructorElo", "CONSTRUCTOR_ELO_DEFAULT"]

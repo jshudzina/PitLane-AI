@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 
 
@@ -56,9 +57,10 @@ ENDURE_ELO_DEFAULT = EloConfig(
     # distinguish mechanical failures from crashes. Re-enable once the
     # DNF classification pipeline is fixed.
     exclude_mechanical_dnf=False,
-    # OLS estimate over hybrid era (2014–2024); see estimate-alpha command.
-    alpha=0.77,
 )
+
+# Powell (2023) Table 1: alpha = 0.88
+CONSTRUCTOR_ELO_DEFAULT = dataclasses.replace(ENDURE_ELO_DEFAULT, name="constructor-elo-default", alpha=0.88)
 
 SPEED_ELO_DEFAULT = EloConfig(
     name="speed-elo-default",
