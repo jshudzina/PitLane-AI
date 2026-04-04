@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 
 
@@ -37,6 +38,9 @@ class EloConfig:
     # Car rating (Xun's Rc)
     car_rating_weight: float = 0.0  # 0 = pure driver Elo, >0 = Rc adjustment
 
+    # Constructor-adjustment weight; estimated via estimate-alpha command.
+    alpha: float = 0.0  # 0 = no adjustment
+
 
 # ---------------------------------------------------------------------------
 # Pre-built configurations for comparison experiments
@@ -54,6 +58,9 @@ ENDURE_ELO_DEFAULT = EloConfig(
     # DNF classification pipeline is fixed.
     exclude_mechanical_dnf=False,
 )
+
+# Powell (2023) Table 1: alpha = 0.88
+CONSTRUCTOR_ELO_DEFAULT = dataclasses.replace(ENDURE_ELO_DEFAULT, name="constructor-elo-default", alpha=0.88)
 
 SPEED_ELO_DEFAULT = EloConfig(
     name="speed-elo-default",

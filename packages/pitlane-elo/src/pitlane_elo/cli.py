@@ -14,6 +14,7 @@ from pitlane_elo.config import ENDURE_ELO_DEFAULT, SPEED_ELO_DEFAULT
 from pitlane_elo.prediction.forecast import compare_models, evaluate_model, run_historical
 from pitlane_elo.ratings.endure_elo import EndureElo
 from pitlane_elo.ratings.speed_elo import SpeedElo
+from pitlane_elo.separation.alpha_estimation import estimate_alpha
 
 
 def _make_model(name: str) -> EndureElo | SpeedElo:
@@ -265,6 +266,37 @@ def calibrate(
         payload = {k: round(v, 4) if isinstance(v, float) else v for k, v in payload.items()}
         Path(output).write_text(json.dumps(payload, indent=2))
         click.echo(f"\nConfig written to {output}")
+
+
+@main.command("estimate-alpha")
+@click.option("--start-year", type=int, default=1970, help="First season to process (warm-up and estimation).")
+@click.option("--end-year", type=int, default=2024, help="Last season (inclusive).")
+@click.option(
+    "--output",
+    type=click.Path(dir_okay=False, writable=True),
+    default=None,
+    help="Write result to JSON: {alpha: <float>}.",
+)
+def estimate_alpha_cmd(start_year: int, end_year: int, output: str | None) -> None:
+    """Estimate the constructor-adjustment weight alpha via OLS variance decomposition.
+
+    \b
+    Runs EndureElo (driver) and ConstructorElo (constructor) in parallel over
+    [start-year, end-year].  Before each race, records the current pre-race
+    (R_driver, R_constructor) pair for each entry.
+
+    Alpha is estimated as:
+
+        alpha = Cov(driver_ratings, constructor_ratings) / Var(constructor_ratings)
+
+    Expected result: alpha ~= 0.77 over the hybrid era (2014–2024).
+    """
+    click.echo(f"Estimating alpha over {start_year}–{end_year} (OLS)...")
+    alpha = estimate_alpha(start_year, end_year)
+    click.echo(f"Estimated alpha: {alpha:.4f}")
+    if output is not None:
+        Path(output).write_text(json.dumps({"alpha": round(alpha, 4)}, indent=2))
+        click.echo(f"Written to {output}")
 
 
 @main.command()
