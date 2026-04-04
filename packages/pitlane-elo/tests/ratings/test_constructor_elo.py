@@ -144,9 +144,9 @@ class TestConstructorElo:
             _make("X8", "Filler4", 8),
             _make("X9", "Filler5", 9),
             _make("X10", "Filler5", 10),
-            _make("A1", "TeamA", 11),   # 0 pts, best rank 11
+            _make("A1", "TeamA", 11),  # 0 pts, best rank 11
             _make("A2", "TeamA", 13),
-            _make("B1", "TeamB", 12),   # 0 pts, best rank 12
+            _make("B1", "TeamB", 12),  # 0 pts, best rank 12
             _make("B2", "TeamB", 14),
         ]
         for _ in range(20):
