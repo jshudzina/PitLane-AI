@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import numpy as np
-import pytest
 from pitlane_elo.config import EloConfig
 from pitlane_elo.data import RaceEntry
 from pitlane_elo.ratings.constructor_elo import ConstructorElo
 
 from tests.conftest import make_race_entry
-
 
 # ---------------------------------------------------------------------------
 # Helper: make_race_entry with a real team name

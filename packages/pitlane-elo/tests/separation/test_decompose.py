@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from pitlane_elo.data import RaceEntry
-from pitlane_elo.separation.decompose import TeammateData, TeammateNormaliser
-
+from pitlane_elo.separation.decompose import TeammateNormaliser
 
 # ---------------------------------------------------------------------------
 # Helper
