@@ -295,7 +295,7 @@ New drivers start at the global φ (no evidence for individual profile) and grad
 The AR(1) will smooth over regulation-era discontinuities, misattributing a step-change in constructor competitiveness to a slow trend. The seasonal reset in Section 5.3 partially addresses this, but known regulatory event dates should trigger an **explicit break**:
 
 ```
-REGULATION_BREAK_YEARS = [2014, 2017, 2022]  # major technical resets
+REGULATION_BREAK_YEARS = [2014, 2017, 2022]  # 2014/2022: powertrain + aero resets → φ_reg 0.60–0.70; 2017: aero-only, no PU change → use softer φ_reg ≈ 0.85
 KNOWN_MIDSEASON_BREAKS = []  # e.g. specific rule clarifications that changed car behaviour
 
 if race_year in REGULATION_BREAK_YEARS and race_number == 1:
@@ -451,7 +451,7 @@ If the outlier coincides with a known situational factor, downgrade it. If it pe
 
 *Step 1 — Minimal viable model (single season, no seasonal form):*
 ```python
-import pymc as pm, numpy as np, arviz as az
+import pymc as pm, pytensor.tensor as pt, numpy as np, arviz as az
 
 # Inputs:
 # race_orders: list of n_races arrays, each giving driver indices in finishing order
@@ -467,17 +467,15 @@ with pm.Model() as f1_base:
 
     η = θ_d + θ_t[driver_team]   # latent strength, shape (n_drivers,)
 
-    # Plackett-Luce likelihood: sequential categorical draws
+    # Plackett-Luce log-likelihood via pm.Potential.
+    # For a race with finishing order [d_0, ..., d_{m-1}]:
+    #   log p(order) = sum_k [ η[d_k] − logsumexp(η[d_k:]) ]
+    # Using pm.Potential avoids creating observed RVs over a mutable Python list,
+    # which would produce incorrect symbolic graph construction in PyTensor.
     for r, order in enumerate(race_orders):
-        remaining = list(order)
-        for pos in range(len(order) - 1):
-            winner = remaining[0]
-            pm.Categorical(
-                f"r{r}_p{pos}",
-                logit_p=η[remaining],
-                observed=0   # winner is always index 0 in remaining
-            )
-            remaining.pop(0)
+        η_r = η[order]   # strengths in finishing order, shape (m,)
+        lse = pt.stack([pt.logsumexp(η_r[k:], axis=0) for k in range(len(order) - 1)])
+        pm.Potential(f"race_{r}", pt.sum(η_r[:-1] - lse))
 
     trace_base = pm.sample(1000, tune=1000, target_accept=0.9, return_inferencedata=True)
 ```
@@ -515,8 +513,8 @@ The 1.2× inflation on σ represents the additional uncertainty from off-season 
 Add a binary covariate for wet races and street circuits. Rather than separate rating tracks (which fragment an already-small sample), encode context as a fixed effect on the latent strength:
 
 ```python
-    β_wet    = pm.Normal("β_wet",    mu=0, sigma=0.5, shape=n_drivers)
-    β_street = pm.Normal("β_street", mu=0, sigma=0.5, shape=n_teams)
+    β_wet    = pm.Normal("β_wet",    mu=0, sigma=0.5, shape=n_drivers)  # driver-level: wet skill is individual
+    β_street = pm.Normal("β_street", mu=0, sigma=0.5, shape=n_teams)    # team-level: street performance is car-driven (low-speed aero, cooling)
     η = θ_d + θ_t[driver_team] + θ_ds + θ_ts[driver_team] \
         + is_wet[r] * β_wet + is_street[r] * β_street[driver_team]
 ```
