@@ -14,6 +14,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+from scipy import stats
 
 from pitlane_elo.data import get_race_entries_range, group_entries_by_race
 from pitlane_elo.ratings.constructor_elo import ConstructorElo
@@ -94,7 +95,7 @@ def estimate_alpha(
         # All constructor ratings identical — OLS undefined, return safe default
         return 0.0
 
-    return float(np.polyfit(x, y, 1)[0])
+    return float(stats.linregress(x, y).slope)
 
 
 __all__ = ["estimate_alpha"]
