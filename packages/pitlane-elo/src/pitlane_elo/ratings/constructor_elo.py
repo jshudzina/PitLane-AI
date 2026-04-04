@@ -141,5 +141,4 @@ class ConstructorElo(RatingModel):
         return probs
 
 
-
 __all__ = ["ConstructorElo", "CONSTRUCTOR_ELO_DEFAULT"]
