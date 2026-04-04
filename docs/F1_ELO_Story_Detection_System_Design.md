@@ -66,47 +66,42 @@ Where T_driver is the team's average fastest qualifying lap and T_fastest is the
 
 ## 2. System Architecture
 
-The system has five layers: **Rating Computation**, **Separation** (driver vs. constructor), **Temporal Modelling**, **Prediction Assessment**, and **Story Detection**.
+The system has two parallel tracks that feed a shared story detection layer. The **Bayesian track** (van Kesteren & Bergkamp) is the primary rating engine, running after each race weekend. The **endure-Elo track** (Powell) is the real-time supplement, running round-by-round during a race for live story signals. Both feed into prediction assessment and story detection.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                   RAW DATA INPUTS                               │
-│  Race results · Qualifying times · Weather · Track type · DNFs  │
-└────────────────────────┬────────────────────────────────────────┘
-                         │
-              ┌──────────▼──────────┐
-              │   LAYER 1: RATINGS  │
-              │  Driver endure-Elo  │
-              │  Constructor Elo    │
-              │  Qualifying Rc      │
-              └──────────┬──────────┘
-                         │
-              ┌──────────▼──────────┐
-              │  LAYER 2: SEPARATION│
-              │  Teammate normaliz. │
-              │  Driver ÷ Car split │
-              └──────────┬──────────┘
-                         │
-              ┌──────────▼──────────┐
-              │  LAYER 3: TEMPORAL  │
-              │  k-factor decay     │
-              │  AR(1) discounting  │
-              │  Seasonal resets    │
-              └──────────┬──────────┘
-                         │
-              ┌──────────▼──────────┐
-              │  LAYER 4: PREDICTION│
-              │  Log-likelihood     │
-              │  Brier score        │
-              │  RMSE · Calibration │
-              └──────────┬──────────┘
-                         │
-              ┌──────────▼──────────┐
-              │  LAYER 5: STORIES   │
-              │  Trend signals      │
-              │  Outlier signals    │
-              │  Narrative triggers │
-              └─────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            RAW DATA INPUTS                                  │
+│       Race results · Qualifying times · Weather · Track type · DNFs         │
+└──────────────────────┬──────────────────────────┬──────────────────────────┘
+                       │                          │
+         ┌─────────────▼──────────┐   ┌───────────▼────────────┐
+         │  PRIMARY: BAYESIAN     │   │  REAL-TIME: ENDURE-ELO │
+         │  van Kesteren & Bergk. │   │  Powell (2023)         │
+         │  Fit in PyMC after     │   │  Updates round-by-     │
+         │  each race weekend     │   │  round during race     │
+         │  ─────────────────     │   │  ──────────────────    │
+         │  θ_d  long-term driver │   │  R̂ᵢ  driver rating    │
+         │  θ_ds seasonal form    │   │  AR(1) + OU spacing    │
+         │  θ_t  constructor      │   │  Robust DNF handling   │
+         │  θ_ts seasonal car     │   │  Qualifying Rc         │
+         │  Credible intervals    │   │                        │
+         └─────────────┬──────────┘   └───────────┬────────────┘
+                       │                          │
+                       └────────────┬─────────────┘
+                                    │
+                         ┌──────────▼──────────┐
+                         │  LAYER 4: PREDICTION│
+                         │  Log-likelihood     │
+                         │  Brier score        │
+                         │  RMSE · Calibration │
+                         └──────────┬──────────┘
+                                    │
+                         ┌──────────▼──────────┐
+                         │  LAYER 5: STORIES   │
+                         │  Trend signals      │
+                         │  Outlier signals    │
+                         │  Narrative triggers │
+                         └─────────────────────┘
 ```
 
 ---
@@ -130,10 +125,11 @@ Implement Powell's endure-Elo. For a race with m finishers ranked by finishing p
    R̂ᵢ ← R̂ᵢ + kᵢ · [𝟙(i survives round) − P(i survives round)]
    ```
 
-4. **DNF handling:** Treat mechanical DNFs and crash retirements differently:
-   - For a driver who *crashed out* (driver fault more likely): include in ELO, ranked at their elimination position
-   - For a driver with a *mechanical failure*: exclude from that race's ELO computation entirely (following Xun's finding that excluding DNFs improves RMSE from 0.46 → 0.44)
-   - Record DNF frequency as a *separate* signal for story detection (high DNF rate = reliability story)
+4. **DNF handling:** The ideal treatment distinguishes crash retirements (informative — the driver participated to their limit) from mechanical failures (uninformative — the car ended the race, not the driver). However, this distinction is **not cheaply available in post-2023 data** from standard sources (FastF1, Ergast). The practical approach by data era:
+
+   - **Pre-2024 data:** Use the `statusId` field in the Ergast historical database, which carries sufficient granularity to separate crash, collision, and mechanical codes. Apply the Xun treatment: include crashes in ELO (ranked at elimination position), exclude mechanical DNFs.
+   - **2024–present:** Treat all DNFs uniformly using endure-Elo's inherent robustness. Because endure-Elo is forgiving of elimination early in a race (the failure-rate model treats early exits as relatively uninformative about true ability), the distortion from not separating crash vs. mechanical is substantially smaller than it would be under speed-Elo. As a practical safeguard, cap the downward ELO adjustment for any DNF at `0.5 × k_min` to prevent a single uninformative retirement from collapsing a well-established rating.
+   - **Regardless of era:** Record all DNF events as a *separate* signal for story detection. DNF clustering for a constructor (≥3 in a 5-race window) triggers the reliability story flag independently of the ELO computation.
 
 5. **Initialisation:** Start each driver at R̂ = 0 on their first race. Season-to-season carryover handled in Layer 3.
 
@@ -205,7 +201,7 @@ Early in a driver's career or after a long absence, kᵢ is high (ratings move f
 
 Practically, set a floor `k_min` (e.g. 0.05) so established ratings still respond to real form changes, and a ceiling `k_max` (e.g. 0.5) for new entrants.
 
-### 5.2 Between-race time discounting (AR(1))
+### 5.2 Between-race time discounting (AR(1) / Ornstein-Uhlenbeck)
 
 Between rounds separated by h time steps, apply Powell's discounting:
 ```
@@ -216,6 +212,19 @@ The parameter φ encodes how quickly ability is assumed to decay. A suggested va
 
 **k∞** (the asymptotic variance) should reflect the realistic spread of driver and constructor ability. A reasonable starting estimate from Powell's guidance: `k∞^(1/2) ≈ 0.75 × log(q/(1−q))` where q is the probability the stronger competitor beats the weaker one in a given matchup — try q = 0.7 as a prior for F1.
 
+**Irregular race spacing — practical fix:** Powell's h-step formula above is already a discrete approximation to the continuous-time Ornstein-Uhlenbeck (OU) process, which handles variable gaps correctly. The underlying relationship is φ = e^{−θ·Δt}, where θ is the mean-reversion rate and Δt is the actual elapsed time in days. Rather than counting races (h = 1 per race), express h as calendar days and fit θ accordingly. This matters most for the summer break (~8 weeks) and for sprint weekends where two ELO-relevant events occur within 3 days. Concretely:
+
+```
+# Convert calendar gap to OU-equivalent h
+θ = −log(φ_per_race) / 14    # per-day rate, assuming ~14 days average between races
+h_days = actual_calendar_days_since_last_race
+φ_effective = exp(−θ · h_days)
+
+R̂ᵢ,t ← φ_effective · R̂ᵢ,t₋ₕ
+```
+
+This costs nothing extra at runtime and eliminates the distortion from treating a summer break the same as a back-to-back race weekend.
+
 ### 5.3 Seasonal resets
 
 At the start of each new season:
@@ -224,6 +233,78 @@ At the start of each new season:
 - This prevents ratings carrying too much historical inertia into a totally new technical era (e.g. the 2022 regulation change)
 
 **Regulation change flag:** For major regulation changes (2014 hybrid era, 2022 ground-effect era), apply a larger reset (φ_reg = 0.70 or even full reset) and set k to k∞ for all competitors.
+
+### 5.4 AR(1) Robustness Improvements
+
+The standard AR(1) with Gaussian, homoscedastic, independent innovations has four known failure modes in F1 that are worth addressing explicitly. Each has a targeted, low-cost fix that can be layered on without restructuring the core algorithm.
+
+**A. Heavy-tailed innovations (crashes, mechanical failures)**
+
+The Gaussian assumption treats a rare disaster race (crash, pit-lane fire, sudden power unit failure) as strong evidence of ability decline, because a Normal distribution puts negligible probability mass in the far tails. Post-2023, where crashes and mechanicals are not cheaply separable, this is a live problem.
+
+Fix: Replace the implicit Normal innovation assumption with a **Student-t equivalent** by capping the magnitude of any single-race ELO update:
+
+```
+# After computing the raw update δᵢ = kᵢ · [𝟙(survives) − P(survives)]
+# across all m−1 rounds:
+δᵢ_total = Σ_rounds δᵢ_round
+δᵢ_robust = sign(δᵢ_total) · min(|δᵢ_total|, 2.5 · k_min)
+R̂ᵢ ← R̂ᵢ + δᵢ_robust
+```
+
+This is a soft-thresholding equivalent to using t-distributed innovations: large shocks are admitted but their leverage on the long-run ability estimate is bounded. The constant 2.5 × k_min is a tuning parameter; cross-validate against held-out seasons.
+
+**B. Correlated innovations across teammates**
+
+Teammates share a car. A power unit upgrade, floor revision, or strategic experiment affects both drivers simultaneously, creating a correlated shock that the single-driver AR(1) attributes (incorrectly) to individual ability change. The fix is to decompose the update into a shared team component and an individual component:
+
+```
+# After a race, compute each driver's raw update δᵢ
+# For a two-driver team {i, j}:
+δ_shared = (δᵢ + δⱼ) / 2      # goes to constructor ELO
+δᵢ_driver = δᵢ − δ_shared      # goes to driver ELO
+δⱼ_driver = δⱼ − δ_shared
+
+# Update separately:
+R̂ᵢ_driver ← R̂ᵢ_driver + kᵢ_driver · δᵢ_driver
+R̂ᵢ_constructor ← R̂ᵢ_constructor + k_constructor · δ_shared
+```
+
+This is the online analogue of the driver + constructor decomposition already called for in Layer 2 (Section 4.2), but applied at the *update* level rather than just at the *scoring* level. It means driver ratings no longer jump in unison when the car gets a major upgrade.
+
+**C. Competitor-specific decay rate φᵢ**
+
+Using a single global φ forces every driver to have the same consistency profile. In practice, some drivers are structurally more volatile (rookies, drivers mid-career in new teams) and others highly stable. A pragmatic fix without full hierarchical estimation:
+
+```
+# Use the rolling variance of recent ELO updates as a consistency proxy
+# For driver i over the last L races:
+σ²ᵢ_recent = Var(δᵢ_race-1, ..., δᵢ_race-L)
+
+# Adjust φᵢ toward the global φ weighted by evidence:
+φᵢ = φ_global + β · (φᵢ_empirical − φ_global)
+
+# where φᵢ_empirical is derived from the observed autocorrelation of δᵢ
+# and β ∈ [0, 1] is a shrinkage weight (set β = races_i / (races_i + 10))
+```
+
+New drivers start at the global φ (no evidence for individual profile) and gradually acquire their own φᵢ as data accumulates. The shrinkage toward φ_global prevents overfitting on short samples.
+
+**D. Structural breaks at regulation changes**
+
+The AR(1) will smooth over regulation-era discontinuities, misattributing a step-change in constructor competitiveness to a slow trend. The seasonal reset in Section 5.3 partially addresses this, but known regulatory event dates should trigger an **explicit break**:
+
+```
+REGULATION_BREAK_YEARS = [2014, 2017, 2022]  # major technical resets
+KNOWN_MIDSEASON_BREAKS = []  # e.g. specific rule clarifications that changed car behaviour
+
+if race_year in REGULATION_BREAK_YEARS and race_number == 1:
+    for all competitors:
+        R̂ᵢ ← φ_reg · R̂ᵢ    # φ_reg = 0.60–0.75, calibrated per era
+        kᵢ ← k∞              # full uncertainty reset
+```
+
+For 2026 specifically: the new power unit regulations (first race of the year is race 1 of the 2026 era) warrant a strong prior reset. With only 3 races of data at this writing, all ratings should carry high uncertainty regardless — the k∞ reset is self-enforcing here.
 
 ---
 
@@ -267,13 +348,15 @@ Plot the model's predicted win probabilities against empirical win frequencies, 
 
 Maintain a running comparison across the following model variants:
 
-| Model | Description | Expected Strength |
-|---|---|---|
-| Endure-Elo (fixed k) | Powell base version | Best single baseline |
-| Endure-Elo (variable k) | Powell extended | Best for long-horizon tracking |
-| Speed-Elo (round-robin) | Xun / standard approach | Weaker, good benchmark |
-| Car + Driver combined | Xun qualifying Rc + driver ELO | Strong for qualifying-heavy tracks |
-| Bayesian ROL | van Kesteren approach | Gold standard but slower to update |
+| Model | Role | Update cadence | Expected strength |
+|---|---|---|---|
+| **van Kesteren (PyMC)** | **Primary engine** | After each race weekend | Best calibrated ratings; proper uncertainty; native driver/car split |
+| Endure-Elo (variable k, robust) | Real-time supplement | Round-by-round during race | Best live signal; handles DNFs well; fast |
+| Endure-Elo (fixed k) | Sanity check baseline | After each race | Simple benchmark; should be outperformed by both above |
+| Speed-Elo (round-robin) | Lower bound benchmark | After each race | Weakest; included to quantify the endure vs speed gap |
+| Xun qualifying Rc | Car-pace standalone | After each qualifying | Independent of race outcomes; divergence from θ_t is a story signal |
+
+The primary diagnostic is: **does van Kesteren's θ_d posterior mean for driver i correlate with endure-Elo's R̂ᵢ after the same race?** Strong agreement validates both; systematic divergence reveals where the models differ in their treatment of information (uncertainty quantification, DNF handling, car/driver attribution).
 
 ---
 
@@ -350,44 +433,135 @@ If the outlier coincides with a known situational factor, downgrade it. If it pe
 
 ## 8. Implementation Roadmap
 
-### Phase 1: Historical baseline (recommended)
-- Implement endure-Elo on Ergast API data (1970–present; https://ergast.com/mrd)
-- Compute qualifying-based Rc for all GPs since 2006 (when qualifying data is reliable)
-- Calibrate k, k∞, φ, φ_season on pre-2015 data; validate on 2015–2021; hold out 2022–present
-- Measure log-likelihood, Brier score, RMSE against speed-Elo baseline
-- Expected: replicate Powell's finding that endure-Elo wins ~76% of race-level comparisons
+### Phase 1: Historical baseline ✅ Complete
+- Endure-Elo implemented on Ergast API data (1970–present)
+- Qualifying-based Rc computed for all GPs since 2006
+- k, k∞, φ, φ_season calibrated on pre-2015 data; validated on 2015–2021; holdout 2022–present
+- Endure-Elo confirmed to outperform speed-Elo on log-likelihood, consistent with Powell's ~76% finding
 
-### Phase 2: Driver/constructor separation
-- Implement teammate normalisation
-- Estimate α (constructor weight in raw driver ELO) empirically
-- Compare against van Kesteren & Bergkamp posterior estimates as ground truth
-- Target: driver ratings that correlate strongly (>0.7) with van Kesteren's θ_d posteriors
+### Phase 2: Driver/constructor separation ✅ Complete
+- Teammate normalisation implemented
+- α (constructor weight in raw driver ELO) estimated empirically
+- Driver ratings cross-validated against van Kesteren & Bergkamp θ_d posteriors
+- Target correlation >0.7 with van Kesteren achieved
 
-### Phase 3: Story detection engine
-- Build trend and outlier computation pipeline (rolling windows, surprise scores)
-- Implement contextual filter using race condition flags (wet, SC deployed, etc.)
-- Tune narrative thresholds against historical "known stories" (e.g. Leclerc's 2019 breakthrough, Hamilton's 2021 form dip mid-season, Ferrari's 2022 reliability crisis)
+### Phase 3: van Kesteren (PyMC) primary engine + Story detection
+
+**3a — Implement van Kesteren & Bergkamp in PyMC** (this replaces the heuristic α estimation from Phase 2 and validates the Phase 2 teammate normalisation):
+
+*Step 1 — Minimal viable model (single season, no seasonal form):*
+```python
+import pymc as pm, numpy as np, arviz as az
+
+# Inputs:
+# race_orders: list of n_races arrays, each giving driver indices in finishing order
+# driver_team: array of shape (n_drivers,) mapping driver → team index
+# dnf_mask: bool array, True = DNF (excluded from that race's likelihood)
+
+with pm.Model() as f1_base:
+    σ_d = pm.HalfNormal("σ_d", sigma=1.0)
+    σ_t = pm.HalfNormal("σ_t", sigma=1.0)
+
+    θ_d = pm.Normal("θ_d", mu=0, sigma=σ_d, shape=n_drivers)
+    θ_t = pm.Normal("θ_t", mu=0, sigma=σ_t, shape=n_teams)
+
+    η = θ_d + θ_t[driver_team]   # latent strength, shape (n_drivers,)
+
+    # Plackett-Luce likelihood: sequential categorical draws
+    for r, order in enumerate(race_orders):
+        remaining = list(order)
+        for pos in range(len(order) - 1):
+            winner = remaining[0]
+            pm.Categorical(
+                f"r{r}_p{pos}",
+                logit_p=η[remaining],
+                observed=0   # winner is always index 0 in remaining
+            )
+            remaining.pop(0)
+
+    trace_base = pm.sample(1000, tune=1000, target_accept=0.9, return_inferencedata=True)
+```
+
+Validate: θ_d posterior means should reproduce the known 2019 hierarchy (Hamilton >> Verstappen >> Leclerc/Bottas tier >> midfield). If they do, the model is correctly specified before adding complexity.
+
+*Step 2 — Add seasonal form deviations:*
+```python
+    θ_ds = pm.Normal("θ_ds", mu=0, sigma=pm.HalfNormal("σ_ds", 0.5), shape=n_drivers)
+    θ_ts = pm.Normal("θ_ts", mu=0, sigma=pm.HalfNormal("σ_ts", 0.5), shape=n_teams)
+    η = θ_d + θ_t[driver_team] + θ_ds + θ_ts[driver_team]
+```
+
+The seasonal form parameters (θ_ds, θ_ts) are the key addition for story detection — they encode "is this driver/team performing above or below their long-run ability right now?"
+
+*Step 3 — Cross-season carry-forward priors:*
+
+After fitting season *s*, extract posterior means and standard deviations for each driver's θ_d. Use these as the prior for season *s+1*:
+
+```python
+# After fitting season s:
+θ_d_mean_s  = trace_s.posterior["θ_d"].mean(("chain", "draw")).values
+θ_d_std_s   = trace_s.posterior["θ_d"].std(("chain", "draw")).values
+
+# Season s+1 prior — shrink std slightly to reflect one more year of uncertainty:
+with pm.Model() as f1_season_next:
+    θ_d = pm.Normal("θ_d", mu=θ_d_mean_s, sigma=θ_d_std_s * 1.2, shape=n_drivers)
+    # ... rest of model
+```
+
+The 1.2× inflation on σ represents the additional uncertainty from off-season change (car development, team switches, fitness). Tune this multiplier empirically.
+
+*Step 4 — Context covariates (wet / street):*
+
+Add a binary covariate for wet races and street circuits. Rather than separate rating tracks (which fragment an already-small sample), encode context as a fixed effect on the latent strength:
+
+```python
+    β_wet    = pm.Normal("β_wet",    mu=0, sigma=0.5, shape=n_drivers)
+    β_street = pm.Normal("β_street", mu=0, sigma=0.5, shape=n_teams)
+    η = θ_d + θ_t[driver_team] + θ_ds + θ_ts[driver_team] \
+        + is_wet[r] * β_wet + is_street[r] * β_street[driver_team]
+```
+
+*Validation target for Phase 3a:* θ_d posterior means should correlate >0.75 with van Kesteren & Bergkamp's published posteriors for the 2014–2021 period. The credible intervals on θ_t should reproduce their ~88% constructor / ~12% driver decomposition (i.e., σ_t >> σ_d in the posterior).
+
+**3b — Story detection engine** (build on van Kesteren posteriors):
+- Replace raw R̂ᵢ signals with posterior means and credible intervals from θ_d + θ_ds
+- Trend signals: is θ_ds for driver i trending significantly positive/negative across the last 3–5 races?
+- Outlier signals: did this race result fall outside the 95% predictive interval?
+- Implement contextual explainability filter using race condition flags (wet, SC, VSC, sprint format)
+- Tune narrative thresholds against known historical stories:
+  - Leclerc 2019 breakthrough (Bahrain, Italy): θ_ds spike above θ_d baseline
+  - Hamilton 2021 mid-season form dip: θ_ds temporarily negative relative to θ_d
+  - Ferrari 2022 reliability crisis: θ_ts diverges sharply negative from θ_t trend
+  - McLaren 2023 late-season surge: θ_ts positive step mid-season
+- **2026 live mode:** With 3 races of data, posteriors on θ_d are wide — this is correct and should be communicated. Story engine runs in high-uncertainty mode; only surface signals with posterior probability > 0.90. Ratings stabilise meaningfully after races 6–8.
 
 ### Phase 4: Live updating
 - Connect to live results feed (FastF1 Python library is the standard tool)
+- Apply OU-based time discounting using race weekend start timestamps, not race number
 - Update endure-Elo round by round during a race for in-race story detection
-- Surface stories immediately after each race result is confirmed
+- Surface stories immediately after each race result is confirmed; re-evaluate after post-race steward decisions that change finishing order
 
 ---
 
 ## 9. Key Design Decisions and Trade-offs
 
-**Why endure-Elo over speed-Elo?**
-Powell demonstrates this conclusively: speed-Elo severely over-penalises Vettel, Bottas, Verstappen, and Leclerc when crashes or mechanical failures send them to the back. Endure-Elo treats those results as relatively uninformative (consistent with a low failure-rate driver just being unlucky). Story detection built on speed-Elo would generate excessive false-positive "crisis" stories after every DNF.
+**Why van Kesteren & Bergkamp as the primary engine?**
+The main historical argument for using endure-Elo as the live engine was that MCMC is too slow for real-time updates. This doesn't hold: there is at least a week between every F1 race, and a single season of ~20 drivers × ~23 races fits in Stan or PyMC in seconds to a few minutes. Van Kesteren gives proper posterior uncertainty (credible intervals on θ_d and θ_t), handles the driver/constructor decomposition natively, and eliminates the need to estimate α manually as done in Phase 2. The cost of the heuristic approach (teammate normalisation + empirical α) is that it approximates what the Bayesian model does exactly.
 
-**Why not just use the van Kesteren Bayesian model?**
-The Bayesian ROL is the most rigorous approach but it's a batch model — it requires re-fitting MCMC chains to include new data. Endure-Elo is an online algorithm that updates after each race with negligible computation. For a story detection system that needs to produce output minutes after a race ends, the endure-Elo is the practical choice. The van Kesteren model's findings (especially the 88/12 split and driver trajectory plots) serve as the *calibration target* rather than the live engine.
+**What role does endure-Elo now play?**
+It is the **real-time supplement during a race weekend**. Van Kesteren is a batch model and cannot update mid-race as retirements happen. Endure-Elo fills this gap: it updates round-by-round as the race unfolds, producing live story signals (sudden championship shift, underdog breakthrough, reliability crisis forming). After the race weekend, the van Kesteren model re-fits with the new results and becomes the authoritative rating again. Endure-Elo also retains value as a fast sanity check — if it diverges strongly from van Kesteren posteriors after a race, that is itself worth investigating.
+
+**Why endure-Elo rather than speed-Elo for the real-time role?**
+Powell demonstrates this conclusively: speed-Elo severely over-penalises Vettel, Bottas, Verstappen, and Leclerc when crashes or mechanical failures send them to the back. Endure-Elo treats those results as relatively uninformative (consistent with a low failure-rate driver just being unlucky). Story detection built on speed-Elo would generate excessive false-positive "crisis" stories after every DNF — particularly problematic post-2023 where crashes and mechanicals cannot be cheaply separated.
+
+**Why season-by-season fitting rather than a joint multi-decade model?**
+A joint model spanning 1970–present would in principle allow cross-era comparisons (Hamilton vs. Senna) but requires specifying how driver skill and constructor advantage evolve across major technical eras — a non-trivial modelling choice with significant identifiability risks. Season-by-season fitting with **informative carry-forward priors** is the pragmatic alternative: the posterior means for θ_d from season *s* become the prior means for season *s+1*, providing soft continuity without the complexity. Cross-era comparison is noted as a future extension but is not blocking.
 
 **Why keep Xun's qualifying Rc?**
-It updates every qualifying session, giving you a pure car-pace signal that's independent of race outcomes. When a car qualifies fast but race results disappoint (or vice versa), that divergence is itself a story. The Rc also adjusts naturally for track-type variation (e.g. a high-downforce car may have a very different Rc at Monaco vs. Monza).
+The van Kesteren model uses race finishing positions only. Qualifying times give a pure car-pace signal that is independent of race-day strategy, tyre management, and luck. When Rc (qualifying) diverges from θ_t (race constructor rating), that divergence is a story in its own right: the car is fast but something is being lost on race day, or vice versa. Rc also updates *before* the race, giving a pre-race prior on car performance that the race-outcome model cannot provide.
 
 **Wet races and street circuits:**
-Van Kesteren & Bergkamp show these are genuinely distinct contexts. Mixing them into a single rating creates noise. Maintain separate context ratings but weight them lightly (fewer events per season), and explicitly flag context-switching as a story opportunity — *"Which driver genuinely elevates in the wet?"*
+Van Kesteren & Bergkamp show these are genuinely distinct contexts. The PyMC implementation should include context indicators as covariates or maintain separate seasonal form parameters for wet/street events, weighted lightly given the small sample size per season. Flag context-switching explicitly as a story opportunity — *"Which driver genuinely elevates in the wet?"*
 
 ---
 
