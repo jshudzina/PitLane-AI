@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-import pytest
 from pitlane_elo.bayesian.data_prep import SeasonData, prepare_season, prepare_season_from_db
 from pitlane_elo.data import RaceEntry
 
