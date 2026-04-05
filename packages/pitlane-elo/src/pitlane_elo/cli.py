@@ -299,6 +299,64 @@ def estimate_alpha_cmd(start_year: int, end_year: int, output: str | None) -> No
         click.echo(f"Written to {output}")
 
 
+@main.command("van-kesteren")
+@click.option("--year", type=int, required=True, help="Season to fit.")
+@click.option("--step", type=click.Choice(["1", "2"]), default="1", help="Model step (1=base, 2=seasonal form).")
+@click.option("--fast", is_flag=True, help="Use fast sampling preset (200 draws, 2 chains) for a quick check.")
+def van_kesteren_cmd(year: int, step: str, fast: bool) -> None:
+    """Fit the van Kesteren Bayesian model to one season and print rankings.
+
+    \b
+    Prints driver ratings (theta_d) and team ratings (theta_t) with 94% HDI
+    credible intervals, sorted from highest to lowest.
+
+    \b
+    Example:
+      pitlane-elo van-kesteren --year 2019 --fast
+    """
+    from pitlane_elo.bayesian import VanKesterenModel
+    from pitlane_elo.bayesian.van_kesteren import VAN_KESTEREN_DEFAULT, VAN_KESTEREN_FAST, VanKesterenConfig
+
+    if fast:
+        config = VanKesterenConfig(
+            name=VAN_KESTEREN_FAST.name,
+            model_step=int(step),
+            draws=VAN_KESTEREN_FAST.draws,
+            tune=VAN_KESTEREN_FAST.tune,
+            chains=VAN_KESTEREN_FAST.chains,
+            random_seed=VAN_KESTEREN_FAST.random_seed,
+        )
+    else:
+        config = VanKesterenConfig(
+            name=VAN_KESTEREN_DEFAULT.name,
+            model_step=int(step),
+        )
+
+    click.echo(f"Fitting van Kesteren model (step {step}) on {year}...")
+    model = VanKesterenModel(config)
+    result = model.fit_from_db(year)
+
+    if result is None:
+        click.echo(f"No race data found for {year}.", err=True)
+        raise SystemExit(1)
+
+    driver_cis = model.driver_credible_intervals()
+    click.echo(f"\nDriver ratings — theta_d ({year}):")
+    click.echo(f"  {'Driver':<25} {'Rating':>8}  {'94% HDI':>20}")
+    click.echo("  " + "-" * 57)
+    for driver, rating in model.driver_ranking():
+        lo, hi = driver_cis[driver]
+        click.echo(f"  {driver:<25} {rating:>+8.3f}  [{lo:>+7.3f}, {hi:>+7.3f}]")
+
+    team_cis = model.team_credible_intervals()
+    click.echo(f"\nTeam ratings — theta_t ({year}):")
+    click.echo(f"  {'Team':<25} {'Rating':>8}  {'94% HDI':>20}")
+    click.echo("  " + "-" * 57)
+    for team, rating in model.team_ranking():
+        lo, hi = team_cis[team]
+        click.echo(f"  {team:<25} {rating:>+8.3f}  [{lo:>+7.3f}, {hi:>+7.3f}]")
+
+
 @main.command()
 @click.argument("model_name")
 def promote(model_name: str) -> None:

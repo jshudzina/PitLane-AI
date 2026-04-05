@@ -243,21 +243,30 @@ class VanKesterenModel(BayesianSeasonModel):
         Step 1: theta_d and theta_t only (long-term skill / car advantage).
         Step 2: adds theta_ds and theta_ts (within-season form deviations).
 
-        ZeroSumNormal is used for all theta parameters to pin the sum-to-zero
-        constraint and resolve the additive intercept ambiguity.
+        Non-centered parameterization: raw unit-scale ZeroSumNormal draws are
+        multiplied by the scale parameter, decoupling shape from magnitude.
+        This avoids Neal's funnel — critical when sigma_d is small relative to
+        sigma_t (the typical F1 case where car advantage dominates driver skill).
+
+        ZeroSumNormal enforces the sum-to-zero identifiability constraint;
+        scaling a zero-sum vector preserves the constraint.
         """
         with pm.Model() as model:
             sigma_d = pm.HalfNormal("sigma_d", sigma=self.config.sigma_d_prior)
             sigma_t = pm.HalfNormal("sigma_t", sigma=self.config.sigma_t_prior)
 
-            theta_d = pm.ZeroSumNormal("theta_d", sigma=sigma_d, shape=data.n_drivers)
-            theta_t = pm.ZeroSumNormal("theta_t", sigma=sigma_t, shape=data.n_teams)
+            theta_d_raw = pm.ZeroSumNormal("theta_d_raw", sigma=1.0, shape=data.n_drivers)
+            theta_t_raw = pm.ZeroSumNormal("theta_t_raw", sigma=1.0, shape=data.n_teams)
+            theta_d = pm.Deterministic("theta_d", theta_d_raw * sigma_d)
+            theta_t = pm.Deterministic("theta_t", theta_t_raw * sigma_t)
 
             if self.config.model_step >= 2:
                 sigma_ds = pm.HalfNormal("sigma_ds", sigma=self.config.sigma_ds_prior)
                 sigma_ts = pm.HalfNormal("sigma_ts", sigma=self.config.sigma_ts_prior)
-                theta_ds = pm.ZeroSumNormal("theta_ds", sigma=sigma_ds, shape=data.n_drivers)
-                theta_ts = pm.ZeroSumNormal("theta_ts", sigma=sigma_ts, shape=data.n_teams)
+                theta_ds_raw = pm.ZeroSumNormal("theta_ds_raw", sigma=1.0, shape=data.n_drivers)
+                theta_ts_raw = pm.ZeroSumNormal("theta_ts_raw", sigma=1.0, shape=data.n_teams)
+                theta_ds = pm.Deterministic("theta_ds", theta_ds_raw * sigma_ds)
+                theta_ts = pm.Deterministic("theta_ts", theta_ts_raw * sigma_ts)
                 eta = theta_d + theta_t[data.driver_team_idx] + theta_ds + theta_ts[data.driver_team_idx]
             else:
                 eta = theta_d + theta_t[data.driver_team_idx]
