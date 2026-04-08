@@ -299,6 +299,154 @@ def estimate_alpha_cmd(start_year: int, end_year: int, output: str | None) -> No
         click.echo(f"Written to {output}")
 
 
+@main.command("van-kesteren")
+@click.option("--year", type=int, required=True, help="Season to fit.")
+@click.option("--step", type=click.Choice(["1", "2"]), default="1", help="Model step (1=base, 2=seasonal form).")
+@click.option("--fast", is_flag=True, help="Use fast sampling preset (200 draws, 2 chains) for a quick check.")
+def van_kesteren_cmd(year: int, step: str, fast: bool) -> None:
+    """Fit the van Kesteren Bayesian model to one season and print rankings.
+
+    \b
+    Prints driver ratings (theta_d) and team ratings (theta_t) with 94% HDI
+    credible intervals, sorted from highest to lowest.
+
+    \b
+    Example:
+      pitlane-elo van-kesteren --year 2019 --fast
+    """
+    from pitlane_elo.bayesian import VanKesterenModel
+    from pitlane_elo.bayesian.van_kesteren import VAN_KESTEREN_DEFAULT, VAN_KESTEREN_FAST, VanKesterenConfig
+
+    if fast:
+        config = VanKesterenConfig(
+            name=VAN_KESTEREN_FAST.name,
+            model_step=int(step),
+            draws=VAN_KESTEREN_FAST.draws,
+            tune=VAN_KESTEREN_FAST.tune,
+            chains=VAN_KESTEREN_FAST.chains,
+            random_seed=VAN_KESTEREN_FAST.random_seed,
+        )
+    else:
+        config = VanKesterenConfig(
+            name=VAN_KESTEREN_DEFAULT.name,
+            model_step=int(step),
+        )
+
+    click.echo(f"Fitting van Kesteren model (step {step}) on {year}...")
+    model = VanKesterenModel(config)
+    result = model.fit_from_db(year)
+
+    if result is None:
+        click.echo(f"No race data found for {year}.", err=True)
+        raise SystemExit(1)
+
+    driver_cis = model.driver_credible_intervals()
+    click.echo(f"\nDriver ratings — theta_d ({year}):")
+    click.echo(f"  {'Driver':<25} {'Rating':>8}  {'94% HDI':>20}")
+    click.echo("  " + "-" * 57)
+    for driver, rating in model.driver_ranking():
+        lo, hi = driver_cis[driver]
+        click.echo(f"  {driver:<25} {rating:>+8.3f}  [{lo:>+7.3f}, {hi:>+7.3f}]")
+
+    team_cis = model.team_credible_intervals()
+    click.echo(f"\nTeam ratings — theta_t ({year}):")
+    click.echo(f"  {'Team':<25} {'Rating':>8}  {'94% HDI':>20}")
+    click.echo("  " + "-" * 57)
+    for team, rating in model.team_ranking():
+        lo, hi = team_cis[team]
+        click.echo(f"  {team:<25} {rating:>+8.3f}  [{lo:>+7.3f}, {hi:>+7.3f}]")
+
+
+@main.command("evaluate-van-kesteren")
+@click.option(
+    "--start-year", default=2018, show_default=True,
+    help="First training year (predictions start at start_year+1).",
+)
+@click.option("--end-year", default=2024, show_default=True, help="Last evaluation year (inclusive).")
+@click.option(
+    "--step", type=click.Choice(["1", "2"]), default="1", show_default=True,
+    help="Model step (1=base, 2=seasonal form).",
+)
+@click.option("--fast", is_flag=True, help="Use fast sampling preset (200 draws, 2 chains).")
+@click.option("--predict-cap", default=None, type=int, help="Cap prediction to top-N drivers by posterior mean eta.")
+@click.option(
+    "--surprise-threshold", default=0.05, show_default=True,
+    help="Print races where winner_prob < threshold.",
+)
+def evaluate_van_kesteren_cmd(
+    start_year: int,
+    end_year: int,
+    step: str,
+    fast: bool,
+    predict_cap: int | None,
+    surprise_threshold: float,
+) -> None:
+    """Evaluate the van Kesteren model with ELO-style metrics (year-lagged).
+
+    \b
+    For each year Y in [start_year+1, end_year]:
+      1. Fits the Bayesian model on season Y-1
+      2. Predicts win probabilities for every race in season Y
+      3. Scores predictions against actual winners
+
+    \b
+    Metrics match pitlane-elo run/evaluate: log-likelihood, Brier score,
+    mean and median winner probability. Surprising results (actual winner
+    had low predicted probability) are listed below the summary.
+
+    \b
+    Example:
+      pitlane-elo evaluate-van-kesteren --start-year 2018 --end-year 2024 --fast
+    """
+    from pitlane_elo.bayesian.van_kesteren import VAN_KESTEREN_DEFAULT, VAN_KESTEREN_FAST, VanKesterenConfig
+    from pitlane_elo.prediction.forecast import evaluate_model, run_historical_bayesian
+
+    if fast:
+        config = VanKesterenConfig(
+            name=VAN_KESTEREN_FAST.name,
+            model_step=int(step),
+            draws=VAN_KESTEREN_FAST.draws,
+            tune=VAN_KESTEREN_FAST.tune,
+            chains=VAN_KESTEREN_FAST.chains,
+            random_seed=VAN_KESTEREN_FAST.random_seed,
+        )
+    else:
+        config = VanKesterenConfig(
+            name=VAN_KESTEREN_DEFAULT.name,
+            model_step=int(step),
+        )
+
+    click.echo(f"Van Kesteren model — year-lagged evaluation ({start_year + 1}–{end_year})")
+    click.echo(f"  Training: season Y-1 → predicting season Y  |  step={step}  fast={fast}")
+    click.echo()
+
+    predictions = run_historical_bayesian(
+        config,
+        start_year=start_year,
+        end_year=end_year,
+        predict_cap=predict_cap,
+    )
+
+    if not predictions:
+        click.echo("No predictions generated. Check that data exists for the requested years.", err=True)
+        raise SystemExit(1)
+
+    metrics = evaluate_model(predictions)
+    click.echo(f"  Races evaluated:   {metrics['n_races']:>6}")
+    click.echo(f"  Log-likelihood:    {metrics['log_likelihood']:>10.2f}")
+    click.echo(f"  Brier score:       {metrics['brier_score']:>10.4f}")
+    click.echo(f"  Mean winner P:     {metrics['mean_winner_prob']:>10.4f}")
+    click.echo(f"  Median winner P:   {metrics['median_winner_prob']:>10.4f}")
+
+    surprises = [p for p in predictions if p.winner_prob < surprise_threshold]
+    if surprises:
+        click.echo(f"\nSurprising results (winner_prob < {surprise_threshold:.0%}):")
+        click.echo(f"  {'Year':>4}  {'Rnd':>3}  {'Winner':<25}  {'Predicted':>9}")
+        click.echo("  " + "-" * 48)
+        for p in sorted(surprises, key=lambda x: x.winner_prob):
+            click.echo(f"  {p.year:>4}  {p.round:>3}  {p.actual_winner_id:<25}  {p.winner_prob:>8.1%}")
+
+
 @main.command()
 @click.argument("model_name")
 def promote(model_name: str) -> None:

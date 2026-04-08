@@ -9,9 +9,11 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 
+from pitlane_elo.bayesian.van_kesteren import VanKesterenConfig, VanKesterenModel
 from pitlane_elo.data import get_race_entries_range, group_entries_by_race
 from pitlane_elo.prediction.scoring import brier_score, log_likelihood, log_wealth_ratio, race_level_comparison
 from pitlane_elo.ratings.base import RatingModel
@@ -146,6 +148,106 @@ def run_historical(
         predict_total,
         update_total,
     )
+    return predictions
+
+
+def run_historical_bayesian(
+    config: VanKesterenConfig,
+    start_year: int,
+    end_year: int,
+    *,
+    db_path: Path | None = None,
+    predict_cap: int | None = None,
+) -> list[RacePrediction]:
+    """Year-lagged evaluation of the VanKesterenModel.
+
+    For each year Y in [start_year+1, end_year]:
+      1. Fit VanKesterenModel on year Y-1 (all races)
+      2. For each race in year Y: predict win probabilities before seeing result
+
+    Unknown drivers or teams in year Y (not seen in Y-1 training data) receive
+    eta=0.0, the prior mean, so their win probability equals 1/n_participants.
+
+    Args:
+        config: VanKesterenConfig controlling sampling speed and quality.
+        start_year: First training year. Predictions begin at start_year+1.
+        end_year: Last evaluation year (inclusive).
+        db_path: Override the default database path.
+        predict_cap: If set, only predict for the top-N participants by
+            posterior mean eta (theta_d + theta_t for their team).
+
+    Returns:
+        List of RacePrediction objects, one per race in [start_year+1, end_year].
+    """
+    predictions: list[RacePrediction] = []
+
+    for year in range(start_year + 1, end_year + 1):
+        logger.info("Bayesian eval: fitting on %d, predicting %d", year - 1, year)
+        model = VanKesterenModel(config)
+        if model.fit_from_db(year - 1, db_path=db_path) is None:
+            logger.warning("No data for training year %d, skipping %d", year - 1, year)
+            continue
+
+        eval_entries = get_race_entries_range(year, year)
+        if not eval_entries:
+            logger.warning("No race data for evaluation year %d", year)
+            continue
+
+        filtered = [e for e in eval_entries if e["session_type"] == "R"]
+        races = group_entries_by_race(filtered)
+
+        # Precompute posterior mean eta per (driver, team) for predict_cap ranking
+        driver_means = model.driver_ratings()
+        team_means = model.team_ratings()
+
+        for race_entries in races:
+            race_year = race_entries[0]["year"]
+            rnd = race_entries[0]["round"]
+            driver_ids = [e["driver_id"] for e in race_entries]
+            team_ids = [e.get("team", "") or "" for e in race_entries]
+
+            if len(driver_ids) < 2:
+                continue
+
+            drivers_teams = list(zip(driver_ids, team_ids, strict=True))
+
+            if predict_cap is not None and len(drivers_teams) > predict_cap:
+                # Rank by posterior mean eta; unknown driver/team → 0.0
+                mean_eta = [
+                    driver_means.get(d, 0.0) + team_means.get(t, 0.0)
+                    for d, t in drivers_teams
+                ]
+                ranked_idx = sorted(range(len(drivers_teams)), key=lambda i: mean_eta[i], reverse=True)
+                keep = set(ranked_idx[:predict_cap])
+                cap_pairs = [drivers_teams[i] for i in range(len(drivers_teams)) if i in keep]
+                cap_ids = [driver_ids[i] for i in range(len(driver_ids)) if i in keep]
+            else:
+                cap_pairs = drivers_teams
+                cap_ids = driver_ids
+
+            probs = model.predict_win_probabilities(cap_pairs)
+
+            winner_id = driver_ids[0]
+            if winner_id in cap_ids:
+                winner_idx = cap_ids.index(winner_id)
+                winner_prob = float(probs[winner_idx])
+            else:
+                winner_idx = -1
+                winner_prob = 0.0
+
+            predictions.append(
+                RacePrediction(
+                    year=race_year,
+                    round=rnd,
+                    driver_ids=cap_ids,
+                    predicted_probs=probs,
+                    actual_winner_idx=winner_idx,
+                    actual_winner_id=winner_id,
+                    winner_prob=winner_prob,
+                )
+            )
+
+    logger.info("Bayesian eval complete: %d races across %d-%d", len(predictions), start_year + 1, end_year)
     return predictions
 
 
