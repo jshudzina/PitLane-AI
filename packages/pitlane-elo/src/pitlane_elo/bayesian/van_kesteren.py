@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import arviz as az
+import numpy as np
 import pymc as pm
 import pytensor.tensor as pt
 
@@ -218,6 +219,43 @@ class VanKesterenModel(BayesianSeasonModel):
     def team_ranking(self) -> list[tuple[str, float]]:
         """Teams sorted by posterior mean theta_t, descending."""
         return sorted(self.team_ratings().items(), key=lambda x: x[1], reverse=True)
+
+    def predict_win_probabilities(
+        self,
+        drivers_teams: list[tuple[str, str]],
+    ) -> np.ndarray:
+        """Posterior predictive win probabilities for a race lineup.
+
+        Uses softmax of eta = theta_d + theta_t averaged over all posterior
+        samples (Luce's choice axiom: win probability = softmax of latent
+        utilities under Plackett-Luce).
+
+        Args:
+            drivers_teams: List of (driver_id, team_id) pairs for race
+                participants. Unknown drivers/teams default to eta=0.0
+                (prior mean).
+
+        Returns:
+            Array of win probabilities, shape (n_participants,), summing to 1.
+        """
+        trace, data = self._require_fitted()
+        theta_d_samples = trace.posterior["theta_d"].values.reshape(-1, data.n_drivers)  # type: ignore[union-attr]
+        theta_t_samples = trace.posterior["theta_t"].values.reshape(-1, data.n_teams)  # type: ignore[union-attr]
+        n_samples = theta_d_samples.shape[0]
+        n_p = len(drivers_teams)
+
+        eta = np.zeros((n_samples, n_p))
+        for j, (driver, team) in enumerate(drivers_teams):
+            if driver in data.driver_to_idx:
+                eta[:, j] += theta_d_samples[:, data.driver_to_idx[driver]]
+            if team in data.team_to_idx:
+                eta[:, j] += theta_t_samples[:, data.team_to_idx[team]]
+
+        # Numerically stable softmax per sample, then average over posterior
+        eta -= eta.max(axis=1, keepdims=True)
+        exp_eta = np.exp(eta)
+        probs = exp_eta / exp_eta.sum(axis=1, keepdims=True)
+        return probs.mean(axis=0)
 
     @property
     def trace(self) -> az.InferenceData:

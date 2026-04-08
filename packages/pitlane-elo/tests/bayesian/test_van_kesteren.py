@@ -251,6 +251,65 @@ class TestStep2:
         assert abs(sum(model.seasonal_team_ratings().values())) < 1e-6
 
 
+@pytest.mark.bayesian
+class TestPredictWinProbabilities:
+    """Category 5: posterior predictive win probability computation."""
+
+    def test_probabilities_sum_to_one(
+        self,
+        dominant_season: list,
+        fast_config: VanKesterenConfig,
+    ) -> None:
+        model = VanKesterenModel(fast_config)
+        model.fit(dominant_season)
+        lineup = [("driver_a", "TeamA"), ("driver_b", "TeamA"), ("driver_c", "TeamB")]
+        probs = model.predict_win_probabilities(lineup)
+        assert abs(probs.sum() - 1.0) < 1e-6
+
+    def test_dominant_driver_highest_probability(
+        self,
+        dominant_season: list,
+        fast_config: VanKesterenConfig,
+    ) -> None:
+        """driver_a always wins in dominant_season — should get highest win prob."""
+        model = VanKesterenModel(fast_config)
+        model.fit(dominant_season)
+        lineup = [("driver_a", "TeamA"), ("driver_b", "TeamA"), ("driver_c", "TeamB")]
+        probs = model.predict_win_probabilities(lineup)
+        assert probs[0] > probs[1]
+        assert probs[0] > probs[2]
+
+    def test_unknown_driver_gets_prior_mean(
+        self,
+        dominant_season: list,
+        fast_config: VanKesterenConfig,
+    ) -> None:
+        """Unknown driver has eta=0; probs must still sum to 1 and be positive."""
+        model = VanKesterenModel(fast_config)
+        model.fit(dominant_season)
+        lineup = [("driver_a", "TeamA"), ("unknown_rookie", "UnknownTeam")]
+        probs = model.predict_win_probabilities(lineup)
+        assert abs(probs.sum() - 1.0) < 1e-6
+        assert np.all(probs > 0)
+
+    def test_returns_numpy_array(
+        self,
+        dominant_season: list,
+        fast_config: VanKesterenConfig,
+    ) -> None:
+        model = VanKesterenModel(fast_config)
+        model.fit(dominant_season)
+        lineup = [("driver_a", "TeamA"), ("driver_b", "TeamA")]
+        probs = model.predict_win_probabilities(lineup)
+        assert isinstance(probs, np.ndarray)
+        assert probs.shape == (2,)
+
+    def test_raises_when_unfitted(self) -> None:
+        model = VanKesterenModel()
+        with pytest.raises(RuntimeError):
+            model.predict_win_probabilities([("driver_a", "TeamA")])
+
+
 @pytest.mark.slow
 @pytest.mark.bayesian
 class TestConvergence:
