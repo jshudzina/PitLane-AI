@@ -49,7 +49,7 @@ class VanKesterenConfig:
     draws: int = 1000
     tune: int = 1000
     chains: int = 4
-    target_accept: float = 0.9
+    target_accept: float = 0.95
     random_seed: int | None = None
     min_finishers: int = 2
 
@@ -162,13 +162,13 @@ class VanKesterenModel(BayesianSeasonModel):
     def driver_ratings(self) -> dict[str, float]:
         """Posterior means for long-term driver skill (theta_d)."""
         trace, data = self._require_fitted()
-        means = trace.posterior["theta_d"].mean(("chain", "draw")).values
+        means = trace.posterior["theta_d"].mean(("chain", "draw")).values  # type: ignore[union-attr]
         return {d: float(means[i]) for i, d in enumerate(data.driver_ids)}
 
     def team_ratings(self) -> dict[str, float]:
         """Posterior means for long-term constructor advantage (theta_t)."""
         trace, data = self._require_fitted()
-        means = trace.posterior["theta_t"].mean(("chain", "draw")).values
+        means = trace.posterior["theta_t"].mean(("chain", "draw")).values  # type: ignore[union-attr]
         return {t: float(means[i]) for i, t in enumerate(data.team_ids)}
 
     def seasonal_driver_ratings(self) -> dict[str, float]:
@@ -180,7 +180,7 @@ class VanKesterenModel(BayesianSeasonModel):
         if self.config.model_step < 2:
             raise RuntimeError("seasonal_driver_ratings() requires model_step >= 2")
         trace, data = self._require_fitted()
-        means = trace.posterior["theta_ds"].mean(("chain", "draw")).values
+        means = trace.posterior["theta_ds"].mean(("chain", "draw")).values  # type: ignore[union-attr]
         return {d: float(means[i]) for i, d in enumerate(data.driver_ids)}
 
     def seasonal_team_ratings(self) -> dict[str, float]:
@@ -192,7 +192,7 @@ class VanKesterenModel(BayesianSeasonModel):
         if self.config.model_step < 2:
             raise RuntimeError("seasonal_team_ratings() requires model_step >= 2")
         trace, data = self._require_fitted()
-        means = trace.posterior["theta_ts"].mean(("chain", "draw")).values
+        means = trace.posterior["theta_ts"].mean(("chain", "draw")).values  # type: ignore[union-attr]
         return {t: float(means[i]) for i, t in enumerate(data.team_ids)}
 
     def driver_credible_intervals(
@@ -200,7 +200,7 @@ class VanKesterenModel(BayesianSeasonModel):
     ) -> dict[str, tuple[float, float]]:
         """HDI credible intervals for theta_d per driver."""
         trace, data = self._require_fitted()
-        hdi = az.hdi(trace, var_names=["theta_d"], hdi_prob=hdi_prob)["theta_d"].values
+        hdi = az.hdi(trace, var_names=["theta_d"], hdi_prob=hdi_prob)["theta_d"].values  # type: ignore[index]
         return {d: (float(hdi[i, 0]), float(hdi[i, 1])) for i, d in enumerate(data.driver_ids)}
 
     def team_credible_intervals(
@@ -208,7 +208,7 @@ class VanKesterenModel(BayesianSeasonModel):
     ) -> dict[str, tuple[float, float]]:
         """HDI credible intervals for theta_t per team."""
         trace, data = self._require_fitted()
-        hdi = az.hdi(trace, var_names=["theta_t"], hdi_prob=hdi_prob)["theta_t"].values
+        hdi = az.hdi(trace, var_names=["theta_t"], hdi_prob=hdi_prob)["theta_t"].values  # type: ignore[index]
         return {t: (float(hdi[i, 0]), float(hdi[i, 1])) for i, t in enumerate(data.team_ids)}
 
     def driver_ranking(self) -> list[tuple[str, float]]:
@@ -267,17 +267,17 @@ class VanKesterenModel(BayesianSeasonModel):
                 theta_ts_raw = pm.ZeroSumNormal("theta_ts_raw", sigma=1.0, shape=data.n_teams)
                 theta_ds = pm.Deterministic("theta_ds", theta_ds_raw * sigma_ds)
                 theta_ts = pm.Deterministic("theta_ts", theta_ts_raw * sigma_ts)
-                eta = theta_d + theta_t[data.driver_team_idx] + theta_ds + theta_ts[data.driver_team_idx]
+                eta = theta_d + theta_t[data.driver_team_idx] + theta_ds + theta_ts[data.driver_team_idx]  # type: ignore[index,operator]
             else:
-                eta = theta_d + theta_t[data.driver_team_idx]
+                eta = theta_d + theta_t[data.driver_team_idx]  # type: ignore[index,operator]
 
             # Plackett-Luce log-likelihood via pm.Potential.
             # For a race with finishing order [d_0, ..., d_{m-1}]:
             #   log p(order) = sum_k [ eta[d_k] - logsumexp(eta[d_k:]) ]
             for r, order in enumerate(data.race_orders):
-                eta_r = eta[order]
-                lse = pt.stack([pt.logsumexp(eta_r[k:], axis=0) for k in range(len(order) - 1)])
-                pm.Potential(f"race_{r}", pt.sum(eta_r[:-1] - lse))
+                eta_r = eta[order]  # type: ignore[index]
+                lse = pt.stack([pt.logsumexp(eta_r[k:], axis=0) for k in range(len(order) - 1)])  # type: ignore[attr-defined]
+                pm.Potential(f"race_{r}", pt.sum(eta_r[:-1] - lse))  # type: ignore[attr-defined]
 
         return model
 
