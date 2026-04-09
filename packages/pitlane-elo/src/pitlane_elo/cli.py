@@ -373,6 +373,8 @@ def van_kesteren_cmd(year: int, step: str, fast: bool) -> None:
     "--surprise-threshold", default=0.05, show_default=True,
     help="Print races where winner_prob < threshold.",
 )
+@click.option("--sequential", is_flag=True, help="Refit after every race within each season instead of year-lagged.")
+@click.option("--min-races", default=3, show_default=True, help="Races required before first sequential prediction.")
 def evaluate_van_kesteren_cmd(
     start_year: int,
     end_year: int,
@@ -380,14 +382,21 @@ def evaluate_van_kesteren_cmd(
     fast: bool,
     predict_cap: int | None,
     surprise_threshold: float,
+    sequential: bool,
+    min_races: int,
 ) -> None:
-    """Evaluate the van Kesteren model with ELO-style metrics (year-lagged).
+    """Evaluate the van Kesteren model with ELO-style metrics.
 
     \b
-    For each year Y in [start_year+1, end_year]:
+    Year-lagged mode (default): for each year Y in [start_year+1, end_year]:
       1. Fits the Bayesian model on season Y-1
       2. Predicts win probabilities for every race in season Y
-      3. Scores predictions against actual winners
+
+    \b
+    Sequential mode (--sequential): for each year Y in [start_year, end_year]:
+      For each race N > min_races:
+        1. Fits the Bayesian model on races 1..(N-1) of season Y
+        2. Predicts win probabilities for race N
 
     \b
     Metrics match pitlane-elo run/evaluate: log-likelihood, Brier score,
@@ -397,9 +406,10 @@ def evaluate_van_kesteren_cmd(
     \b
     Example:
       pitlane-elo evaluate-van-kesteren --start-year 2018 --end-year 2024 --fast
+      pitlane-elo evaluate-van-kesteren --start-year 2019 --end-year 2024 --fast --sequential
     """
     from pitlane_elo.bayesian.van_kesteren import VAN_KESTEREN_DEFAULT, VAN_KESTEREN_FAST, VanKesterenConfig
-    from pitlane_elo.prediction.forecast import evaluate_model, run_historical_bayesian
+    from pitlane_elo.prediction.forecast import evaluate_model, run_historical_bayesian, run_sequential_bayesian
 
     if fast:
         config = VanKesterenConfig(
@@ -416,16 +426,27 @@ def evaluate_van_kesteren_cmd(
             model_step=int(step),
         )
 
-    click.echo(f"Van Kesteren model — year-lagged evaluation ({start_year + 1}–{end_year})")
-    click.echo(f"  Training: season Y-1 → predicting season Y  |  step={step}  fast={fast}")
-    click.echo()
-
-    predictions = run_historical_bayesian(
-        config,
-        start_year=start_year,
-        end_year=end_year,
-        predict_cap=predict_cap,
-    )
+    if sequential:
+        click.echo(f"Van Kesteren model — sequential within-season ({start_year}–{end_year})")
+        click.echo(f"  Fitting on races 1..N-1, predicting race N  |  step={step}  fast={fast}  min_races={min_races}")
+        click.echo()
+        predictions = run_sequential_bayesian(
+            config,
+            start_year=start_year,
+            end_year=end_year,
+            predict_cap=predict_cap,
+            min_races=min_races,
+        )
+    else:
+        click.echo(f"Van Kesteren model — year-lagged evaluation ({start_year + 1}–{end_year})")
+        click.echo(f"  Training: season Y-1 → predicting season Y  |  step={step}  fast={fast}")
+        click.echo()
+        predictions = run_historical_bayesian(
+            config,
+            start_year=start_year,
+            end_year=end_year,
+            predict_cap=predict_cap,
+        )
 
     if not predictions:
         click.echo("No predictions generated. Check that data exists for the requested years.", err=True)
