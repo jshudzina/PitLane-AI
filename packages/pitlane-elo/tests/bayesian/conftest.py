@@ -59,9 +59,11 @@ def dominant_season() -> list[list[RaceEntry]]:
     """
     races = []
     for r in range(1, 6):
-        races.append([
-            _make_entry("driver_a", "TeamA", 1, round_num=r),
-            _make_entry("driver_b", "TeamA", 2, round_num=r),
-            _make_entry("driver_c", "TeamB", 3, round_num=r),
-        ])
+        races.append(
+            [
+                _make_entry("driver_a", "TeamA", 1, round_num=r),
+                _make_entry("driver_b", "TeamA", 2, round_num=r),
+                _make_entry("driver_c", "TeamB", 3, round_num=r),
+            ]
+        )
     return races

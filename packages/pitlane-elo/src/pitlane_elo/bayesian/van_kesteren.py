@@ -196,17 +196,13 @@ class VanKesterenModel(BayesianSeasonModel):
         means = trace.posterior["theta_ts"].mean(("chain", "draw")).values  # type: ignore[union-attr]
         return {t: float(means[i]) for i, t in enumerate(data.team_ids)}
 
-    def driver_credible_intervals(
-        self, hdi_prob: float = 0.94
-    ) -> dict[str, tuple[float, float]]:
+    def driver_credible_intervals(self, hdi_prob: float = 0.94) -> dict[str, tuple[float, float]]:
         """HDI credible intervals for theta_d per driver."""
         trace, data = self._require_fitted()
         hdi = az.hdi(trace, var_names=["theta_d"], hdi_prob=hdi_prob)["theta_d"].values  # type: ignore[index]
         return {d: (float(hdi[i, 0]), float(hdi[i, 1])) for i, d in enumerate(data.driver_ids)}
 
-    def team_credible_intervals(
-        self, hdi_prob: float = 0.94
-    ) -> dict[str, tuple[float, float]]:
+    def team_credible_intervals(self, hdi_prob: float = 0.94) -> dict[str, tuple[float, float]]:
         """HDI credible intervals for theta_t per team."""
         trace, data = self._require_fitted()
         hdi = az.hdi(trace, var_names=["theta_t"], hdi_prob=hdi_prob)["theta_t"].values  # type: ignore[index]

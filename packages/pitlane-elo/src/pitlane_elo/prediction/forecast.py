@@ -213,10 +213,7 @@ def run_historical_bayesian(
 
             if predict_cap is not None and len(drivers_teams) > predict_cap:
                 # Rank by posterior mean eta; unknown driver/team → 0.0
-                mean_eta = [
-                    driver_means.get(d, 0.0) + team_means.get(t, 0.0)
-                    for d, t in drivers_teams
-                ]
+                mean_eta = [driver_means.get(d, 0.0) + team_means.get(t, 0.0) for d, t in drivers_teams]
                 ranked_idx = sorted(range(len(drivers_teams)), key=lambda i: mean_eta[i], reverse=True)
                 keep = set(ranked_idx[:predict_cap])
                 cap_pairs = [drivers_teams[i] for i in range(len(drivers_teams)) if i in keep]
@@ -315,10 +312,7 @@ def run_sequential_bayesian(
             team_means = model.team_ratings()
 
             if predict_cap is not None and len(drivers_teams) > predict_cap:
-                mean_eta = [
-                    driver_means.get(d, 0.0) + team_means.get(t, 0.0)
-                    for d, t in drivers_teams
-                ]
+                mean_eta = [driver_means.get(d, 0.0) + team_means.get(t, 0.0) for d, t in drivers_teams]
                 ranked_idx = sorted(range(len(drivers_teams)), key=lambda i: mean_eta[i], reverse=True)
                 keep = set(ranked_idx[:predict_cap])
                 cap_pairs = [drivers_teams[i] for i in range(len(drivers_teams)) if i in keep]

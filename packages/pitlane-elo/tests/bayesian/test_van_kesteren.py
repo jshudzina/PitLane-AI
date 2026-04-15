@@ -315,9 +315,7 @@ class TestPredictWinProbabilities:
 class TestConvergence:
     """Category 5: MCMC convergence diagnostics. Slow — run with -m slow."""
 
-    def test_rhat_below_threshold(
-        self, dominant_season: list
-    ) -> None:
+    def test_rhat_below_threshold(self, dominant_season: list) -> None:
         """R-hat for all theta_d chains should be < 1.05."""
         config = VanKesterenConfig(
             name="van-kesteren-convergence",

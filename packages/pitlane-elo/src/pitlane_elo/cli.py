@@ -359,18 +359,25 @@ def van_kesteren_cmd(year: int, step: str, fast: bool) -> None:
 
 @main.command("evaluate-van-kesteren")
 @click.option(
-    "--start-year", default=2018, show_default=True,
+    "--start-year",
+    default=2018,
+    show_default=True,
     help="First training year (predictions start at start_year+1).",
 )
 @click.option("--end-year", default=2024, show_default=True, help="Last evaluation year (inclusive).")
 @click.option(
-    "--step", type=click.Choice(["1", "2"]), default="1", show_default=True,
+    "--step",
+    type=click.Choice(["1", "2"]),
+    default="1",
+    show_default=True,
     help="Model step (1=base, 2=seasonal form).",
 )
 @click.option("--fast", is_flag=True, help="Use fast sampling preset (200 draws, 2 chains).")
 @click.option("--predict-cap", default=None, type=int, help="Cap prediction to top-N drivers by posterior mean eta.")
 @click.option(
-    "--surprise-threshold", default=0.05, show_default=True,
+    "--surprise-threshold",
+    default=0.05,
+    show_default=True,
     help="Print races where winner_prob < threshold.",
 )
 @click.option("--sequential", is_flag=True, help="Refit after every race within each season instead of year-lagged.")

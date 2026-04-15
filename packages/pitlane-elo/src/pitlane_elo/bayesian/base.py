@@ -53,9 +53,7 @@ class BayesianSeasonModel(ABC):
         """
 
     @abstractmethod
-    def driver_credible_intervals(
-        self, hdi_prob: float = 0.94
-    ) -> dict[str, tuple[float, float]]:
+    def driver_credible_intervals(self, hdi_prob: float = 0.94) -> dict[str, tuple[float, float]]:
         """HDI credible intervals for θ_d per driver.
 
         Args:
@@ -69,9 +67,7 @@ class BayesianSeasonModel(ABC):
         """
 
     @abstractmethod
-    def team_credible_intervals(
-        self, hdi_prob: float = 0.94
-    ) -> dict[str, tuple[float, float]]:
+    def team_credible_intervals(self, hdi_prob: float = 0.94) -> dict[str, tuple[float, float]]:
         """HDI credible intervals for θ_t per team.
 
         Args:

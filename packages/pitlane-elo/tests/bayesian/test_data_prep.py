@@ -127,9 +127,7 @@ class TestDriverTeamMapping:
 
     def test_most_common_team_wins_for_switcher(self) -> None:
         # zeta drives TeamA for 3 races, TeamB for 1 — should be assigned TeamA.
-        season = [
-            [_make_entry("zeta", "TeamA", 1, round_num=r)] for r in range(1, 4)
-        ] + [
+        season = [[_make_entry("zeta", "TeamA", 1, round_num=r)] for r in range(1, 4)] + [
             [_make_entry("zeta", "TeamB", 1, round_num=4)]
         ]
         data = prepare_season(season, min_finishers=1)

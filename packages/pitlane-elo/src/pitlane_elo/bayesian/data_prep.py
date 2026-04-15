@@ -85,9 +85,7 @@ def prepare_season(
     driver_to_idx = {d: i for i, d in enumerate(driver_ids)}
     team_to_idx = {t: i for i, t in enumerate(team_ids)}
 
-    driver_team_idx = np.array(
-        [team_to_idx[driver_primary_team[d]] for d in driver_ids], dtype=np.intp
-    )
+    driver_team_idx = np.array([team_to_idx[driver_primary_team[d]] for d in driver_ids], dtype=np.intp)
 
     race_orders: list[np.ndarray] = []
     wet_flags: list[bool] = []
