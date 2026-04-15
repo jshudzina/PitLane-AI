@@ -51,6 +51,8 @@ Where T_driver is the team's average fastest qualifying lap and T_fastest is the
 
 **Key insight for story detection:** The separation of *long-term* and *seasonal* parameters is exactly what you need to distinguish "this driver has always been elite" from "this driver is hot right now."
 
+**Empirical evaluation result:** When the van Kesteren Bayesian model was evaluated head-to-head against endure-Elo using log-likelihood across calibration (1980–2013), validation (2014–2021), and holdout (2022–2025) windows, **endure-Elo outperformed it on every window**. The theoretical advantages of the Bayesian approach (explicit uncertainty quantification, native driver/constructor decomposition) did not translate into prediction accuracy. The paper's structural insight — that wet races and street circuits are distinct contexts — is retained as a covariate design recommendation. Note also that empirical OLS estimation (`pitlane-elo estimate-alpha`) yields an alpha of ~0.77 for 2014–2024, somewhat lower than the ~88% variance ratio reported here, reflecting a different estimand (linear ELO weighting vs. variance decomposition).
+
 ---
 
 ### Paper 4 — Pasz (2025): *Determinants of Lap Times in F1, 2019–2025*
@@ -66,7 +68,7 @@ Where T_driver is the team's average fastest qualifying lap and T_fastest is the
 
 ## 2. System Architecture
 
-The system has two parallel tracks that feed a shared story detection layer. The **Bayesian track** (van Kesteren & Bergkamp) is the primary rating engine, running after each race weekend. The **endure-Elo track** (Powell) is the real-time supplement, running round-by-round during a race for live story signals. Both feed into prediction assessment and story detection.
+The system uses endure-Elo (Powell 2023) as the single primary rating engine, updating after each race. Xun's qualifying-based Car Rating (Rc) runs in parallel as an independent car-pace signal — it is not a rating model but a per-race measurement. Both feed into prediction assessment and story detection.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -74,34 +76,35 @@ The system has two parallel tracks that feed a shared story detection layer. The
 │       Race results · Qualifying times · Weather · Track type · DNFs         │
 └──────────────────────┬──────────────────────────┬──────────────────────────┘
                        │                          │
-         ┌─────────────▼──────────┐   ┌───────────▼────────────┐
-         │  PRIMARY: BAYESIAN     │   │  REAL-TIME: ENDURE-ELO │
-         │  van Kesteren & Bergk. │   │  Powell (2023)         │
-         │  Fit in PyMC after     │   │  Updates round-by-     │
-         │  each race weekend     │   │  round during race     │
-         │  ─────────────────     │   │  ──────────────────    │
-         │  θ_d  long-term driver │   │  R̂ᵢ  driver rating    │
-         │  θ_ds seasonal form    │   │  AR(1) + OU spacing    │
-         │  θ_t  constructor      │   │  Robust DNF handling   │
-         │  θ_ts seasonal car     │   │  Qualifying Rc         │
-         │  Credible intervals    │   │                        │
-         └─────────────┬──────────┘   └───────────┬────────────┘
-                       │                          │
-                       └────────────┬─────────────┘
-                                    │
-                         ┌──────────▼──────────┐
-                         │  LAYER 4: PREDICTION│
-                         │  Log-likelihood     │
-                         │  Brier score        │
-                         │  RMSE · Calibration │
-                         └──────────┬──────────┘
-                                    │
-                         ┌──────────▼──────────┐
-                         │  LAYER 5: STORIES   │
-                         │  Trend signals      │
-                         │  Outlier signals    │
-                         │  Narrative triggers │
-                         └─────────────────────┘
+         ┌─────────────▼──────────────────┐   ┌───▼─────────────────────────┐
+         │  PRIMARY: ENDURE-ELO           │   │  CAR PACE: Xun Rc           │
+         │  Powell (2023)                 │   │  Per-race qualifying signal  │
+         │  Updates after each race       │   │  ─────────────────────────  │
+         │  Round-by-round during race    │   │  Rcᵢ = (T_team − T_fastest) │
+         │  ─────────────────────────     │   │        / T_fastest           │
+         │  R̂ᵢ  driver rating            │   │  Independent of race outcome │
+         │  k-factor (Glicko precision)  │   │  Updates after qualifying    │
+         │  AR(1) + OU spacing            │   │                             │
+         │  Robust DNF handling           │   │                             │
+         │  Calibrated: k_max=0.8665,     │   │                             │
+         │  φ_race=0.999, φ_season=0.947  │   │                             │
+         └─────────────┬──────────────────┘   └───────────┬─────────────────┘
+                       │                                  │
+                       └──────────────┬───────────────────┘
+                                      │
+                           ┌──────────▼──────────┐
+                           │  LAYER 4: PREDICTION│
+                           │  Log-likelihood     │
+                           │  Brier score        │
+                           │  RMSE · Calibration │
+                           └──────────┬──────────┘
+                                      │
+                           ┌──────────▼──────────┐
+                           │  LAYER 5: STORIES   │
+                           │  Trend signals      │
+                           │  Outlier signals    │
+                           │  Narrative triggers │
+                           └─────────────────────┘
 ```
 
 ---
@@ -172,13 +175,9 @@ After each race, compute an adjusted score that removes estimated constructor co
 ```
 DriverSkill_adjusted = R̂ᵢ(driver) − α · R̂ᵢ(constructor)
 ```
-where α is a learned weighting (roughly α ≈ 0.88 / 0.12 ≈ 7.3 in log-odds terms, but should be estimated empirically via cross-validation).
+where α is a learned weighting estimated empirically via OLS (`pitlane-elo estimate-alpha`). **Calibrated value: `alpha = 0.7747`** over 2014–2024. Note this is a different quantity from van Kesteren's ~88% variance ratio — it is the linear coefficient relating constructor ELO to raw driver ELO, not a variance decomposition.
 
-Alternatively, borrow the van Kesteren parameterisation:
-```
-ϑ_competitor = θ_driver + θ_constructor
-```
-and estimate both via a joint maximisation — the endure-Elo algorithm can be extended to do this simultaneously.
+The endure-Elo algorithm can be extended to do this simultaneously by decomposing updates into shared (constructor) and individual (driver) components — see Section 5.4B for the update-level formulation.
 
 ### 4.3 Driver transfer signals
 
@@ -199,7 +198,7 @@ kᵢ,t = kᵢ,t + k adjustment (from eq. 5 in Powell)
 ```
 Early in a driver's career or after a long absence, kᵢ is high (ratings move fast). After many races, kᵢ stabilises and ratings only shift meaningfully when results are genuinely surprising.
 
-Practically, set a floor `k_min` (e.g. 0.05) so established ratings still respond to real form changes, and a ceiling `k_max` (e.g. 0.5) for new entrants.
+Practically, set a floor `k_min` (e.g. 0.05) so established ratings still respond to real form changes, and a ceiling `k_max` for new entrants. **Calibrated value: `k_max = 0.8665`** (random search + Nelder-Mead over 1980–2013; validated 2014–2021; holdout 2022–2025 — see Section 10).
 
 ### 5.2 Between-race time discounting (AR(1) / Ornstein-Uhlenbeck)
 
@@ -208,7 +207,7 @@ Between rounds separated by h time steps, apply Powell's discounting:
 R̂ᵢ,t ← φʰ · R̂ᵢ,t₋ₕ
 kᵢ,t ← kᵢ,t₋ₕ + (1 − φ²ʰ)(k∞ − kᵢ,t₋ₕ)
 ```
-The parameter φ encodes how quickly ability is assumed to decay. A suggested value for F1 is φ ≈ 0.99 per race (abilities are fairly stable race-to-race within a season), dropping to φ ≈ 0.95 between seasons to allow for car development gains/losses.
+The parameter φ encodes how quickly ability is assumed to decay. **Calibrated values: `phi_race = 0.9990` per race, `phi_season = 0.9472` between seasons.** Within-season decay is nearly flat — calibration found that abilities are very stable race-to-race and that most meaningful forgetting happens at the season boundary. The between-season value (0.9472) is meaningfully lower than a naïve 0.95 starting point, reflecting genuine off-season uncertainty from car development and team changes.
 
 **k∞** (the asymptotic variance) should reflect the realistic spread of driver and constructor ability. A reasonable starting estimate from Powell's guidance: `k∞^(1/2) ≈ 0.75 × log(q/(1−q))` where q is the probability the stronger competitor beats the weaker one in a given matchup — try q = 0.7 as a prior for F1.
 
@@ -350,13 +349,12 @@ Maintain a running comparison across the following model variants:
 
 | Model | Role | Update cadence | Expected strength |
 |---|---|---|---|
-| **van Kesteren (PyMC)** | **Primary engine** | After each race weekend | Best calibrated ratings; proper uncertainty; native driver/car split |
-| Endure-Elo (variable k, robust) | Real-time supplement | Round-by-round during race | Best live signal; handles DNFs well; fast |
-| Endure-Elo (fixed k) | Sanity check baseline | After each race | Simple benchmark; should be outperformed by both above |
-| Speed-Elo (round-robin) | Lower bound benchmark | After each race | Weakest; included to quantify the endure vs speed gap |
-| Xun qualifying Rc | Car-pace standalone | After each qualifying | Independent of race outcomes; divergence from θ_t is a story signal |
+| **Endure-Elo (calibrated: k_max=0.8665, φ_race=0.999, φ_season=0.9472)** | **Primary engine** | After each race (round-by-round during race) | Best log-likelihood; robust DNF handling; fast |
+| Endure-Elo (default params) | Regression baseline | After each race | Validates the calibration gain (+33.82 LL on holdout) |
+| Speed-Elo (round-robin) | Lower bound benchmark | After each race | Weakest; quantifies the endure vs speed gap |
+| Xun qualifying Rc | Car-pace standalone | After each qualifying | Independent of race outcomes; divergence from constructor ELO is a story signal |
 
-The primary diagnostic is: **does van Kesteren's θ_d posterior mean for driver i correlate with endure-Elo's R̂ᵢ after the same race?** Strong agreement validates both; systematic divergence reveals where the models differ in their treatment of information (uncertainty quantification, DNF handling, car/driver attribution).
+The primary diagnostic is: **does the calibrated endure-Elo R̂ᵢ for driver i diverge significantly from the default-params endure-Elo after the same race?** Large divergences after unusual races (DNF clusters, regulation-era boundary races) reveal where parameter sensitivity matters most.
 
 ---
 
@@ -378,22 +376,22 @@ Compute this for N = 3 and N = 6 races. A significant positive slope triggers:
 Compare end-of-season R̂ values year-over-year. A driver showing consistent improvement signals a development story; a constructor rating falling despite driver transfers signals a car problem.
 
 **Form vs. ability divergence:**
-If a driver's seasonal form parameter (equivalent to θ_ds in van Kesteren) is significantly positive relative to their long-term ability (θ_d), they are "overachieving" — a story. Conversely, underachieving relative to long-term form level is also a story (pressure, car issues, personal factors).
+If a driver's trailing 6-race ΔR̂ is significantly above their career baseline R̂ (e.g. more than 1 standard deviation of the historical ΔR̂ distribution), they are "overachieving" relative to established ability — a story. The reverse (sustained drop below career baseline) signals a slump or car regression.
 
 ### 7.2 Outlier detection
 
 **Per-race expected position:**
-Given ratings before each race, compute the expected finishing position for each competitor (and a confidence interval). Define the **surprise score**:
+Given ratings before each race, compute the expected finishing position for each competitor using endure-Elo win probabilities. The uncertainty band around the expected position is derived from the driver's current k-factor: a high k-factor (new or recently volatile driver) means a wider band; a low k-factor (established rating) means a tighter one. Define the **surprise score**:
 ```
 SurpriseScore = (actual_position − expected_position) / σ_position
 ```
 Any |SurpriseScore| > 2.0 is a story candidate. The sign tells you direction: negative = better than expected, positive = worse.
 
-**Probability uplift:**
+**Calibrated vs. default uplift:**
 ```
-UpliftScore = log(P_endureElo(winner) / P_speedElo(winner))
+UpliftScore = log(P_calibrated(winner) / P_default(winner))
 ```
-When a driver with a history of "bouncing back" wins, endure-Elo had them higher than speed-Elo — the uplift score flags this systematically.
+When a driver with a history of "bouncing back" wins, the calibrated model (which has a higher k_max and therefore sharper rating spread) may assign them a meaningfully different probability than the default-params model — the uplift score flags races where the calibration makes the largest practical difference.
 
 **Car/driver performance decoupling:**
 Compare Xun's qualifying Rc (which updates after *each* qualifying session) against the race-outcome-based constructor endure-Elo. When they diverge significantly:
@@ -442,98 +440,40 @@ If the outlier coincides with a known situational factor, downgrade it. If it pe
 ### Phase 2: Driver/constructor separation ✅ Complete
 - Teammate normalisation implemented
 - α (constructor weight in raw driver ELO) estimated empirically
-- Driver ratings cross-validated against van Kesteren & Bergkamp θ_d posteriors
-- Target correlation >0.7 with van Kesteren achieved
+- α empirically estimated via OLS: `alpha = 0.7747` (2014–2024, `pitlane-elo estimate-alpha`)
 
-### Phase 3: van Kesteren (PyMC) primary engine + Story detection
+### Phase 3: Hyperparameter calibration ✅ Complete
 
-**3a — Implement van Kesteren & Bergkamp in PyMC** (this replaces the heuristic α estimation from Phase 2 and validates the Phase 2 teammate normalisation):
+- `pitlane-elo calibrate` pipeline implemented (random search + Nelder-Mead local refinement)
+- Temporal split anchored to regulation changes: warmup 1970–1979, calibration 1980–2013, validation 2014–2021, holdout 2022–2025
+- Best config: `k_max = 0.8665`, `phi_race = 0.9990`, `phi_season = 0.9472`
 
-*Step 1 — Minimal viable model (single season, no seasonal form):*
-```python
-import pymc as pm, pytensor.tensor as pt, numpy as np, arviz as az
+| Window | Log-likelihood | Races |
+|--------|---------------|-------|
+| Calibration (1980–2013) | −1261.06 | 566 |
+| Validation (2014–2021) | −252.35 | 160 |
+| Holdout (2022–2025) | **−142.26** | 92 |
+| Baseline (default params, holdout) | −176.08 | 92 |
 
-# Inputs:
-# race_orders: list of n_races arrays, each giving driver indices in finishing order
-# driver_team: array of shape (n_drivers,) mapping driver → team index
-# dnf_mask: bool array, True = DNF (excluded from that race's likelihood)
+Holdout improvement vs. baseline: **+33.82 log-likelihood**.
 
-with pm.Model() as f1_base:
-    σ_d = pm.HalfNormal("σ_d", sigma=1.0)
-    σ_t = pm.HalfNormal("σ_t", sigma=1.0)
+### Phase 4: Story detection engine
 
-    θ_d = pm.Normal("θ_d", mu=0, sigma=σ_d, shape=n_drivers)
-    θ_t = pm.Normal("θ_t", mu=0, sigma=σ_t, shape=n_teams)
+Build on calibrated endure-Elo R̂ᵢ signals and k-factor uncertainty:
 
-    η = θ_d + θ_t[driver_team]   # latent strength, shape (n_drivers,)
+- **Trend signals:** compute trailing 3-race and 6-race ΔR̂ per driver; flag top/bottom 3 in field
+- **Outlier signals:** per-race SurpriseScore from expected vs. actual position; k-factor-based uncertainty band; flag |SurpriseScore| > 2.0
+- **Car/driver decoupling:** compare Xun Rc (qualifying) against constructor endure-Elo; flag divergences > 1.5σ
+- **Teammate delta:** track within-team ΔR̂; flag crossings and sustained gaps
+- **Contextual explainability filter:** cross-check against race condition flags (wet, SC/VSC, sprint format, tyre compound) before surfacing a story
+- **Tune thresholds against known historical stories:**
+  - Leclerc 2019 breakthrough (Bahrain, Italy): R̂ spike and k-factor drop confirming new ability level
+  - Hamilton 2021 mid-season form dip: trailing 6-race ΔR̂ turning negative
+  - Ferrari 2022 reliability crisis: constructor ELO diverging negative from Rc
+  - McLaren 2023 late-season surge: constructor ELO positive step mid-season
+- **2026 live mode:** With 3 races of data, k-factors are still high — uncertainty bands are wide. Story engine runs in conservative mode; only surface signals where the SurpriseScore is unambiguous (> 2.5). Ratings stabilise meaningfully after races 6–8.
 
-    # Plackett-Luce log-likelihood via pm.Potential.
-    # For a race with finishing order [d_0, ..., d_{m-1}]:
-    #   log p(order) = sum_k [ η[d_k] − logsumexp(η[d_k:]) ]
-    # Using pm.Potential avoids creating observed RVs over a mutable Python list,
-    # which would produce incorrect symbolic graph construction in PyTensor.
-    for r, order in enumerate(race_orders):
-        η_r = η[order]   # strengths in finishing order, shape (m,)
-        lse = pt.stack([pt.logsumexp(η_r[k:], axis=0) for k in range(len(order) - 1)])
-        pm.Potential(f"race_{r}", pt.sum(η_r[:-1] - lse))
-
-    trace_base = pm.sample(1000, tune=1000, target_accept=0.9, return_inferencedata=True)
-```
-
-Validate: θ_d posterior means should reproduce the known 2019 hierarchy (Hamilton >> Verstappen >> Leclerc/Bottas tier >> midfield). If they do, the model is correctly specified before adding complexity.
-
-*Step 2 — Add seasonal form deviations:*
-```python
-    θ_ds = pm.Normal("θ_ds", mu=0, sigma=pm.HalfNormal("σ_ds", 0.5), shape=n_drivers)
-    θ_ts = pm.Normal("θ_ts", mu=0, sigma=pm.HalfNormal("σ_ts", 0.5), shape=n_teams)
-    η = θ_d + θ_t[driver_team] + θ_ds + θ_ts[driver_team]
-```
-
-The seasonal form parameters (θ_ds, θ_ts) are the key addition for story detection — they encode "is this driver/team performing above or below their long-run ability right now?"
-
-*Step 3 — Cross-season carry-forward priors:*
-
-After fitting season *s*, extract posterior means and standard deviations for each driver's θ_d. Use these as the prior for season *s+1*:
-
-```python
-# After fitting season s:
-θ_d_mean_s  = trace_s.posterior["θ_d"].mean(("chain", "draw")).values
-θ_d_std_s   = trace_s.posterior["θ_d"].std(("chain", "draw")).values
-
-# Season s+1 prior — shrink std slightly to reflect one more year of uncertainty:
-with pm.Model() as f1_season_next:
-    θ_d = pm.Normal("θ_d", mu=θ_d_mean_s, sigma=θ_d_std_s * 1.2, shape=n_drivers)
-    # ... rest of model
-```
-
-The 1.2× inflation on σ represents the additional uncertainty from off-season change (car development, team switches, fitness). Tune this multiplier empirically.
-
-*Step 4 — Context covariates (wet / street):*
-
-Add a binary covariate for wet races and street circuits. Rather than separate rating tracks (which fragment an already-small sample), encode context as a fixed effect on the latent strength:
-
-```python
-    β_wet    = pm.Normal("β_wet",    mu=0, sigma=0.5, shape=n_drivers)  # driver-level: wet skill is individual
-    β_street = pm.Normal("β_street", mu=0, sigma=0.5, shape=n_teams)    # team-level: street performance is car-driven (low-speed aero, cooling)
-    η = θ_d + θ_t[driver_team] + θ_ds + θ_ts[driver_team] \
-        + is_wet[r] * β_wet + is_street[r] * β_street[driver_team]
-```
-
-*Validation target for Phase 3a:* θ_d posterior means should correlate >0.75 with van Kesteren & Bergkamp's published posteriors for the 2014–2021 period. The credible intervals on θ_t should reproduce their ~88% constructor / ~12% driver decomposition (i.e., σ_t >> σ_d in the posterior).
-
-**3b — Story detection engine** (build on van Kesteren posteriors):
-- Replace raw R̂ᵢ signals with posterior means and credible intervals from θ_d + θ_ds
-- Trend signals: is θ_ds for driver i trending significantly positive/negative across the last 3–5 races?
-- Outlier signals: did this race result fall outside the 95% predictive interval?
-- Implement contextual explainability filter using race condition flags (wet, SC, VSC, sprint format)
-- Tune narrative thresholds against known historical stories:
-  - Leclerc 2019 breakthrough (Bahrain, Italy): θ_ds spike above θ_d baseline
-  - Hamilton 2021 mid-season form dip: θ_ds temporarily negative relative to θ_d
-  - Ferrari 2022 reliability crisis: θ_ts diverges sharply negative from θ_t trend
-  - McLaren 2023 late-season surge: θ_ts positive step mid-season
-- **2026 live mode:** With 3 races of data, posteriors on θ_d are wide — this is correct and should be communicated. Story engine runs in high-uncertainty mode; only surface signals with posterior probability > 0.90. Ratings stabilise meaningfully after races 6–8.
-
-### Phase 4: Live updating
+### Phase 5: Live updating
 - Connect to live results feed (FastF1 Python library is the standard tool)
 - Apply OU-based time discounting using race weekend start timestamps, not race number
 - Update endure-Elo round by round during a race for in-race story detection
@@ -543,37 +483,42 @@ Add a binary covariate for wet races and street circuits. Rather than separate r
 
 ## 9. Key Design Decisions and Trade-offs
 
-**Why van Kesteren & Bergkamp as the primary engine?**
-The main historical argument for using endure-Elo as the live engine was that MCMC is too slow for real-time updates. This doesn't hold: there is at least a week between every F1 race, and a single season of ~20 drivers × ~23 races fits in Stan or PyMC in seconds to a few minutes. Van Kesteren gives proper posterior uncertainty (credible intervals on θ_d and θ_t), handles the driver/constructor decomposition natively, and eliminates the need to estimate α manually as done in Phase 2. The cost of the heuristic approach (teammate normalisation + empirical α) is that it approximates what the Bayesian model does exactly.
+**Why endure-Elo as the primary engine?**
+Endure-Elo was empirically evaluated against the van Kesteren Bayesian model across calibration (1980–2013), validation (2014–2021), and holdout (2022–2025) windows. Endure-Elo outperformed the Bayesian model on log-likelihood in every window. The Bayesian model's theoretical advantages — explicit posterior uncertainty, native driver/constructor decomposition — did not translate to prediction accuracy. Endure-Elo also updates in real time (round-by-round during a race) and runs in milliseconds, which the MCMC-based Bayesian model cannot match. The Glicko-style variable k-factor provides a practical uncertainty proxy without requiring full posterior inference.
 
-**What role does endure-Elo now play?**
-It is the **real-time supplement during a race weekend**. Van Kesteren is a batch model and cannot update mid-race as retirements happen. Endure-Elo fills this gap: it updates round-by-round as the race unfolds, producing live story signals (sudden championship shift, underdog breakthrough, reliability crisis forming). After the race weekend, the van Kesteren model re-fits with the new results and becomes the authoritative rating again. Endure-Elo also retains value as a fast sanity check — if it diverges strongly from van Kesteren posteriors after a race, that is itself worth investigating.
+**Why these hyperparameters (k_max=0.8665, phi_race=0.999, phi_season=0.9472)?**
+The `pitlane-elo calibrate` pipeline (PR #155) ran a random search over `(k_max, phi_race, phi_season)` followed by Nelder-Mead local refinement. The temporal split was anchored to regulation changes: warmup 1970–1979 (burn-in, unscored), calibration 1980–2013, validation 2014–2021 (2014 hybrid era generalization), holdout 2022–2025. The best config improved holdout log-likelihood by +33.82 vs. default parameters. Key findings: `phi_race ≈ 1.0` means within-season forgetting is negligible — driver ability is very stable race-to-race and only meaningful decay happens at the season boundary. `k_max = 0.8665` is substantially higher than the default 0.5, allowing new or resurgent drivers to establish ratings faster.
 
-**Why endure-Elo rather than speed-Elo for the real-time role?**
+**Why endure-Elo rather than speed-Elo?**
 Powell demonstrates this conclusively: speed-Elo severely over-penalises Vettel, Bottas, Verstappen, and Leclerc when crashes or mechanical failures send them to the back. Endure-Elo treats those results as relatively uninformative (consistent with a low failure-rate driver just being unlucky). Story detection built on speed-Elo would generate excessive false-positive "crisis" stories after every DNF — particularly problematic post-2023 where crashes and mechanicals cannot be cheaply separated.
 
-**Why season-by-season fitting rather than a joint multi-decade model?**
-A joint model spanning 1970–present would in principle allow cross-era comparisons (Hamilton vs. Senna) but requires specifying how driver skill and constructor advantage evolve across major technical eras — a non-trivial modelling choice with significant identifiability risks. Season-by-season fitting with **informative carry-forward priors** is the pragmatic alternative: the posterior means for θ_d from season *s* become the prior means for season *s+1*, providing soft continuity without the complexity. Cross-era comparison is noted as a future extension but is not blocking.
-
 **Why keep Xun's qualifying Rc?**
-The van Kesteren model uses race finishing positions only. Qualifying times give a pure car-pace signal that is independent of race-day strategy, tyre management, and luck. When Rc (qualifying) diverges from θ_t (race constructor rating), that divergence is a story in its own right: the car is fast but something is being lost on race day, or vice versa. Rc also updates *before* the race, giving a pre-race prior on car performance that the race-outcome model cannot provide.
+Endure-Elo uses race finishing positions only. Qualifying times give a pure car-pace signal that is independent of race-day strategy, tyre management, and luck. When Rc (qualifying) diverges from the constructor race ELO, that divergence is a story in its own right: the car is fast but something is being lost on race day, or vice versa. Rc also updates *before* the race, giving a pre-race prior on car performance that the race-outcome model cannot provide.
 
 **Wet races and street circuits:**
-Van Kesteren & Bergkamp show these are genuinely distinct contexts. The PyMC implementation should include context indicators as covariates or maintain separate seasonal form parameters for wet/street events, weighted lightly given the small sample size per season. Flag context-switching explicitly as a story opportunity — *"Which driver genuinely elevates in the wet?"*
+Research (van Kesteren & Bergkamp; Pasz) shows these are genuinely distinct contexts. The endure-Elo implementation should maintain context-specific rating tracks for wet and street circuits (Section 3.3), or at minimum flag context-switching explicitly as a story opportunity — *"Which driver genuinely elevates in the wet?"*
 
 ---
 
 ## 10. Prediction Accuracy Benchmark Summary
 
-Based on the papers, here are the expected performance levels:
+Actual results from the calibration pipeline (PR #155). Baseline uses default params (`k_max=0.5`, `phi_race=0.99`, `phi_season=0.90`).
 
-| Metric | Baseline (uniform) | Speed-Elo | Endure-Elo | van Kesteren Bayes |
-|---|---|---|---|---|
-| Win LL/race | ~−3.0 | ~−2.8 | ~−2.4 | ~−2.3 (estimated) |
-| Brier score | 0.095 | ~0.085 | ~0.075 | ~0.070 (estimated) |
-| Winner prob (median) | 5.0% | ~9.1% | ~15.5% | ~18% (estimated) |
-| RMSE (position) | ~5.8 | ~0.46* | ~0.42* | ~0.40* (estimated) |
+| Window | Races | Endure-Elo (default) LL/race | Endure-Elo (calibrated) LL/race |
+|--------|-------|------------------------------|--------------------------------|
+| Calibration 1980–2013 | 566 | — | **−2.228** (−1261.06 total) |
+| Validation 2014–2021 | 160 | — | **−1.577** (−252.35 total) |
+| Holdout 2022–2025 | 92 | −1.914 (−176.08 total) | **−1.546** (−142.26 total) |
 
-*Xun's RMSE figures; direct comparisons require identical test sets
+**Holdout improvement: +33.82 log-likelihood (+19.1% reduction in loss vs. default params)**
 
-The endure-Elo system represents the best practical trade-off: near-Bayesian accuracy with real-time updateability. Any residual gap vs. the Bayesian benchmark represents the information value of explicit uncertainty quantification, which can be partially recovered through Glicko-style variable k-factors.
+For reference from Powell (2023) paper benchmarks on 873 races (1950–2022):
+
+| Metric | Baseline (uniform) | Speed-Elo | Endure-Elo |
+|---|---|---|---|
+| Win LL/race | ~−3.0 | ~−2.8 | ~−2.4 |
+| Brier score | 0.095 | ~0.085 | ~0.075 |
+| Winner prob (median) | 5.0% | ~9.1% | ~15.5% |
+| Race-level win rate vs speed-Elo | — | baseline | **76.3%** |
+
+The calibrated endure-Elo (−1.546 LL/race on holdout) substantially improves on both Powell's −2.4 benchmark figure and the default-params result, reflecting both the calibrated hyperparameters and the higher overall quality of 2022–2025 F1 data.
