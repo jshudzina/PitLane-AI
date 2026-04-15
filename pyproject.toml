@@ -50,7 +50,7 @@ dev = [
 ]
 docs = [
     "mkdocs-material>=9.7.1",
-    "mkdocstrings[python]>=0.24.0",
+    "mkdocstrings[python]>=1.0.3",
     "mkdocs-git-revision-date-localized-plugin>=1.2.0",
     "mkdocs-minify-plugin>=0.8.0",
     "pymdown-extensions>=10.20.0",
