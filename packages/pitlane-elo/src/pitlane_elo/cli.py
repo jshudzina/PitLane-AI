@@ -11,10 +11,12 @@ import click
 
 from pitlane_elo.calibration import calibrate as run_calibrate
 from pitlane_elo.config import ENDURE_ELO_DEFAULT, SPEED_ELO_DEFAULT
+from pitlane_elo.data import get_db_path
 from pitlane_elo.prediction.forecast import compare_models, evaluate_model, run_historical
 from pitlane_elo.ratings.endure_elo import EndureElo
 from pitlane_elo.ratings.speed_elo import SpeedElo
 from pitlane_elo.separation.alpha_estimation import estimate_alpha
+from pitlane_elo.snapshots import build_snapshots, get_driver_rating_history, get_race_snapshot
 
 
 def _make_model(name: str) -> EndureElo | SpeedElo:
@@ -473,6 +475,146 @@ def evaluate_van_kesteren_cmd(
         click.echo("  " + "-" * 48)
         for p in sorted(surprises, key=lambda x: x.winner_prob):
             click.echo(f"  {p.year:>4}  {p.round:>3}  {p.actual_winner_id:<25}  {p.winner_prob:>8.1%}")
+
+
+@main.command()
+@click.option("--start-year", type=int, default=1970, help="First season to process.")
+@click.option("--end-year", type=int, default=2026, help="Last season (inclusive).")
+@click.option("--session-type", type=click.Choice(["R", "S"]), default="R", help="Session type to snapshot.")
+@click.option("--db-path", type=click.Path(), default=None, help="Override database path.")
+def snapshot(start_year: int, end_year: int, session_type: str, db_path: str | None) -> None:
+    """Compute and persist ELO snapshots (pre-race ratings + win probs) for every race.
+
+    Runs the calibrated endure-Elo model in a predict-then-update loop and writes
+    one row per driver per race to the elo_snapshots table. Safe to re-run;
+    upsert is idempotent.
+    """
+    import time
+    from pathlib import Path
+
+    path = Path(db_path) if db_path else get_db_path()
+    click.echo(f"Running calibrated endure-Elo snapshot ({start_year}–{end_year})...")
+    t0 = time.perf_counter()
+    n = build_snapshots(start_year, end_year, db_path=path, session_type=session_type)
+    elapsed = time.perf_counter() - t0
+    click.echo(f"Wrote {n:,} rows in {elapsed:.1f}s.")
+
+
+@main.command()
+@click.option("--year", type=int, required=True, help="Season year.")
+@click.option("--round", "round_num", type=int, required=True, help="Race round number.")
+@click.option("--session-type", type=click.Choice(["R", "S"]), default="R")
+def predict(year: int, round_num: int, session_type: str) -> None:
+    """Show pre-race ELO win probabilities vs actual finish for one race.
+
+    Displays a ranked table of drivers by predicted win probability alongside
+    their actual finishing position. Run `pitlane-elo snapshot` first.
+    """
+    rows = get_race_snapshot(year, round_num, session_type=session_type)
+    if not rows:
+        click.echo(
+            f"No snapshot found for {year} R{round_num}. Run `pitlane-elo snapshot` first.",
+            err=True,
+        )
+        raise SystemExit(1)
+
+    click.echo(f"\n{year} Round {round_num} — Pre-race ELO predictions vs actual results")
+    click.echo(f"  {'Prob':>4}  {'Driver':<25}  {'Win Prob':>9}  {'Finish':>7}  {'DNF':<10}")
+    click.echo("  " + "─" * 61)
+
+    winner_rank: int | None = None
+    winner_prob: float = 0.0
+    winner_id: str = ""
+
+    for rank, row in enumerate(rows, 1):
+        finish_str = str(row.finish_position) if row.finish_position is not None else "DNF"
+        dnf_str = row.dnf_category if row.dnf_category != "none" else "—"
+
+        if row.finish_position == 1:
+            winner_rank = rank
+            winner_prob = row.win_probability
+            winner_id = row.driver_id
+
+        click.echo(f"  {rank:>4}  {row.driver_id:<25}  {row.win_probability:>8.1%}  {finish_str:>7}  {dnf_str:<10}")
+
+    click.echo("")
+    if winner_rank is not None:
+        click.echo(f"Winner ({winner_id}) was prob-ranked #{winner_rank} (predicted: {winner_prob:.1%})")
+    else:
+        # No finish_position=1 found (e.g. all DNFs or missing data)
+        click.echo("Winner could not be determined from snapshot data.")
+
+
+@main.command("plot-ratings")
+@click.option("--driver", "driver_id", required=True, help="Driver ID slug (e.g. max_verstappen).")
+@click.option("--start-year", type=int, default=1970, help="First season to include.")
+@click.option("--end-year", type=int, default=2026, help="Last season (inclusive).")
+@click.option(
+    "--output",
+    type=click.Path(),
+    default=None,
+    help="Output PNG path. Defaults to <driver_id>_ratings.png in the current directory.",
+)
+def plot_ratings(driver_id: str, start_year: int, end_year: int, output: str | None) -> None:
+    """Plot a driver's ELO rating history to a PNG file.
+
+    Run `pitlane-elo snapshot` first to populate the data.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    rows = get_driver_rating_history(driver_id, start_year=start_year, end_year=end_year)
+    if not rows:
+        click.echo(
+            f"No snapshots found for '{driver_id}'. Run `pitlane-elo snapshot` first.",
+            err=True,
+        )
+        raise SystemExit(1)
+
+    out_path = output or f"{driver_id}_ratings.png"
+
+    x = list(range(1, len(rows) + 1))
+    ratings = [r.pre_race_rating for r in rows]
+    ks = [r.pre_race_k for r in rows]
+
+    # Identify season boundaries for tick labels and dividers
+    boundary_indices: list[int] = []
+    boundary_labels: list[str] = []
+    seen_years: set[int] = set()
+    for i, row in enumerate(rows):
+        if row.year not in seen_years:
+            seen_years.add(row.year)
+            boundary_indices.append(i + 1)
+            boundary_labels.append(str(row.year))
+
+    fig, ax = plt.subplots(figsize=(14, 5))
+
+    # Uncertainty band: rating ± k_factor
+    upper = [r + k for r, k in zip(ratings, ks, strict=True)]
+    lower = [r - k for r, k in zip(ratings, ks, strict=True)]
+    ax.fill_between(x, lower, upper, alpha=0.15, color="steelblue", label="±k-factor band")
+
+    # Rating line
+    ax.plot(x, ratings, color="steelblue", linewidth=1.5, label="Pre-race rating")
+    ax.axhline(0, color="gray", linewidth=0.6, linestyle="--", alpha=0.5)
+
+    # Season boundary dividers
+    for idx in boundary_indices[1:]:
+        ax.axvline(idx, color="gray", linewidth=0.5, linestyle=":", alpha=0.6)
+
+    ax.set_xticks(boundary_indices)
+    ax.set_xticklabels(boundary_labels, fontsize=8)
+    ax.set_xlabel("Race (season boundaries marked)")
+    ax.set_ylabel("Pre-race ELO rating")
+    ax.set_title(f"ELO Rating History — {driver_id} ({start_year}–{end_year})")
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+    click.echo(f"Chart saved to {out_path}")
 
 
 @main.command()

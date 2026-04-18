@@ -2467,6 +2467,7 @@ source = { editable = "packages/pitlane-elo" }
 dependencies = [
     { name = "click" },
     { name = "duckdb" },
+    { name = "matplotlib" },
     { name = "numba" },
     { name = "numpy" },
     { name = "scipy" },
@@ -2479,7 +2480,6 @@ bayesian = [
 ]
 notebooks = [
     { name = "jupyter" },
-    { name = "matplotlib" },
     { name = "pandas" },
 ]
 
@@ -2495,7 +2495,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.1.0" },
     { name = "duckdb", specifier = ">=1.5.0" },
     { name = "jupyter", marker = "extra == 'notebooks'", specifier = ">=1.0" },
-    { name = "matplotlib", marker = "extra == 'notebooks'", specifier = ">=3.8" },
+    { name = "matplotlib", specifier = ">=3.8" },
     { name = "numba", specifier = ">=0.60" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "pandas", marker = "extra == 'notebooks'", specifier = ">=2.0" },

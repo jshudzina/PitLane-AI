@@ -20,6 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "duckdb>=1.5.0",
+    "matplotlib>=3.8",
     "numba>=0.60",
     "numpy>=1.24",
     "scipy>=1.10",
@@ -33,7 +34,6 @@ bayesian = [
 ]
 notebooks = [
     "jupyter>=1.0",
-    "matplotlib>=3.8",
     "pandas>=2.0",
 ]
 

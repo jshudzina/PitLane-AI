@@ -59,6 +59,21 @@ ENDURE_ELO_DEFAULT = EloConfig(
     exclude_mechanical_dnf=False,
 )
 
+# Calibrated via random search + Nelder-Mead on 1980–2013; validated 2014–2021; holdout 2022–2025.
+# Improves holdout log-likelihood by +33.82 vs. default params (19.1% reduction in loss).
+ENDURE_ELO_CALIBRATED = EloConfig(
+    name="endure-elo-calibrated",
+    initial_rating=0.0,
+    k_factor=0.36,
+    k_min=0.05,
+    k_max=0.8665,
+    phi_race=0.9990,
+    phi_season=0.9472,
+    phi_regulation=0.70,
+    regulation_years=(2009, 2014, 2017, 2022, 2026),
+    exclude_mechanical_dnf=False,
+)
+
 # Powell (2023) Table 1: alpha = 0.88
 CONSTRUCTOR_ELO_DEFAULT = dataclasses.replace(ENDURE_ELO_DEFAULT, name="constructor-elo-default", alpha=0.88)
 
