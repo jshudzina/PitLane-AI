@@ -91,7 +91,7 @@ def get_db_path() -> Path:
 # Explicit column lists (used in SELECT to avoid fragility from schema changes)
 # ---------------------------------------------------------------------------
 
-_RACE_COLS = (
+RACE_COLS = (
     "year, round, session_type, driver_id, abbreviation, team, "
     "grid_position, finish_position, laps_completed, status, "
     "dnf_category, is_wet_race, is_street_circuit"
@@ -148,10 +148,10 @@ def get_race_entries(
     """
     path = db_path or get_db_path()
     if session_type is not None:
-        sql = f"SELECT {_RACE_COLS} FROM race_entries WHERE year = ? AND session_type = ? ORDER BY round, driver_id"
+        sql = f"SELECT {RACE_COLS} FROM race_entries WHERE year = ? AND session_type = ? ORDER BY round, driver_id"
         result = _query(path, sql, [year, session_type])
     else:
-        sql = f"SELECT {_RACE_COLS} FROM race_entries WHERE year = ? ORDER BY round, driver_id"
+        sql = f"SELECT {RACE_COLS} FROM race_entries WHERE year = ? ORDER BY round, driver_id"
         result = _query(path, sql, [year])
     return cast(list[RaceEntry], result) if result else None
 
@@ -203,7 +203,7 @@ def get_race_entries_range(
         List of RaceEntry dicts, or None if no rows match.
     """
     path = db_path or get_db_path()
-    sql = f"SELECT {_RACE_COLS} FROM race_entries WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id"
+    sql = f"SELECT {RACE_COLS} FROM race_entries WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id"
     result = _query(path, sql, [start_year, end_year])
     return cast(list[RaceEntry], result) if result else None
 
@@ -289,6 +289,7 @@ def group_qualifying_by_session(
 
 
 __all__ = [
+    "RACE_COLS",
     "RaceEntry",
     "QualifyingEntry",
     "get_db_path",
