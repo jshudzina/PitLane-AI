@@ -500,10 +500,17 @@ def snapshot(start_year: int, end_year: int, session_type: str, db_path: str | N
     upsert is idempotent.
     """
     path = Path(db_path) if db_path else get_db_path()
+    if not path.exists():
+        raise click.ClickException(f"Database not found: {path}. Check your database path.")
     click.echo(f"Running calibrated endure-Elo snapshot ({start_year}–{end_year})...")
     t0 = time.perf_counter()
     n = build_snapshots(start_year, end_year, db_path=path, session_type=session_type)
     elapsed = time.perf_counter() - t0
+    if n == 0:
+        raise click.ClickException(
+            f"No race entries found for session_type={session_type!r} in {start_year}–{end_year}. "
+            "Verify that race_entries data exists in the database."
+        )
     click.echo(f"Wrote {n:,} rows in {elapsed:.1f}s.")
 
 

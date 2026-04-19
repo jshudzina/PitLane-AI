@@ -375,7 +375,7 @@ def build_snapshots(
     races = group_entries_by_race(filtered)
     model = EndureElo(ENDURE_ELO_CALIBRATED)
 
-    snapshot_rows: list[tuple] = []
+    total_rows = 0
     current_year: int | None = None
     active_ids_cache: dict[int, set[str]] = {}
 
@@ -384,18 +384,18 @@ def build_snapshots(
 
         for race_entries in races:
             rows, race_year = _process_race(model, race_entries, session_type, current_year=current_year)
-            snapshot_rows.extend(rows)
             current_year = race_year
 
             if race_year not in active_ids_cache:
                 active_ids_cache[race_year] = _active_driver_ids(con, race_year, session_type)
             rnd = race_entries[0]["round"]
+            con.executemany(_UPSERT_SQL, rows)
             _save_model_state(con, model, race_year, rnd, session_type, active_ids_cache[race_year])
+            total_rows += len(rows)
 
-        con.executemany(_UPSERT_SQL, snapshot_rows)
         con.commit()
 
-    return len(snapshot_rows)
+    return total_rows
 
 
 def add_race_snapshot(
