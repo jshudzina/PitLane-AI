@@ -5,9 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import duckdb
+import pytest
 from pitlane_elo.snapshots import (
     EloSnapshot,
+    add_race_snapshot,
     build_snapshots,
+    catchup_snapshots,
     ensure_schema,
     get_driver_rating_history,
     get_race_snapshot,
@@ -55,8 +58,7 @@ class TestBuildSnapshots:
         con = duckdb.connect(str(multi_race_db), read_only=True)
         try:
             rows = con.execute(
-                "SELECT year, round, SUM(win_probability) AS s "
-                "FROM elo_snapshots GROUP BY year, round"
+                "SELECT year, round, SUM(win_probability) AS s FROM elo_snapshots GROUP BY year, round"
             ).fetchall()
         finally:
             con.close()
@@ -69,9 +71,7 @@ class TestBuildSnapshots:
         build_snapshots(2023, 2024, db_path=multi_race_db)
         con = duckdb.connect(str(multi_race_db), read_only=True)
         try:
-            rows = con.execute(
-                "SELECT pre_race_rating FROM elo_snapshots WHERE year = 2023 AND round = 1"
-            ).fetchall()
+            rows = con.execute("SELECT pre_race_rating FROM elo_snapshots WHERE year = 2023 AND round = 1").fetchall()
         finally:
             con.close()
         assert rows, "No rows for 2023 R1"
@@ -128,9 +128,7 @@ class TestBuildSnapshots:
         build_snapshots(2023, 2024, db_path=multi_race_db)
         con = duckdb.connect(str(multi_race_db), read_only=True)
         try:
-            row = con.execute(
-                "SELECT MIN(podium_probability), MAX(podium_probability) FROM elo_snapshots"
-            ).fetchone()
+            row = con.execute("SELECT MIN(podium_probability), MAX(podium_probability) FROM elo_snapshots").fetchone()
         finally:
             con.close()
         assert row[0] >= 0.0
@@ -212,9 +210,7 @@ class TestGetDriverRatingHistory:
 
     def test_start_end_year_filter(self, multi_race_db: Path) -> None:
         build_snapshots(2023, 2024, db_path=multi_race_db)
-        rows = get_driver_rating_history(
-            "max_verstappen", start_year=2024, end_year=2024, db_path=multi_race_db
-        )
+        rows = get_driver_rating_history("max_verstappen", start_year=2024, end_year=2024, db_path=multi_race_db)
         assert all(r.year == 2024 for r in rows)
         assert len(rows) == 3  # 3 races in 2024
 
@@ -230,9 +226,286 @@ class TestGetDriverRatingHistory:
     def test_ratings_increase_after_wins(self, multi_race_db: Path) -> None:
         # max_verstappen wins 2023 R1 and R2, so rating should be positive after those
         build_snapshots(2023, 2024, db_path=multi_race_db)
-        rows = get_driver_rating_history(
-            "max_verstappen", start_year=2023, end_year=2023, db_path=multi_race_db
-        )
+        rows = get_driver_rating_history("max_verstappen", start_year=2023, end_year=2023, db_path=multi_race_db)
         # First race pre-race rating is 0.0, subsequent ones should be positive
         assert rows[0].pre_race_rating == 0.0
         assert rows[1].pre_race_rating > 0.0  # won race 1, so rating went up
+
+
+# ---------------------------------------------------------------------------
+# TestEnsureSchema — model-state table
+# ---------------------------------------------------------------------------
+
+
+class TestEnsureSchemaModelState:
+    def test_creates_model_state_table(self, tmp_db: Path) -> None:
+        con = duckdb.connect(str(tmp_db))
+        try:
+            ensure_schema(con)
+            tables = [row[0] for row in con.execute("SHOW TABLES").fetchall()]
+        finally:
+            con.close()
+        assert "elo_model_state" in tables
+
+    def test_idempotent_with_model_state(self, tmp_db: Path) -> None:
+        con = duckdb.connect(str(tmp_db))
+        try:
+            ensure_schema(con)
+            ensure_schema(con)
+            tables = [row[0] for row in con.execute("SHOW TABLES").fetchall()]
+        finally:
+            con.close()
+        assert "elo_model_state" in tables
+
+
+# ---------------------------------------------------------------------------
+# TestBuildSnapshotsModelState — build_snapshots also populates elo_model_state
+# ---------------------------------------------------------------------------
+
+
+class TestBuildSnapshotsModelState:
+    def test_populates_model_state(self, multi_race_db: Path) -> None:
+        build_snapshots(2023, 2024, db_path=multi_race_db)
+        con = duckdb.connect(str(multi_race_db), read_only=True)
+        try:
+            count = con.execute("SELECT COUNT(*) FROM elo_model_state").fetchone()[0]
+        finally:
+            con.close()
+        assert count > 0
+
+    def test_model_state_row_per_race_driver(self, multi_race_db: Path) -> None:
+        # 6 races, each race saves state for all ever-seen drivers (grows each race)
+        # just check the final race has all 5 drivers
+        build_snapshots(2023, 2024, db_path=multi_race_db)
+        con = duckdb.connect(str(multi_race_db), read_only=True)
+        try:
+            count = con.execute("SELECT COUNT(*) FROM elo_model_state WHERE year = 2024 AND round = 3").fetchone()[0]
+        finally:
+            con.close()
+        assert count == 5
+
+    def test_model_state_k_factors_positive(self, multi_race_db: Path) -> None:
+        build_snapshots(2023, 2024, db_path=multi_race_db)
+        con = duckdb.connect(str(multi_race_db), read_only=True)
+        try:
+            min_k = con.execute("SELECT MIN(k_factor) FROM elo_model_state").fetchone()[0]
+        finally:
+            con.close()
+        assert min_k > 0
+
+
+# ---------------------------------------------------------------------------
+# TestAddRaceSnapshot
+# ---------------------------------------------------------------------------
+
+
+class TestAddRaceSnapshot:
+    def test_matches_full_rebuild(self, multi_race_db: Path, tmp_path: Path) -> None:
+        # db_a: build 2023 only, then add 2024 R1 incrementally
+        db_a = multi_race_db
+        build_snapshots(2023, 2023, db_path=db_a)
+        add_race_snapshot(2024, 1, db_path=db_a)
+
+        # db_b: full build through 2024
+        import shutil
+
+        db_b = tmp_path / "full.duckdb"
+        shutil.copy(db_a, db_b)
+        # Reset elo_snapshots and elo_model_state on db_b, rebuild from scratch
+        with duckdb.connect(str(db_b)) as con:
+            con.execute("DELETE FROM elo_snapshots")
+            con.execute("DELETE FROM elo_model_state")
+            con.commit()
+        build_snapshots(2023, 2024, db_path=db_b)
+
+        # Compare 2024 R1 rows from both DBs
+        def fetch_r1(db: Path) -> dict[str, tuple]:
+            with duckdb.connect(str(db), read_only=True) as con:
+                rows = con.execute(
+                    "SELECT driver_id, pre_race_rating, pre_race_k, win_probability, podium_probability "
+                    "FROM elo_snapshots WHERE year = 2024 AND round = 1 ORDER BY driver_id"
+                ).fetchall()
+            return {r[0]: r[1:] for r in rows}
+
+        rows_a = fetch_r1(db_a)
+        rows_b = fetch_r1(db_b)
+        assert set(rows_a) == set(rows_b), "Driver sets differ"
+        for driver_id in rows_a:
+            for val_a, val_b in zip(rows_a[driver_id], rows_b[driver_id], strict=True):
+                assert abs(val_a - val_b) < 1e-10, f"{driver_id}: {val_a} != {val_b}"
+
+    def test_is_idempotent(self, multi_race_db: Path) -> None:
+        build_snapshots(2023, 2023, db_path=multi_race_db)
+        n1 = add_race_snapshot(2024, 1, db_path=multi_race_db)
+        n2 = add_race_snapshot(2024, 1, db_path=multi_race_db)
+        assert n1 == n2
+        with duckdb.connect(str(multi_race_db), read_only=True) as con:
+            count = con.execute("SELECT COUNT(*) FROM elo_snapshots WHERE year = 2024 AND round = 1").fetchone()[0]
+        assert count == n1
+
+    def test_rejects_race_before_checkpoint(self, multi_race_db: Path) -> None:
+        build_snapshots(2023, 2024, db_path=multi_race_db)
+        import click
+
+        with pytest.raises(click.ClickException):
+            add_race_snapshot(2024, 2, db_path=multi_race_db)
+
+    def test_rejects_real_gap(self, multi_race_db: Path) -> None:
+        # Checkpoint through 2024 R1; race_entries has R2 and R3; try to add R3
+        build_snapshots(2023, 2024, db_path=multi_race_db)
+        # Delete state for R2 and R3 so checkpoint stops at R1
+        with duckdb.connect(str(multi_race_db)) as con:
+            con.execute("DELETE FROM elo_model_state WHERE year = 2024 AND round >= 2")
+            con.execute("DELETE FROM elo_snapshots WHERE year = 2024 AND round >= 2")
+            con.commit()
+        import click
+
+        with pytest.raises(click.ClickException, match="R2"):
+            add_race_snapshot(2024, 3, db_path=multi_race_db)
+
+    def test_allows_cancelled_round_gap(self, cancelled_rounds_db: Path) -> None:
+        # DB has 2023 R1-R3 and 2024 R1 + 2024 R3 (R2 is cancelled — no entry).
+        # After building 2023 + 2024 R1, adding 2024 R3 should succeed because R2 has no entry.
+        build_snapshots(2023, 2023, db_path=cancelled_rounds_db)
+        add_race_snapshot(2024, 1, db_path=cancelled_rounds_db)
+        # R2 is absent from race_entries — add R3 directly
+        n = add_race_snapshot(2024, 3, db_path=cancelled_rounds_db)
+        assert n == 5  # 5 drivers
+
+    def test_allows_cancelled_matches_full_rebuild(self, cancelled_rounds_db: Path, tmp_path: Path) -> None:
+        # Incremental add of R3 (after R2 cancellation) should match full rebuild.
+        import shutil
+
+        db_incr = cancelled_rounds_db
+        build_snapshots(2023, 2023, db_path=db_incr)
+        add_race_snapshot(2024, 1, db_path=db_incr)
+        add_race_snapshot(2024, 3, db_path=db_incr)
+
+        db_full = tmp_path / "full.duckdb"
+        shutil.copy(db_incr, db_full)
+        with duckdb.connect(str(db_full)) as con:
+            con.execute("DELETE FROM elo_snapshots")
+            con.execute("DELETE FROM elo_model_state")
+            con.commit()
+        build_snapshots(2023, 2024, db_path=db_full)
+
+        with duckdb.connect(str(db_incr), read_only=True) as con:
+            incr_rows = {
+                r[0]: r[1:]
+                for r in con.execute(
+                    "SELECT driver_id, pre_race_rating, win_probability "
+                    "FROM elo_snapshots WHERE year = 2024 AND round = 3 ORDER BY driver_id"
+                ).fetchall()
+            }
+        with duckdb.connect(str(db_full), read_only=True) as con:
+            full_rows = {
+                r[0]: r[1:]
+                for r in con.execute(
+                    "SELECT driver_id, pre_race_rating, win_probability "
+                    "FROM elo_snapshots WHERE year = 2024 AND round = 3 ORDER BY driver_id"
+                ).fetchall()
+            }
+        assert set(incr_rows) == set(full_rows)
+        for driver_id in incr_rows:
+            for v_i, v_f in zip(incr_rows[driver_id], full_rows[driver_id], strict=True):
+                assert abs(v_i - v_f) < 1e-10, f"{driver_id}: {v_i} != {v_f}"
+
+    def test_rejects_no_checkpoint(self, tmp_db: Path) -> None:
+        import click
+
+        with pytest.raises(click.ClickException, match="snapshot"):
+            add_race_snapshot(2024, 1, db_path=tmp_db)
+
+    def test_crosses_year_boundary(self, multi_race_db: Path, tmp_path: Path) -> None:
+        # Incremental add of 2024 R1 after building only 2023 should apply phi_season.
+        # Proof: it must match the full rebuild's pre_race_rating for 2024 R1.
+        import shutil
+
+        db_incr = multi_race_db
+        build_snapshots(2023, 2023, db_path=db_incr)
+        add_race_snapshot(2024, 1, db_path=db_incr)
+
+        db_full = tmp_path / "full.duckdb"
+        shutil.copy(db_incr, db_full)
+        with duckdb.connect(str(db_full)) as con:
+            con.execute("DELETE FROM elo_snapshots")
+            con.execute("DELETE FROM elo_model_state")
+            con.commit()
+        build_snapshots(2023, 2024, db_path=db_full)
+
+        with duckdb.connect(str(db_incr), read_only=True) as con:
+            incr_rating = con.execute(
+                "SELECT pre_race_rating FROM elo_snapshots "
+                "WHERE year = 2024 AND round = 1 AND driver_id = 'max_verstappen'"
+            ).fetchone()[0]
+        with duckdb.connect(str(db_full), read_only=True) as con:
+            full_rating = con.execute(
+                "SELECT pre_race_rating FROM elo_snapshots "
+                "WHERE year = 2024 AND round = 1 AND driver_id = 'max_verstappen'"
+            ).fetchone()[0]
+
+        assert abs(incr_rating - full_rating) < 1e-10
+        # Sanity: phi_season < 1 means the 2024 rating must be lower than the 2023 R3 post-race rating
+        with duckdb.connect(str(db_full), read_only=True) as con:
+            r23_r3_pre = con.execute(
+                "SELECT pre_race_rating FROM elo_snapshots "
+                "WHERE year = 2023 AND round = 3 AND driver_id = 'max_verstappen'"
+            ).fetchone()[0]
+        # phi_season < 1 so the decayed 2024 rating will differ from the 2023 R3 pre-race value
+        assert full_rating != r23_r3_pre
+
+
+# ---------------------------------------------------------------------------
+# TestCatchupSnapshots
+# ---------------------------------------------------------------------------
+
+
+class TestCatchupSnapshots:
+    def test_processes_all_missing_races(self, multi_race_db: Path) -> None:
+        # Build through 2023 only, then catchup should add 2024 R1-R3
+        build_snapshots(2023, 2023, db_path=multi_race_db)
+        n = catchup_snapshots(db_path=multi_race_db)
+        assert n == 15  # 3 races × 5 drivers
+
+    def test_already_up_to_date_returns_zero(self, multi_race_db: Path) -> None:
+        build_snapshots(2023, 2024, db_path=multi_race_db)
+        n = catchup_snapshots(db_path=multi_race_db)
+        assert n == 0
+
+    def test_catchup_matches_full_rebuild(self, multi_race_db: Path, tmp_path: Path) -> None:
+        import shutil
+
+        db_catchup = multi_race_db
+        build_snapshots(2023, 2023, db_path=db_catchup)
+        catchup_snapshots(db_path=db_catchup)
+
+        db_full = tmp_path / "full.duckdb"
+        shutil.copy(db_catchup, db_full)
+        with duckdb.connect(str(db_full)) as con:
+            con.execute("DELETE FROM elo_snapshots")
+            con.execute("DELETE FROM elo_model_state")
+            con.commit()
+        build_snapshots(2023, 2024, db_path=db_full)
+
+        with duckdb.connect(str(db_catchup), read_only=True) as con:
+            catchup_rows = con.execute(
+                "SELECT year, round, driver_id, pre_race_rating, win_probability "
+                "FROM elo_snapshots WHERE year = 2024 ORDER BY year, round, driver_id"
+            ).fetchall()
+        with duckdb.connect(str(db_full), read_only=True) as con:
+            full_rows = con.execute(
+                "SELECT year, round, driver_id, pre_race_rating, win_probability "
+                "FROM elo_snapshots WHERE year = 2024 ORDER BY year, round, driver_id"
+            ).fetchall()
+
+        assert len(catchup_rows) == len(full_rows)
+        for (y_c, r_c, d_c, rat_c, w_c), (y_f, r_f, d_f, rat_f, w_f) in zip(catchup_rows, full_rows, strict=True):
+            assert y_c == y_f and r_c == r_f and d_c == d_f
+            assert abs(rat_c - rat_f) < 1e-10, f"{d_c} {y_c} R{r_c}: rating {rat_c} != {rat_f}"
+            assert abs(w_c - w_f) < 1e-10, f"{d_c} {y_c} R{r_c}: win_prob {w_c} != {w_f}"
+
+    def test_rejects_no_checkpoint(self, tmp_db: Path) -> None:
+        import click
+
+        with pytest.raises(click.ClickException, match="snapshot"):
+            catchup_snapshots(db_path=tmp_db)

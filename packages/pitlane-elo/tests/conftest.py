@@ -260,3 +260,57 @@ def multi_race_db(tmp_db: Path) -> Path:
     finally:
         con.close()
     return tmp_db
+
+
+@pytest.fixture()
+def cancelled_rounds_db(tmp_db: Path) -> Path:
+    """DB with 2023 R1-R3 and 2024 R1 + R3 (R2 intentionally absent — simulates cancellation).
+
+    Uses the same 5-driver roster as multi_race_db.
+    """
+    race_data = [
+        # 2023 Round 1
+        (2023, 1, "max_verstappen", "VER", "Red Bull Racing", 1, 1, 57, "Finished", "none"),
+        (2023, 1, "sergio_perez", "PER", "Red Bull Racing", 3, 2, 57, "Finished", "none"),
+        (2023, 1, "lewis_hamilton", "HAM", "Mercedes", 2, 3, 57, "Finished", "none"),
+        (2023, 1, "carlos_sainz", "SAI", "Ferrari", 4, 4, 57, "Finished", "none"),
+        (2023, 1, "charles_leclerc", "LEC", "Ferrari", 5, 5, 57, "Finished", "none"),
+        # 2023 Round 2
+        (2023, 2, "max_verstappen", "VER", "Red Bull Racing", 1, 1, 57, "Finished", "none"),
+        (2023, 2, "lewis_hamilton", "HAM", "Mercedes", 2, 2, 57, "Finished", "none"),
+        (2023, 2, "sergio_perez", "PER", "Red Bull Racing", 3, 3, 57, "Finished", "none"),
+        (2023, 2, "carlos_sainz", "SAI", "Ferrari", 4, 4, 57, "Finished", "none"),
+        (2023, 2, "charles_leclerc", "LEC", "Ferrari", 5, 5, 57, "Finished", "none"),
+        # 2023 Round 3
+        (2023, 3, "lewis_hamilton", "HAM", "Mercedes", 1, 1, 57, "Finished", "none"),
+        (2023, 3, "max_verstappen", "VER", "Red Bull Racing", 2, 2, 57, "Finished", "none"),
+        (2023, 3, "charles_leclerc", "LEC", "Ferrari", 3, 3, 57, "Finished", "none"),
+        (2023, 3, "sergio_perez", "PER", "Red Bull Racing", 4, 4, 57, "Finished", "none"),
+        (2023, 3, "carlos_sainz", "SAI", "Ferrari", 5, 5, 57, "Finished", "none"),
+        # 2024 Round 1 (R2 cancelled — intentionally absent)
+        (2024, 1, "max_verstappen", "VER", "Red Bull Racing", 1, 1, 57, "Finished", "none"),
+        (2024, 1, "sergio_perez", "PER", "Red Bull Racing", 2, 2, 57, "Finished", "none"),
+        (2024, 1, "lewis_hamilton", "HAM", "Mercedes", 3, 3, 57, "Finished", "none"),
+        (2024, 1, "carlos_sainz", "SAI", "Ferrari", 4, 4, 57, "Finished", "none"),
+        (2024, 1, "charles_leclerc", "LEC", "Ferrari", 5, 5, 57, "Finished", "none"),
+        # 2024 Round 3 (R2 skipped — cancelled)
+        (2024, 3, "charles_leclerc", "LEC", "Ferrari", 1, 1, 57, "Finished", "none"),
+        (2024, 3, "max_verstappen", "VER", "Red Bull Racing", 2, 2, 57, "Finished", "none"),
+        (2024, 3, "lewis_hamilton", "HAM", "Mercedes", 3, 3, 57, "Finished", "none"),
+        (2024, 3, "sergio_perez", "PER", "Red Bull Racing", 4, 4, 57, "Finished", "none"),
+        (2024, 3, "carlos_sainz", "SAI", "Ferrari", 5, 5, 57, "Finished", "none"),
+    ]
+    con = duckdb.connect(str(tmp_db))
+    try:
+        for year, rnd, driver_id, abbr, team, grid, finish, laps, status, dnf in race_data:
+            con.execute(
+                """INSERT INTO race_entries
+                   (year, round, session_type, driver_id, abbreviation, team,
+                    grid_position, finish_position, laps_completed, status,
+                    dnf_category, is_wet_race, is_street_circuit)
+                   VALUES (?, ?, 'R', ?, ?, ?, ?, ?, ?, ?, ?, FALSE, FALSE)""",
+                [year, rnd, driver_id, abbr, team, grid, finish, laps, status, dnf],
+            )
+    finally:
+        con.close()
+    return tmp_db

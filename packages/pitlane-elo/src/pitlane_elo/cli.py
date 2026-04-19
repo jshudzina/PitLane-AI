@@ -21,7 +21,13 @@ from pitlane_elo.prediction.forecast import compare_models, evaluate_model, run_
 from pitlane_elo.ratings.endure_elo import EndureElo
 from pitlane_elo.ratings.speed_elo import SpeedElo
 from pitlane_elo.separation.alpha_estimation import estimate_alpha
-from pitlane_elo.snapshots import build_snapshots, get_driver_rating_history, get_race_snapshot
+from pitlane_elo.snapshots import (
+    add_race_snapshot,
+    build_snapshots,
+    catchup_snapshots,
+    get_driver_rating_history,
+    get_race_snapshot,
+)
 
 
 def _make_model(name: str) -> EndureElo | SpeedElo:
@@ -500,6 +506,50 @@ def snapshot(start_year: int, end_year: int, session_type: str, db_path: str | N
     click.echo(f"Wrote {n:,} rows in {elapsed:.1f}s.")
 
 
+@main.command("snapshot-add")
+@click.option("--year", type=int, required=True, help="Season year of the race to add.")
+@click.option("--round", "round_num", type=int, required=True, help="Round number of the race to add.")
+@click.option("--session-type", type=click.Choice(["R", "S"]), default="R", help="Session type.")
+@click.option("--db-path", type=click.Path(), default=None, help="Override database path.")
+def snapshot_add(year: int, round_num: int, session_type: str, db_path: str | None) -> None:
+    """Incrementally add one race to the snapshot (~1 second).
+
+    Loads the model state saved after the previous race, predicts probabilities,
+    and persists both the snapshot rows and updated model state.  Run
+    `pitlane-elo snapshot` first to build the initial state.
+
+    Cancelled rounds (no entries in race_entries) are automatically skipped
+    when checking for gaps — only real races block incremental adds.
+    """
+    path = Path(db_path) if db_path else get_db_path()
+    click.echo(f"Adding snapshot for {year} R{round_num} ({session_type})...")
+    t0 = time.perf_counter()
+    n = add_race_snapshot(year, round_num, session_type=session_type, db_path=path)
+    elapsed = time.perf_counter() - t0
+    click.echo(f"Wrote {n:,} rows in {elapsed:.1f}s.")
+
+
+@main.command("snapshot-catchup")
+@click.option("--session-type", type=click.Choice(["R", "S"]), default="R", help="Session type.")
+@click.option("--db-path", type=click.Path(), default=None, help="Override database path.")
+def snapshot_catchup(session_type: str, db_path: str | None) -> None:
+    """Add every race in race_entries not yet covered by a model-state checkpoint.
+
+    Finds the latest checkpoint, then processes all subsequent races in
+    chronological order.  Cancelled rounds are naturally skipped.  Run
+    `pitlane-elo snapshot` first to build the initial state.
+    """
+    path = Path(db_path) if db_path else get_db_path()
+    click.echo(f"Catching up snapshots ({session_type})...")
+    t0 = time.perf_counter()
+    n = catchup_snapshots(session_type=session_type, db_path=path)
+    elapsed = time.perf_counter() - t0
+    if n == 0:
+        click.echo("Already up to date.")
+    else:
+        click.echo(f"Wrote {n:,} rows in {elapsed:.1f}s.")
+
+
 @main.command()
 @click.option("--year", type=int, required=True, help="Season year.")
 @click.option("--round", "round_num", type=int, required=True, help="Race round number.")
@@ -512,9 +562,7 @@ def predict(year: int, round_num: int, session_type: str) -> None:
     """
     rows = get_race_snapshot(year, round_num, session_type=session_type)
     if not rows:
-        raise click.ClickException(
-            f"No snapshot found for {year} R{round_num}. Run `pitlane-elo snapshot` first."
-        )
+        raise click.ClickException(f"No snapshot found for {year} R{round_num}. Run `pitlane-elo snapshot` first.")
 
     click.echo(f"\n{year} Round {round_num} — Pre-race ELO predictions vs actual results")
     click.echo(f"  {'Prob':>4}  {'Driver':<25}  {'Win Prob':>9}  {'Podium Prob':>11}  {'Finish':>7}  {'DNF':<10}")
@@ -563,9 +611,7 @@ def plot_ratings(driver_id: str, start_year: int, end_year: int, output: str | N
     """
     rows = get_driver_rating_history(driver_id, start_year=start_year, end_year=end_year)
     if not rows:
-        raise click.ClickException(
-            f"No snapshots found for '{driver_id}'. Run `pitlane-elo snapshot` first."
-        )
+        raise click.ClickException(f"No snapshots found for '{driver_id}'. Run `pitlane-elo snapshot` first.")
 
     out_path = output or f"{driver_id}_ratings.png"
 
