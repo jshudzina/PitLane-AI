@@ -519,8 +519,8 @@ def predict(year: int, round_num: int, session_type: str) -> None:
         raise SystemExit(1)
 
     click.echo(f"\n{year} Round {round_num} — Pre-race ELO predictions vs actual results")
-    click.echo(f"  {'Prob':>4}  {'Driver':<25}  {'Win Prob':>9}  {'Finish':>7}  {'DNF':<10}")
-    click.echo("  " + "─" * 61)
+    click.echo(f"  {'Prob':>4}  {'Driver':<25}  {'Win Prob':>9}  {'Podium Prob':>11}  {'Finish':>7}  {'DNF':<10}")
+    click.echo("  " + "─" * 75)
 
     winner_rank: int | None = None
     winner_prob: float = 0.0
@@ -535,7 +535,10 @@ def predict(year: int, round_num: int, session_type: str) -> None:
             winner_prob = row.win_probability
             winner_id = row.driver_id
 
-        click.echo(f"  {rank:>4}  {row.driver_id:<25}  {row.win_probability:>8.1%}  {finish_str:>7}  {dnf_str:<10}")
+        click.echo(
+            f"  {rank:>4}  {row.driver_id:<25}  {row.win_probability:>8.1%}"
+            f"  {row.podium_probability:>10.1%}  {finish_str:>7}  {dnf_str:<10}"
+        )
 
     click.echo("")
     if winner_rank is not None:

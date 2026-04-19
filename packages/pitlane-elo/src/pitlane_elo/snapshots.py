@@ -1,17 +1,18 @@
-"""ELO snapshot persistence: pre-race ratings, win probabilities, and actual results.
+"""ELO snapshot persistence: pre-race ratings, win/podium probabilities, and actual results.
 
 Captures the state of the EndureElo model immediately before each race update
 and stores it to a DuckDB table (elo_snapshots). This allows querying predicted
-win probabilities and comparing them to actual results without re-running from
-1970 each time.
+win/podium probabilities and comparing them to actual results without re-running
+from 1970 each time.
 
 Schema: elo_snapshots(year, round, session_type, driver_id, pre_race_rating,
-                       pre_race_k, win_probability, finish_position, dnf_category,
-                       created_at)
+                       pre_race_k, win_probability, podium_probability,
+                       finish_position, dnf_category, created_at)
 """
 
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -37,6 +38,7 @@ class EloSnapshot:
     pre_race_rating: float
     pre_race_k: float
     win_probability: float
+    podium_probability: float
     finish_position: int | None
     dnf_category: str
 
@@ -47,18 +49,24 @@ class EloSnapshot:
 
 _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS elo_snapshots (
-    year              INTEGER   NOT NULL,
-    round             INTEGER   NOT NULL,
-    session_type      VARCHAR   NOT NULL,
-    driver_id         VARCHAR   NOT NULL,
-    pre_race_rating   DOUBLE    NOT NULL,
-    pre_race_k        DOUBLE    NOT NULL,
-    win_probability   DOUBLE    NOT NULL,
-    finish_position   INTEGER,
-    dnf_category      VARCHAR   NOT NULL DEFAULT 'none',
-    created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    year               INTEGER   NOT NULL,
+    round              INTEGER   NOT NULL,
+    session_type       VARCHAR   NOT NULL,
+    driver_id          VARCHAR   NOT NULL,
+    pre_race_rating    DOUBLE    NOT NULL,
+    pre_race_k         DOUBLE    NOT NULL,
+    win_probability    DOUBLE    NOT NULL,
+    podium_probability DOUBLE    NOT NULL DEFAULT 0.0,
+    finish_position    INTEGER,
+    dnf_category       VARCHAR   NOT NULL DEFAULT 'none',
+    created_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (year, round, session_type, driver_id)
 )
+"""
+
+_ADD_PODIUM_COL_SQL = """
+ALTER TABLE elo_snapshots
+    ADD COLUMN podium_probability DOUBLE DEFAULT 0.0
 """
 
 _CREATE_DRIVER_INDEX_SQL = """
@@ -74,8 +82,8 @@ CREATE INDEX IF NOT EXISTS idx_elo_snapshots_race
 _UPSERT_SQL = """
 INSERT OR REPLACE INTO elo_snapshots
     (year, round, session_type, driver_id, pre_race_rating, pre_race_k,
-     win_probability, finish_position, dnf_category, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+     win_probability, podium_probability, finish_position, dnf_category, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 """
 
 # ---------------------------------------------------------------------------
@@ -86,6 +94,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
     """Create elo_snapshots table and indexes if they do not exist. Idempotent."""
     con.execute(_CREATE_TABLE_SQL)
+    with contextlib.suppress(Exception):
+        con.execute(_ADD_PODIUM_COL_SQL)
     con.execute(_CREATE_DRIVER_INDEX_SQL)
     con.execute(_CREATE_RACE_INDEX_SQL)
 
@@ -157,9 +167,11 @@ def build_snapshots(
         pre_ratings = {d: model.ratings[d] for d in driver_ids}
         pre_ks = {d: model.k_factors[d] for d in driver_ids}
 
-        # Predict win probabilities before updating
+        # Predict win and podium probabilities before updating
         probs = model.predict_win_probabilities(driver_ids)
         prob_map = dict(zip(driver_ids, probs, strict=True))
+        podium_probs = model.predict_podium_probabilities(driver_ids)
+        podium_map = dict(zip(driver_ids, podium_probs, strict=True))
 
         # Actual results from the ordered race entries
         finish_map = {e["driver_id"]: e.get("finish_position") for e in race_entries}
@@ -175,6 +187,7 @@ def build_snapshots(
                     pre_ratings[driver_id],
                     pre_ks[driver_id],
                     float(prob_map[driver_id]),
+                    float(podium_map[driver_id]),
                     finish_map.get(driver_id),
                     dnf_map.get(driver_id, "none"),
                 )
@@ -200,7 +213,8 @@ def build_snapshots(
 # ---------------------------------------------------------------------------
 
 _SNAPSHOT_COLS = (
-    "year, round, session_type, driver_id, pre_race_rating, pre_race_k, win_probability, finish_position, dnf_category"
+    "year, round, session_type, driver_id, pre_race_rating, pre_race_k, "
+    "win_probability, podium_probability, finish_position, dnf_category"
 )
 
 
@@ -217,6 +231,7 @@ def _rows_to_snapshots(rows: list[tuple], columns: list[str]) -> list[EloSnapsho
                 pre_race_rating=d["pre_race_rating"],
                 pre_race_k=d["pre_race_k"],
                 win_probability=d["win_probability"],
+                podium_probability=d["podium_probability"],
                 finish_position=d["finish_position"],
                 dnf_category=d["dnf_category"],
             )

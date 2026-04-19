@@ -127,6 +127,35 @@ class TestBuildSnapshots:
             con.close()
         assert min_k > 0
 
+    def test_podium_probabilities_in_range(self, multi_race_db: Path) -> None:
+        build_snapshots(2023, 2024, db_path=multi_race_db)
+        con = duckdb.connect(str(multi_race_db), read_only=True)
+        try:
+            row = con.execute(
+                "SELECT MIN(podium_probability), MAX(podium_probability) FROM elo_snapshots"
+            ).fetchone()
+        finally:
+            con.close()
+        assert row[0] >= 0.0
+        assert row[1] <= 1.0
+
+    def test_podium_probability_gte_win_probability(self, multi_race_db: Path) -> None:
+        build_snapshots(2023, 2024, db_path=multi_race_db)
+        con = duckdb.connect(str(multi_race_db), read_only=True)
+        try:
+            violations = con.execute(
+                "SELECT COUNT(*) FROM elo_snapshots WHERE podium_probability < win_probability - 1e-9"
+            ).fetchone()[0]
+        finally:
+            con.close()
+        assert violations == 0
+
+    def test_podium_probability_on_snapshot_object(self, multi_race_db: Path) -> None:
+        build_snapshots(2023, 2024, db_path=multi_race_db)
+        rows = get_race_snapshot(2023, 1, db_path=multi_race_db)
+        assert all(hasattr(r, "podium_probability") for r in rows)
+        assert all(0.0 <= r.podium_probability <= 1.0 for r in rows)
+
 
 # ---------------------------------------------------------------------------
 # get_race_snapshot tests

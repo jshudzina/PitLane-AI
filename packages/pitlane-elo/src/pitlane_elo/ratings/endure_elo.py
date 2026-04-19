@@ -117,6 +117,27 @@ class EndureElo(RatingModel):
             # Remove eliminated driver from remaining set
             remaining.pop()
 
+    def predict_podium_probabilities(self, driver_ids: list[str], *, n_samples: int = 100_000) -> np.ndarray:
+        """Compute probability each driver finishes in the top 3 (podium).
+
+        Uses the competitive exponential representation of the Plackett-Luce model:
+        draw T_i ~ Exp(λ_i) independently; the top-3 finishers are the 3 drivers
+        with the largest T values. With 100_000 samples, standard error is < 0.2%.
+        """
+        n = len(driver_ids)
+        if n == 0:
+            return np.array([])
+        if n <= 3:
+            return np.ones(n)
+
+        lambdas = np.array([np.exp(-self.get_rating(d)) for d in driver_ids])
+        rng = np.random.default_rng()
+        # T[i, s] ~ Exp(rate=λ_i): survival time for driver i in sample s.
+        # Drivers with the 3 largest T values finish on the podium.
+        t_samples = rng.exponential(size=(n, n_samples)) / lambdas[:, None]
+        top3_threshold = np.partition(t_samples, kth=n - 3, axis=0)[n - 3]
+        return np.clip((t_samples >= top3_threshold).mean(axis=1), 0.0, 1.0)
+
     def predict_win_probabilities(self, driver_ids: list[str]) -> np.ndarray:
         """Compute win probability using the inclusion-exclusion formula (eq 60).
 
