@@ -344,8 +344,7 @@ def van_kesteren_cmd(year: int, step: str, fast: bool) -> None:
     result = model.fit_from_db(year)
 
     if result is None:
-        click.echo(f"No race data found for {year}.", err=True)
-        raise SystemExit(1)
+        raise click.ClickException(f"No race data found for {year}.")
 
     driver_cis = model.driver_credible_intervals()
     click.echo(f"\nDriver ratings — theta_d ({year}):")
@@ -463,8 +462,7 @@ def evaluate_van_kesteren_cmd(
         )
 
     if not predictions:
-        click.echo("No predictions generated. Check that data exists for the requested years.", err=True)
-        raise SystemExit(1)
+        raise click.ClickException("No predictions generated. Check that data exists for the requested years.")
 
     metrics = evaluate_model(predictions)
     click.echo(f"  Races evaluated:   {metrics['n_races']:>6}")
@@ -514,11 +512,9 @@ def predict(year: int, round_num: int, session_type: str) -> None:
     """
     rows = get_race_snapshot(year, round_num, session_type=session_type)
     if not rows:
-        click.echo(
-            f"No snapshot found for {year} R{round_num}. Run `pitlane-elo snapshot` first.",
-            err=True,
+        raise click.ClickException(
+            f"No snapshot found for {year} R{round_num}. Run `pitlane-elo snapshot` first."
         )
-        raise SystemExit(1)
 
     click.echo(f"\n{year} Round {round_num} — Pre-race ELO predictions vs actual results")
     click.echo(f"  {'Prob':>4}  {'Driver':<25}  {'Win Prob':>9}  {'Podium Prob':>11}  {'Finish':>7}  {'DNF':<10}")
@@ -567,11 +563,9 @@ def plot_ratings(driver_id: str, start_year: int, end_year: int, output: str | N
     """
     rows = get_driver_rating_history(driver_id, start_year=start_year, end_year=end_year)
     if not rows:
-        click.echo(
-            f"No snapshots found for '{driver_id}'. Run `pitlane-elo snapshot` first.",
-            err=True,
+        raise click.ClickException(
+            f"No snapshots found for '{driver_id}'. Run `pitlane-elo snapshot` first."
         )
-        raise SystemExit(1)
 
     out_path = output or f"{driver_id}_ratings.png"
 
