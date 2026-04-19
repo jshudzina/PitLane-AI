@@ -5,8 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import duckdb
-import pytest
-
 from pitlane_elo.snapshots import (
     EloSnapshot,
     build_snapshots,
@@ -14,7 +12,6 @@ from pitlane_elo.snapshots import (
     get_driver_rating_history,
     get_race_snapshot,
 )
-
 
 # ---------------------------------------------------------------------------
 # Schema tests
