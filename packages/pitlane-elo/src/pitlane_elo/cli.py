@@ -562,13 +562,15 @@ def snapshot_catchup(session_type: str, db_path: str | None) -> None:
 @click.option("--year", type=int, required=True, help="Season year.")
 @click.option("--round", "round_num", type=int, required=True, help="Race round number.")
 @click.option("--session-type", type=click.Choice(["R", "S"]), default="R")
-def predict(year: int, round_num: int, session_type: str) -> None:
+@click.option("--db-path", type=click.Path(), default=None, help="Override database path.")
+def predict(year: int, round_num: int, session_type: str, db_path: str | None) -> None:
     """Show pre-race ELO win probabilities vs actual finish for one race.
 
     Displays a ranked table of drivers by predicted win probability alongside
     their actual finishing position. Run `pitlane-elo snapshot` first.
     """
-    rows = get_race_snapshot(year, round_num, session_type=session_type)
+    path = Path(db_path) if db_path else None
+    rows = get_race_snapshot(year, round_num, session_type=session_type, db_path=path)
     if not rows:
         raise click.ClickException(f"No snapshot found for {year} R{round_num}. Run `pitlane-elo snapshot` first.")
 

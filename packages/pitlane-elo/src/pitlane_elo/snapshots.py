@@ -24,7 +24,7 @@ import duckdb
 
 from pitlane_elo.config import ENDURE_ELO_CALIBRATED
 from pitlane_elo.data import (
-    _RACE_COLS,
+    RACE_COLS,
     RaceEntry,
     get_db_path,
     get_race_entries_range,
@@ -477,7 +477,7 @@ def add_race_snapshot(
         # Load race entries for the target race
         try:
             cursor = con.execute(
-                f"SELECT {_RACE_COLS} FROM race_entries "
+                f"SELECT {RACE_COLS} FROM race_entries "
                 "WHERE year = ? AND round = ? AND session_type = ? "
                 "ORDER BY driver_id",
                 [year, round_num, session_type],
@@ -584,7 +584,7 @@ def catchup_snapshots(
 
         for race_year, race_round in pending:
             cursor = con.execute(
-                f"SELECT {_RACE_COLS} FROM race_entries "
+                f"SELECT {RACE_COLS} FROM race_entries "
                 "WHERE year = ? AND round = ? AND session_type = ? ORDER BY driver_id",
                 [race_year, race_round, session_type],
             )
