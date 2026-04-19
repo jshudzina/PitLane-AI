@@ -428,7 +428,8 @@ def evaluate_van_kesteren_cmd(
       pitlane-elo evaluate-van-kesteren --start-year 2019 --end-year 2024 --fast --sequential
     """
     from pitlane_elo.bayesian.van_kesteren import VAN_KESTEREN_DEFAULT, VAN_KESTEREN_FAST, VanKesterenConfig
-    from pitlane_elo.prediction.forecast import evaluate_model, run_historical_bayesian, run_sequential_bayesian
+    from pitlane_elo.prediction.bayesian_forecast import run_historical_bayesian, run_sequential_bayesian
+    from pitlane_elo.prediction.forecast import evaluate_model
 
     if fast:
         config = VanKesterenConfig(
