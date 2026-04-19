@@ -19,6 +19,7 @@ import contextlib
 from dataclasses import dataclass
 from pathlib import Path
 
+import click
 import duckdb
 
 from pitlane_elo.config import ENDURE_ELO_CALIBRATED
@@ -119,6 +120,12 @@ INSERT OR REPLACE INTO elo_model_state
 VALUES (?, ?, ?, ?, ?, ?)
 """
 
+# Drivers with no race_entries within this many years of the checkpoint are
+# omitted from elo_model_state. Safe for endure-elo because initial_rating=0
+# and ratings decay geometrically toward 0, so re-initialization on return is
+# equivalent to keeping the decayed value.
+STATE_RETENTION_YEARS = 10
+
 
 # ---------------------------------------------------------------------------
 # Schema management
@@ -141,17 +148,36 @@ def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _active_driver_ids(
+    con: duckdb.DuckDBPyConnection,
+    year: int,
+    session_type: str,
+) -> set[str]:
+    """Return driver IDs with at least one entry in race_entries within STATE_RETENTION_YEARS of year."""
+    cursor = con.execute(
+        "SELECT DISTINCT driver_id FROM race_entries WHERE session_type = ? AND year >= ? AND year <= ?",
+        [session_type, year - STATE_RETENTION_YEARS, year],
+    )
+    return {row[0] for row in cursor.fetchall()}
+
+
 def _save_model_state(
     con: duckdb.DuckDBPyConnection,
     model: EndureElo,
     year: int,
     round_num: int,
     session_type: str,
+    active_driver_ids: set[str] | None = None,
 ) -> None:
-    """Persist the full model state (all drivers) after processing a race."""
+    """Persist model state after processing a race.
+
+    When active_driver_ids is provided, only those drivers are persisted,
+    pruning long-retired drivers from the checkpoint table.
+    """
     rows = [
         (year, round_num, session_type, driver_id, rating, model.k_factors[driver_id])
         for driver_id, rating in model.ratings.items()
+        if active_driver_ids is None or driver_id in active_driver_ids
     ]
     con.executemany(_UPSERT_STATE_SQL, rows)
 
@@ -350,8 +376,8 @@ def build_snapshots(
     model = EndureElo(ENDURE_ELO_CALIBRATED)
 
     snapshot_rows: list[tuple] = []
-    state_rows: list[tuple] = []
     current_year: int | None = None
+    active_ids_cache: dict[int, set[str]] = {}
 
     with duckdb.connect(str(path)) as con:
         ensure_schema(con)
@@ -361,12 +387,12 @@ def build_snapshots(
             snapshot_rows.extend(rows)
             current_year = race_year
 
+            if race_year not in active_ids_cache:
+                active_ids_cache[race_year] = _active_driver_ids(con, race_year, session_type)
             rnd = race_entries[0]["round"]
-            for driver_id, rating in model.ratings.items():
-                state_rows.append((race_year, rnd, session_type, driver_id, rating, model.k_factors[driver_id]))
+            _save_model_state(con, model, race_year, rnd, session_type, active_ids_cache[race_year])
 
         con.executemany(_UPSERT_SQL, snapshot_rows)
-        con.executemany(_UPSERT_STATE_SQL, state_rows)
         con.commit()
 
     return len(snapshot_rows)
@@ -405,8 +431,6 @@ def add_race_snapshot(
     Raises:
         click.ClickException: If prerequisites are not met.
     """
-    import click
-
     path = db_path or get_db_path()
 
     with duckdb.connect(str(path)) as con:
@@ -486,8 +510,9 @@ def add_race_snapshot(
         snapshot_rows, _ = _process_race(model, race_entries, session_type, current_year=cp_year)
 
         # Persist results
+        active_ids = _active_driver_ids(con, year, session_type)
         con.executemany(_UPSERT_SQL, snapshot_rows)
-        _save_model_state(con, model, year, round_num, session_type)
+        _save_model_state(con, model, year, round_num, session_type, active_ids)
         con.commit()
 
     return len(snapshot_rows)
@@ -517,8 +542,6 @@ def catchup_snapshots(
     Raises:
         click.ClickException: If no prior checkpoint exists.
     """
-    import click
-
     path = db_path or get_db_path()
     total_rows = 0
 
@@ -557,6 +580,7 @@ def catchup_snapshots(
         model.k_factors = k_factors
 
         current_year: int = cp_year
+        active_ids_cache: dict[int, set[str]] = {}
 
         for race_year, race_round in pending:
             cursor = con.execute(
@@ -575,8 +599,10 @@ def catchup_snapshots(
             race_entries = order_race_entries(race_entries)
 
             snapshot_rows, current_year = _process_race(model, race_entries, session_type, current_year=current_year)
+            if race_year not in active_ids_cache:
+                active_ids_cache[race_year] = _active_driver_ids(con, race_year, session_type)
             con.executemany(_UPSERT_SQL, snapshot_rows)
-            _save_model_state(con, model, race_year, race_round, session_type)
+            _save_model_state(con, model, race_year, race_round, session_type, active_ids_cache[race_year])
             total_rows += len(snapshot_rows)
 
         con.commit()

@@ -295,6 +295,105 @@ class TestBuildSnapshotsModelState:
 
 
 # ---------------------------------------------------------------------------
+# TestModelStatePruning — inactive drivers excluded from elo_model_state
+# ---------------------------------------------------------------------------
+
+
+class TestModelStatePruning:
+    def test_long_retired_driver_pruned(self, tmp_db: Path) -> None:
+        """A driver last active in 2000 must not appear in state checkpoints from 2011+."""
+        con = duckdb.connect(str(tmp_db))
+        try:
+            # Seed a "historical" driver racing only in 2000 and current drivers from 2011-2012
+            for rnd, finish_map in [
+                (1, {"retired_driver": 1, "active_a": 2, "active_b": 3}),
+                (2, {"retired_driver": 1, "active_a": 2, "active_b": 3}),
+            ]:
+                for driver_id, finish in finish_map.items():
+                    con.execute(
+                        "INSERT INTO race_entries (year, round, session_type, driver_id, team, "
+                        "laps_completed, status, dnf_category, is_wet_race, is_street_circuit, finish_position) "
+                        "VALUES (2000, ?, 'R', ?, 'Team', 57, 'Finished', 'none', false, false, ?)",
+                        [rnd, driver_id, finish],
+                    )
+            for rnd, finish_map in [
+                (1, {"active_a": 1, "active_b": 2}),
+                (2, {"active_a": 2, "active_b": 1}),
+            ]:
+                for driver_id, finish in finish_map.items():
+                    for year in (2011, 2012):
+                        con.execute(
+                            "INSERT INTO race_entries (year, round, session_type, driver_id, team, "
+                            "laps_completed, status, dnf_category, is_wet_race, is_street_circuit, finish_position) "
+                            "VALUES (?, ?, 'R', ?, 'Team', 57, 'Finished', 'none', false, false, ?)",
+                            [year, rnd, driver_id, finish],
+                        )
+            con.commit()
+        finally:
+            con.close()
+
+        build_snapshots(2000, 2012, db_path=tmp_db)
+
+        with duckdb.connect(str(tmp_db), read_only=True) as con:
+            # retired_driver must appear in 2000 checkpoints (within retention window)
+            count_2000 = con.execute(
+                "SELECT COUNT(*) FROM elo_model_state WHERE driver_id = 'retired_driver' AND year = 2000"
+            ).fetchone()[0]
+            # retired_driver must NOT appear in 2011+ checkpoints (11+ years since last race)
+            count_2011 = con.execute(
+                "SELECT COUNT(*) FROM elo_model_state WHERE driver_id = 'retired_driver' AND year >= 2011"
+            ).fetchone()[0]
+            # active drivers must still be present in 2012 checkpoints
+            count_active_2012 = con.execute(
+                "SELECT COUNT(DISTINCT driver_id) FROM elo_model_state WHERE year = 2012 AND round = 2"
+            ).fetchone()[0]
+
+        assert count_2000 > 0, "retired_driver should be in 2000 state"
+        assert count_2011 == 0, "retired_driver should be pruned from 2011+ state"
+        assert count_active_2012 == 2, "active drivers must remain in 2012 state"
+
+    def test_returning_driver_within_retention_window_kept(self, tmp_db: Path) -> None:
+        """A driver who returns within 10 years must remain in all checkpoints."""
+        con = duckdb.connect(str(tmp_db))
+        try:
+            # driver_a races in 2014 and 2020 (6 year gap — within 10yr window)
+            # driver_b races every year 2014-2020 for continuity
+            for year in range(2014, 2021):
+                for _rnd in (1,):
+                    con.execute(
+                        "INSERT INTO race_entries (year, round, session_type, driver_id, team, "
+                        "laps_completed, status, dnf_category, is_wet_race, is_street_circuit, finish_position) "
+                        "VALUES (?, 1, 'R', 'driver_b', 'Team', 57, 'Finished', 'none', false, false, 1)",
+                        [year],
+                    )
+            for year in (2014, 2020):
+                con.execute(
+                    "INSERT INTO race_entries (year, round, session_type, driver_id, team, "
+                    "laps_completed, status, dnf_category, is_wet_race, is_street_circuit, finish_position) "
+                    "VALUES (?, 1, 'R', 'driver_a', 'Team', 57, 'Finished', 'none', false, false, 2)",
+                    [year],
+                )
+            con.commit()
+        finally:
+            con.close()
+
+        build_snapshots(2014, 2020, db_path=tmp_db)
+
+        with duckdb.connect(str(tmp_db), read_only=True) as con:
+            # driver_a raced in 2014; in 2019 checkpoint they are 5 years inactive — still within window
+            count_2019 = con.execute(
+                "SELECT COUNT(*) FROM elo_model_state WHERE driver_id = 'driver_a' AND year = 2019"
+            ).fetchone()[0]
+            # driver_a races again in 2020 — must appear in 2020 state
+            count_2020 = con.execute(
+                "SELECT COUNT(*) FROM elo_model_state WHERE driver_id = 'driver_a' AND year = 2020"
+            ).fetchone()[0]
+
+        assert count_2019 > 0, "driver_a should still be in 2019 state (5yr gap < 10yr window)"
+        assert count_2020 > 0, "driver_a should be in 2020 state after returning"
+
+
+# ---------------------------------------------------------------------------
 # TestAddRaceSnapshot
 # ---------------------------------------------------------------------------
 
