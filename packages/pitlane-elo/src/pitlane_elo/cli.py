@@ -5,9 +5,14 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
+import time
 from pathlib import Path
 
 import click
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 from pitlane_elo.calibration import calibrate as run_calibrate
 from pitlane_elo.config import ENDURE_ELO_DEFAULT, SPEED_ELO_DEFAULT
@@ -489,9 +494,6 @@ def snapshot(start_year: int, end_year: int, session_type: str, db_path: str | N
     one row per driver per race to the elo_snapshots table. Safe to re-run;
     upsert is idempotent.
     """
-    import time
-    from pathlib import Path
-
     path = Path(db_path) if db_path else get_db_path()
     click.echo(f"Running calibrated endure-Elo snapshot ({start_year}–{end_year})...")
     t0 = time.perf_counter()
@@ -563,11 +565,6 @@ def plot_ratings(driver_id: str, start_year: int, end_year: int, output: str | N
 
     Run `pitlane-elo snapshot` first to populate the data.
     """
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
     rows = get_driver_rating_history(driver_id, start_year=start_year, end_year=end_year)
     if not rows:
         click.echo(

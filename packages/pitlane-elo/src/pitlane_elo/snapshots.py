@@ -94,7 +94,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
     """Create elo_snapshots table and indexes if they do not exist. Idempotent."""
     con.execute(_CREATE_TABLE_SQL)
-    with contextlib.suppress(Exception):
+    with contextlib.suppress(duckdb.CatalogException):
         con.execute(_ADD_PODIUM_COL_SQL)
     con.execute(_CREATE_DRIVER_INDEX_SQL)
     con.execute(_CREATE_RACE_INDEX_SQL)
@@ -197,13 +197,10 @@ def build_snapshots(
         model.process_race(race_entries)
 
     # Bulk upsert
-    con = duckdb.connect(str(path))
-    try:
+    with duckdb.connect(str(path)) as con:
         ensure_schema(con)
         con.executemany(_UPSERT_SQL, rows)
         con.commit()
-    finally:
-        con.close()
 
     return len(rows)
 
@@ -241,7 +238,7 @@ def _rows_to_snapshots(rows: list[tuple], columns: list[str]) -> list[EloSnapsho
 
 def get_race_snapshot(
     year: int,
-    round: int,
+    round_num: int,
     *,
     session_type: str = "R",
     db_path: Path | None = None,
@@ -250,7 +247,7 @@ def get_race_snapshot(
 
     Args:
         year: Season year.
-        round: Race round number.
+        round_num: Race round number.
         session_type: "R" for race, "S" for sprint.
         db_path: Override the database path.
 
@@ -268,7 +265,7 @@ def get_race_snapshot(
     )
     with duckdb.connect(str(path), read_only=True) as con:
         try:
-            cursor = con.execute(sql, [year, round, session_type])
+            cursor = con.execute(sql, [year, round_num, session_type])
         except duckdb.CatalogException:
             # Table doesn't exist yet — user hasn't run snapshot command
             return []
