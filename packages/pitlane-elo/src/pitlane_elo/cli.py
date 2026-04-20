@@ -492,7 +492,19 @@ def evaluate_van_kesteren_cmd(
 @click.option("--end-year", type=int, default=2026, help="Last season (inclusive).")
 @click.option("--session-type", type=click.Choice(["R", "S"]), default="R", help="Session type to snapshot.")
 @click.option("--db-path", type=click.Path(), default=None, help="Override database path.")
-def snapshot(start_year: int, end_year: int, session_type: str, db_path: str | None) -> None:
+@click.option(
+    "--retention-years",
+    type=int,
+    default=None,
+    help="Years of history kept per checkpoint (default: PITLANE_STATE_RETENTION_YEARS env var, then 5).",
+)
+def snapshot(
+    start_year: int,
+    end_year: int,
+    session_type: str,
+    db_path: str | None,
+    retention_years: int | None,
+) -> None:
     """Compute and persist ELO snapshots (pre-race ratings + win probs) for every race.
 
     Runs the calibrated endure-Elo model in a predict-then-update loop and writes
@@ -504,7 +516,13 @@ def snapshot(start_year: int, end_year: int, session_type: str, db_path: str | N
         raise click.ClickException(f"Database not found: {path}. Check your database path.")
     click.echo(f"Running calibrated endure-Elo snapshot ({start_year}–{end_year})...")
     t0 = time.perf_counter()
-    n = build_snapshots(start_year, end_year, db_path=path, session_type=session_type)
+    n = build_snapshots(
+        start_year,
+        end_year,
+        db_path=path,
+        session_type=session_type,
+        retention_years=retention_years,
+    )
     elapsed = time.perf_counter() - t0
     if n == 0:
         raise click.ClickException(
@@ -519,7 +537,19 @@ def snapshot(start_year: int, end_year: int, session_type: str, db_path: str | N
 @click.option("--round", "round_num", type=int, required=True, help="Round number of the race to add.")
 @click.option("--session-type", type=click.Choice(["R", "S"]), default="R", help="Session type.")
 @click.option("--db-path", type=click.Path(), default=None, help="Override database path.")
-def snapshot_add(year: int, round_num: int, session_type: str, db_path: str | None) -> None:
+@click.option(
+    "--retention-years",
+    type=int,
+    default=None,
+    help="Years of history kept per checkpoint (default: PITLANE_STATE_RETENTION_YEARS env var, then 5).",
+)
+def snapshot_add(
+    year: int,
+    round_num: int,
+    session_type: str,
+    db_path: str | None,
+    retention_years: int | None,
+) -> None:
     """Incrementally add one race to the snapshot (~1 second).
 
     Loads the model state saved after the previous race, predicts probabilities,
@@ -532,7 +562,13 @@ def snapshot_add(year: int, round_num: int, session_type: str, db_path: str | No
     path = Path(db_path) if db_path else get_db_path()
     click.echo(f"Adding snapshot for {year} R{round_num} ({session_type})...")
     t0 = time.perf_counter()
-    n = add_race_snapshot(year, round_num, session_type=session_type, db_path=path)
+    n = add_race_snapshot(
+        year,
+        round_num,
+        session_type=session_type,
+        db_path=path,
+        retention_years=retention_years,
+    )
     elapsed = time.perf_counter() - t0
     click.echo(f"Wrote {n:,} rows in {elapsed:.1f}s.")
 
@@ -540,7 +576,17 @@ def snapshot_add(year: int, round_num: int, session_type: str, db_path: str | No
 @main.command("snapshot-catchup")
 @click.option("--session-type", type=click.Choice(["R", "S"]), default="R", help="Session type.")
 @click.option("--db-path", type=click.Path(), default=None, help="Override database path.")
-def snapshot_catchup(session_type: str, db_path: str | None) -> None:
+@click.option(
+    "--retention-years",
+    type=int,
+    default=None,
+    help="Years of history kept per checkpoint (default: PITLANE_STATE_RETENTION_YEARS env var, then 5).",
+)
+def snapshot_catchup(
+    session_type: str,
+    db_path: str | None,
+    retention_years: int | None,
+) -> None:
     """Add every race in race_entries not yet covered by a model-state checkpoint.
 
     Finds the latest checkpoint, then processes all subsequent races in
@@ -550,7 +596,11 @@ def snapshot_catchup(session_type: str, db_path: str | None) -> None:
     path = Path(db_path) if db_path else get_db_path()
     click.echo(f"Catching up snapshots ({session_type})...")
     t0 = time.perf_counter()
-    n = catchup_snapshots(session_type=session_type, db_path=path)
+    n = catchup_snapshots(
+        session_type=session_type,
+        db_path=path,
+        retention_years=retention_years,
+    )
     elapsed = time.perf_counter() - t0
     if n == 0:
         click.echo("Already up to date.")

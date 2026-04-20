@@ -30,7 +30,10 @@ from pitlane_elo.ratings.base import RatingModel
 def _inclusion_exclusion(lambdas: np.ndarray) -> np.ndarray:
     """Compute win probabilities via inclusion-exclusion (eq 60).
 
-    JIT-compiled to native ARM with parallel driver iteration.
+    JIT-compiled to native ARM with parallel driver iteration. Callers must
+    pass lambdas corresponding only to drivers who actually started the race;
+    DNS entries inflate the power-set size and dilute every starter's
+    probability.
     """
     n = len(lambdas)
     probs = np.zeros(n)
