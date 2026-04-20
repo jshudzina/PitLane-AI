@@ -108,8 +108,7 @@ class RatingsStore:
     def active_driver_ids(self, year: int, session_type: str) -> set[str]:
         """Driver IDs with at least one entry within ``retention_years`` of ``year``."""
         cursor = self.con.execute(
-            "SELECT DISTINCT driver_id FROM race_entries "
-            "WHERE session_type = ? AND year >= ? AND year <= ?",
+            "SELECT DISTINCT driver_id FROM race_entries WHERE session_type = ? AND year >= ? AND year <= ?",
             [session_type, year - self.retention_years, year],
         )
         return {row[0] for row in cursor.fetchall()}
@@ -145,8 +144,7 @@ class RatingsStore:
     ) -> tuple[dict[str, float], dict[str, float]]:
         """Return ``(ratings, k_factors)`` saved after the given race (empty if missing)."""
         cursor = self.con.execute(
-            "SELECT driver_id, rating, k_factor FROM elo_model_state "
-            "WHERE year = ? AND round = ? AND session_type = ?",
+            "SELECT driver_id, rating, k_factor FROM elo_model_state WHERE year = ? AND round = ? AND session_type = ?",
             [year, round_num, session_type],
         )
         ratings: dict[str, float] = {}

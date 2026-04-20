@@ -215,9 +215,7 @@ def build_snapshots(
         store.ensure_schema()
 
         for race_entries in races:
-            rows, race_year = predict_snapshot_rows(
-                model, race_entries, session_type, current_year=current_year
-            )
+            rows, race_year = predict_snapshot_rows(model, race_entries, session_type, current_year=current_year)
             current_year = race_year
             model.process_race(race_entries)
 
@@ -227,7 +225,10 @@ def build_snapshots(
 
             store.write_snapshot_rows(rows)
             store.save_checkpoint(
-                model, race_year, rnd, session_type,
+                model,
+                race_year,
+                rnd,
+                session_type,
                 active_driver_ids=active_ids_cache[race_year],
             )
             total_rows += len(rows)
@@ -312,15 +313,17 @@ def add_race_snapshot(
             model.ratings = ratings
             model.k_factors = k_factors
 
-        snapshot_rows, _ = predict_snapshot_rows(
-            model, race_entries, session_type, current_year=cp_year
-        )
+        snapshot_rows, _ = predict_snapshot_rows(model, race_entries, session_type, current_year=cp_year)
         model.process_race(race_entries)
 
         active_ids = store.active_driver_ids(year, session_type)
         store.write_snapshot_rows(snapshot_rows)
         store.save_checkpoint(
-            model, year, round_num, session_type, active_driver_ids=active_ids,
+            model,
+            year,
+            round_num,
+            session_type,
+            active_driver_ids=active_ids,
         )
         con.commit()
 
@@ -381,7 +384,10 @@ def catchup_snapshots(
                 continue
 
             snapshot_rows, current_year = predict_snapshot_rows(
-                model, race_entries, session_type, current_year=current_year,
+                model,
+                race_entries,
+                session_type,
+                current_year=current_year,
             )
             model.process_race(race_entries)
 
@@ -390,7 +396,10 @@ def catchup_snapshots(
 
             store.write_snapshot_rows(snapshot_rows)
             store.save_checkpoint(
-                model, race_year, race_round, session_type,
+                model,
+                race_year,
+                race_round,
+                session_type,
                 active_driver_ids=active_ids_cache[race_year],
             )
             total_rows += len(snapshot_rows)
