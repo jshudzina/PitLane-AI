@@ -5,14 +5,15 @@ schema DDL, snapshot-row upserts, post-race model-state checkpoints, and the
 checkpoint-discovery queries used to drive incremental adds.
 
 Callers pass an open connection and a retention policy; the store neither
-opens nor closes the connection. ``load_checkpoint`` returns plain dicts so
-model hydration stays explicit — no method here mutates a model.
+opens nor closes the connection. ``load_checkpoint`` returns a
+:class:`ModelState` so model hydration stays explicit — no method here
+mutates a model.
 """
 
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import duckdb
 
@@ -84,6 +85,52 @@ VALUES (?, ?, ?, ?, ?, ?)
 """
 
 
+# ---------------------------------------------------------------------------
+# Typed record shapes
+# ---------------------------------------------------------------------------
+
+
+class Checkpoint(NamedTuple):
+    """Identifier for a persisted model-state checkpoint."""
+
+    year: int
+    round: int
+    session_type: str
+
+
+class RaceKey(NamedTuple):
+    """Primary key fragment identifying a single race within a session type."""
+
+    year: int
+    round: int
+
+
+class ModelState(NamedTuple):
+    """Per-driver ratings and k-factors loaded from a checkpoint."""
+
+    ratings: dict[str, float]
+    k_factors: dict[str, float]
+
+
+class SnapshotRow(NamedTuple):
+    """One row destined for ``elo_snapshots``. Field order matches the INSERT.
+
+    Declared as a NamedTuple so ``executemany`` treats instances as positional
+    parameter tuples while callers get named-field access.
+    """
+
+    year: int
+    round: int
+    session_type: str
+    driver_id: str
+    pre_race_rating: float
+    pre_race_k: float
+    win_probability: float
+    podium_probability: float
+    finish_position: int | None
+    dnf_category: str
+
+
 class RatingsStore:
     """DuckDB-backed store for ELO snapshot rows and model-state checkpoints."""
 
@@ -129,7 +176,7 @@ class RatingsStore:
         When ``active_driver_ids`` is supplied, drivers outside that set are
         pruned from the checkpoint so the table does not grow unboundedly.
         """
-        rows = [
+        rows: list[tuple[int, int, str, str, float, float]] = [
             (year, round_num, session_type, driver_id, rating, model.k_factors[driver_id])
             for driver_id, rating in model.ratings.items()
             if active_driver_ids is None or driver_id in active_driver_ids
@@ -141,8 +188,8 @@ class RatingsStore:
         year: int,
         round_num: int,
         session_type: str,
-    ) -> tuple[dict[str, float], dict[str, float]]:
-        """Return ``(ratings, k_factors)`` saved after the given race (empty if missing)."""
+    ) -> ModelState:
+        """Return ``ModelState`` saved after the given race (empty if missing)."""
         cursor = self.con.execute(
             "SELECT driver_id, rating, k_factor FROM elo_model_state WHERE year = ? AND round = ? AND session_type = ?",
             [year, round_num, session_type],
@@ -152,10 +199,10 @@ class RatingsStore:
         for driver_id, rating, k_factor in cursor.fetchall():
             ratings[driver_id] = rating
             k_factors[driver_id] = k_factor
-        return ratings, k_factors
+        return ModelState(ratings=ratings, k_factors=k_factors)
 
-    def latest_checkpoint(self, session_type: str) -> tuple[int, int, str] | None:
-        """Most recently persisted (year, round, session_type), or None."""
+    def latest_checkpoint(self, session_type: str) -> Checkpoint | None:
+        """Most recently persisted checkpoint for the session type, or None."""
         try:
             cursor = self.con.execute(
                 "SELECT year, round, session_type FROM elo_model_state "
@@ -168,14 +215,14 @@ class RatingsStore:
         row = cursor.fetchone()
         if row is None:
             return None
-        return (row[0], row[1], row[2])
+        return Checkpoint(year=row[0], round=row[1], session_type=row[2])
 
     def checkpoint_before(
         self,
         year: int,
         round_num: int,
         session_type: str,
-    ) -> tuple[int, int, str] | None:
+    ) -> Checkpoint | None:
         """Most recent checkpoint strictly before ``(year, round_num)``, or None."""
         try:
             cursor = self.con.execute(
@@ -190,7 +237,7 @@ class RatingsStore:
         row = cursor.fetchone()
         if row is None:
             return None
-        return (row[0], row[1], row[2])
+        return Checkpoint(year=row[0], round=row[1], session_type=row[2])
 
     def gap_races_between(
         self,
@@ -199,8 +246,8 @@ class RatingsStore:
         target_year: int,
         target_round: int,
         session_type: str,
-    ) -> list[tuple[int, int]]:
-        """``(year, round)`` pairs in race_entries strictly between checkpoint and target."""
+    ) -> list[RaceKey]:
+        """``RaceKey`` values in race_entries strictly between checkpoint and target."""
         cursor = self.con.execute(
             "SELECT DISTINCT year, round FROM race_entries "
             "WHERE session_type = ? "
@@ -209,11 +256,11 @@ class RatingsStore:
             "ORDER BY year, round",
             [session_type, cp_year, cp_year, cp_round, target_year, target_year, target_round],
         )
-        return [(r[0], r[1]) for r in cursor.fetchall()]
+        return [RaceKey(year=r[0], round=r[1]) for r in cursor.fetchall()]
 
     # ----- snapshot rows --------------------------------------------------
 
-    def write_snapshot_rows(self, rows: list[tuple]) -> None:
+    def write_snapshot_rows(self, rows: list[SnapshotRow]) -> None:
         """Upsert a batch of snapshot rows. Safe to call with an empty list."""
         if not rows:
             return
@@ -249,8 +296,8 @@ class RatingsStore:
         cp_year: int,
         cp_round: int,
         session_type: str,
-    ) -> list[tuple[int, int]]:
-        """``(year, round)`` pairs in race_entries after the given checkpoint."""
+    ) -> list[RaceKey]:
+        """``RaceKey`` values in race_entries after the given checkpoint."""
         cursor = self.con.execute(
             "SELECT DISTINCT year, round FROM race_entries "
             "WHERE session_type = ? "
@@ -258,7 +305,13 @@ class RatingsStore:
             "ORDER BY year, round",
             [session_type, cp_year, cp_year, cp_round],
         )
-        return [(r[0], r[1]) for r in cursor.fetchall()]
+        return [RaceKey(year=r[0], round=r[1]) for r in cursor.fetchall()]
 
 
-__all__ = ["RatingsStore"]
+__all__ = [
+    "Checkpoint",
+    "ModelState",
+    "RaceKey",
+    "RatingsStore",
+    "SnapshotRow",
+]

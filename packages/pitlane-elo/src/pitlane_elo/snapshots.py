@@ -28,7 +28,7 @@ from pitlane_elo.data import (
     group_entries_by_race,
 )
 from pitlane_elo.ratings.endure_elo import EndureElo
-from pitlane_elo.ratings_store import RatingsStore
+from pitlane_elo.ratings_store import RatingsStore, SnapshotRow
 
 # ---------------------------------------------------------------------------
 # Retention policy
@@ -100,7 +100,7 @@ def predict_snapshot_rows(
     session_type: str,
     *,
     current_year: int | None,
-) -> tuple[list[tuple], int]:
+) -> tuple[list[SnapshotRow], int]:
     """Compute pre-race snapshot rows for one race. Does not update the model.
 
     Applies season decay when the race crosses a year boundary from
@@ -135,18 +135,18 @@ def predict_snapshot_rows(
     finish_map = {e["driver_id"]: e.get("finish_position") for e in starters}
     dnf_map = {e["driver_id"]: e.get("dnf_category") or "none" for e in starters}
 
-    rows: list[tuple] = [
-        (
-            year,
-            rnd,
-            session_type,
-            driver_id,
-            pre_ratings[driver_id],
-            pre_ks[driver_id],
-            float(prob_map[driver_id]),
-            float(podium_map[driver_id]),
-            finish_map.get(driver_id),
-            dnf_map.get(driver_id, "none"),
+    rows: list[SnapshotRow] = [
+        SnapshotRow(
+            year=year,
+            round=rnd,
+            session_type=session_type,
+            driver_id=driver_id,
+            pre_race_rating=pre_ratings[driver_id],
+            pre_race_k=pre_ks[driver_id],
+            win_probability=float(prob_map[driver_id]),
+            podium_probability=float(podium_map[driver_id]),
+            finish_position=finish_map.get(driver_id),
+            dnf_category=dnf_map.get(driver_id, "none"),
         )
         for driver_id in driver_ids
     ]
@@ -272,11 +272,10 @@ def add_race_snapshot(
                 "Run `pitlane-elo snapshot` first to build the initial state."
             )
 
-        latest_year, latest_round, _ = latest
-        if (year, round_num) < (latest_year, latest_round):
+        if (year, round_num) < (latest.year, latest.round):
             raise click.ClickException(
                 f"{year} R{round_num} is before the latest checkpoint "
-                f"({latest_year} R{latest_round}). "
+                f"({latest.year} R{latest.round}). "
                 "Use `pitlane-elo snapshot` to replay from scratch."
             )
 
@@ -285,12 +284,12 @@ def add_race_snapshot(
             cp_year: int | None = None
             cp_round: int | None = None
         else:
-            cp_year, cp_round, _ = prior
+            cp_year, cp_round = prior.year, prior.round
 
         if cp_year is not None and cp_round is not None:
             gaps = store.gap_races_between(cp_year, cp_round, year, round_num, session_type)
             if gaps:
-                gap_str = ", ".join(f"{y} R{r}" for y, r in gaps)
+                gap_str = ", ".join(f"{g.year} R{g.round}" for g in gaps)
                 raise click.ClickException(
                     f"Cannot add {year} R{round_num}: unprocessed races exist before it: "
                     f"{gap_str}. Add them in order or run `pitlane-elo snapshot-catchup`."
@@ -309,9 +308,9 @@ def add_race_snapshot(
 
         model = EndureElo(ENDURE_ELO_CALIBRATED)
         if cp_year is not None and cp_round is not None:
-            ratings, k_factors = store.load_checkpoint(cp_year, cp_round, session_type)
-            model.ratings = ratings
-            model.k_factors = k_factors
+            state = store.load_checkpoint(cp_year, cp_round, session_type)
+            model.ratings = state.ratings
+            model.k_factors = state.k_factors
 
         snapshot_rows, _ = predict_snapshot_rows(model, race_entries, session_type, current_year=cp_year)
         model.process_race(race_entries)
@@ -360,22 +359,20 @@ def catchup_snapshots(
                 "Run `pitlane-elo snapshot` first to build the initial state."
             )
 
-        cp_year, cp_round, _ = checkpoint
-
         try:
-            pending = store.pending_races_after_checkpoint(cp_year, cp_round, session_type)
+            pending = store.pending_races_after_checkpoint(checkpoint.year, checkpoint.round, session_type)
         except duckdb.CatalogException as err:
             raise click.ClickException("race_entries table not found. Check your database path.") from err
 
         if not pending:
             return 0
 
-        ratings, k_factors = store.load_checkpoint(cp_year, cp_round, session_type)
+        state = store.load_checkpoint(checkpoint.year, checkpoint.round, session_type)
         model = EndureElo(ENDURE_ELO_CALIBRATED)
-        model.ratings = ratings
-        model.k_factors = k_factors
+        model.ratings = state.ratings
+        model.k_factors = state.k_factors
 
-        current_year: int = cp_year
+        current_year: int = checkpoint.year
         active_ids_cache: dict[int, set[str]] = {}
 
         for race_year, race_round in pending:
@@ -420,7 +417,7 @@ _SNAPSHOT_COLS = (
 
 
 def _rows_to_snapshots(rows: list[tuple], columns: list[str]) -> list[EloSnapshot]:
-    result = []
+    result: list[EloSnapshot] = []
     for row in rows:
         d = dict(zip(columns, row, strict=True))
         result.append(
