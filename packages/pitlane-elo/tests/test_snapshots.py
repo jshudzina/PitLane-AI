@@ -7,7 +7,9 @@ from pathlib import Path
 import duckdb
 import pytest
 from pitlane_elo.snapshots import (
+    DEFAULT_STATE_RETENTION_YEARS,
     EloSnapshot,
+    _resolve_retention_years,
     add_race_snapshot,
     build_snapshots,
     catchup_snapshots,
@@ -332,7 +334,7 @@ class TestModelStatePruning:
         finally:
             con.close()
 
-        build_snapshots(2000, 2012, db_path=tmp_db)
+        build_snapshots(2000, 2012, db_path=tmp_db, retention_years=10)
 
         with duckdb.connect(str(tmp_db), read_only=True) as con:
             # retired_driver must appear in 2000 checkpoints (within retention window)
@@ -377,7 +379,7 @@ class TestModelStatePruning:
         finally:
             con.close()
 
-        build_snapshots(2014, 2020, db_path=tmp_db)
+        build_snapshots(2014, 2020, db_path=tmp_db, retention_years=10)
 
         with duckdb.connect(str(tmp_db), read_only=True) as con:
             # driver_a raced in 2014; in 2019 checkpoint they are 5 years inactive — still within window
@@ -608,3 +610,128 @@ class TestCatchupSnapshots:
 
         with pytest.raises(click.ClickException, match="snapshot"):
             catchup_snapshots(db_path=tmp_db)
+
+
+# ---------------------------------------------------------------------------
+# TestStarterFilter — only drivers who started appear in snapshot rows
+# ---------------------------------------------------------------------------
+
+
+class TestStarterFilter:
+    def _insert_race(
+        self,
+        con: duckdb.DuckDBPyConnection,
+        year: int,
+        rnd: int,
+        rows: list[tuple[str, int | None, int | None]],
+    ) -> None:
+        for driver_id, grid, finish in rows:
+            con.execute(
+                """INSERT INTO race_entries
+                   (year, round, session_type, driver_id, team,
+                    grid_position, finish_position, laps_completed, status,
+                    dnf_category, is_wet_race, is_street_circuit)
+                   VALUES (?, ?, 'R', ?, 'T', ?, ?, 57, 'Finished', 'none', false, false)""",
+                [year, rnd, driver_id, grid, finish],
+            )
+
+    def test_dns_drivers_excluded_from_snapshots(self, tmp_db: Path) -> None:
+        with duckdb.connect(str(tmp_db)) as con:
+            self._insert_race(
+                con,
+                2024,
+                1,
+                [
+                    ("driver_a", 1, 1),
+                    ("driver_b", 2, 2),
+                    ("driver_c", 3, 3),
+                    ("dns_driver", None, None),  # DNS — qualified-out / did not start
+                ],
+            )
+            con.commit()
+
+        n = build_snapshots(2024, 2024, db_path=tmp_db, retention_years=10)
+
+        assert n == 3, "DNS driver must not produce a snapshot row"
+        with duckdb.connect(str(tmp_db), read_only=True) as con:
+            ids = {row[0] for row in con.execute("SELECT driver_id FROM elo_snapshots").fetchall()}
+        assert ids == {"driver_a", "driver_b", "driver_c"}
+        assert "dns_driver" not in ids
+
+    def test_probabilities_sum_to_one_with_dns_present(self, tmp_db: Path) -> None:
+        """Win probabilities must sum to 1 over STARTERS only — DNS should not dilute."""
+        with duckdb.connect(str(tmp_db)) as con:
+            self._insert_race(
+                con,
+                2024,
+                1,
+                [
+                    ("driver_a", 1, 1),
+                    ("driver_b", 2, 2),
+                    ("driver_c", 3, 3),
+                    ("dns_driver", None, None),
+                ],
+            )
+            con.commit()
+
+        build_snapshots(2024, 2024, db_path=tmp_db, retention_years=10)
+        with duckdb.connect(str(tmp_db), read_only=True) as con:
+            total = con.execute("SELECT SUM(win_probability) FROM elo_snapshots").fetchone()[0]
+        assert abs(total - 1.0) < 1e-9
+
+
+# ---------------------------------------------------------------------------
+# TestRetentionResolution — explicit arg > env var > default
+# ---------------------------------------------------------------------------
+
+
+class TestRetentionResolution:
+    def test_default_is_five(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PITLANE_STATE_RETENTION_YEARS", raising=False)
+        assert DEFAULT_STATE_RETENTION_YEARS == 5
+        assert _resolve_retention_years(None) == 5
+
+    def test_env_var_overrides_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PITLANE_STATE_RETENTION_YEARS", "7")
+        assert _resolve_retention_years(None) == 7
+
+    def test_explicit_arg_beats_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PITLANE_STATE_RETENTION_YEARS", "7")
+        assert _resolve_retention_years(3) == 3
+
+    def test_retention_param_prunes_state(self, tmp_db: Path) -> None:
+        """With retention_years=3, a driver inactive for >3 years must be pruned."""
+        with duckdb.connect(str(tmp_db)) as con:
+            # old_driver: only in 2020. active drivers race every year.
+            for driver_id, grid, finish in [("old_driver", 1, 1), ("active_a", 2, 2), ("active_b", 3, 3)]:
+                con.execute(
+                    """INSERT INTO race_entries
+                       (year, round, session_type, driver_id, team, grid_position, finish_position,
+                        laps_completed, status, dnf_category, is_wet_race, is_street_circuit)
+                       VALUES (2020, 1, 'R', ?, 'T', ?, ?, 57, 'Finished', 'none', false, false)""",
+                    [driver_id, grid, finish],
+                )
+            for year in (2021, 2022, 2023, 2024, 2025):
+                for driver_id, grid, finish in [("active_a", 1, 1), ("active_b", 2, 2)]:
+                    con.execute(
+                        """INSERT INTO race_entries
+                           (year, round, session_type, driver_id, team, grid_position, finish_position,
+                            laps_completed, status, dnf_category, is_wet_race, is_street_circuit)
+                           VALUES (?, 1, 'R', ?, 'T', ?, ?, 57, 'Finished', 'none', false, false)""",
+                        [year, driver_id, grid, finish],
+                    )
+            con.commit()
+
+        build_snapshots(2020, 2025, db_path=tmp_db, retention_years=3)
+
+        with duckdb.connect(str(tmp_db), read_only=True) as con:
+            # 2025 is 5 years after old_driver's only race — beyond 3-year retention
+            count_2025 = con.execute(
+                "SELECT COUNT(*) FROM elo_model_state WHERE driver_id = 'old_driver' AND year = 2025"
+            ).fetchone()[0]
+            # 2022 is 2 years after — within 3-year window
+            count_2022 = con.execute(
+                "SELECT COUNT(*) FROM elo_model_state WHERE driver_id = 'old_driver' AND year = 2022"
+            ).fetchone()[0]
+        assert count_2025 == 0, "old_driver must be pruned by 2025 with retention=3"
+        assert count_2022 > 0, "old_driver must remain in 2022 with retention=3"
