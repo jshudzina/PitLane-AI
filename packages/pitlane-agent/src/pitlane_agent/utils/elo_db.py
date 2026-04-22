@@ -292,7 +292,8 @@ def _upsert_parquet_table(
     try:
         con.execute(create_sql)
         if parquet_path.exists():
-            con.execute(f"INSERT OR REPLACE INTO {_table_name(create_sql)} SELECT * FROM read_parquet('{parquet_path}')")
+            table = _table_name(create_sql)
+            con.execute(f"INSERT OR REPLACE INTO {table} SELECT * FROM read_parquet('{parquet_path}')")
         con.executemany(upsert_sql, rows)
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
         con.execute(f"COPY {_table_name(create_sql)} TO '{parquet_path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
@@ -342,7 +343,11 @@ def upsert_qualifying_entries(data_dir: Path, records: list[QualifyingEntry]) ->
     for year, year_records in by_year.items():
         parquet_path = data_dir / f"qualifying_entries_{year}.parquet"
         _upsert_parquet_table(
-            parquet_path, _CREATE_QUALIFYING_ENTRIES_SQL, _UPSERT_QUALIFYING_ENTRY_SQL, _QUALIFYING_COLUMNS, year_records
+            parquet_path,
+            _CREATE_QUALIFYING_ENTRIES_SQL,
+            _UPSERT_QUALIFYING_ENTRY_SQL,
+            _QUALIFYING_COLUMNS,
+            year_records,
         )
 
 

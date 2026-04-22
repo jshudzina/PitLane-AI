@@ -112,7 +112,10 @@ def _fetch_mechanical_dnfs(
         rows = con.execute(sql, params).fetchall()
     finally:
         con.close()
-    cols = ["year", "round", "session_type", "driver_id", "abbreviation", "team", "laps_completed", "status", "event_name"]
+    cols = [
+        "year", "round", "session_type", "driver_id",
+        "abbreviation", "team", "laps_completed", "status", "event_name",
+    ]
     return [dict(zip(cols, row, strict=True)) for row in rows]
 
 

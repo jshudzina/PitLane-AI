@@ -84,7 +84,8 @@ class TestUpsertSessionStats:
         parquet_path = tmp_path / "session_stats.parquet"
         con = duckdb.connect()
         result = con.execute(
-            f"SELECT total_overtakes FROM read_parquet('{parquet_path}') WHERE year = 2024 AND round = 1 AND session_type = 'R'"
+            f"SELECT total_overtakes FROM read_parquet('{parquet_path}')"
+            " WHERE year = 2024 AND round = 1 AND session_type = 'R'"
         ).fetchone()
         con.close()
         assert result[0] == 99

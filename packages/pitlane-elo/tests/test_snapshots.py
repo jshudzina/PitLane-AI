@@ -388,7 +388,9 @@ class TestModelStatePruning:
             (2, {"retired_driver": 1, "active_a": 2, "active_b": 3}),
         ]:
             for driver_id, finish in finish_map.items():
-                rows_2000.append((2000, rnd, "R", driver_id, None, "Team", finish, finish, 57, "Finished", "none", False, False))
+                rows_2000.append(
+                    (2000, rnd, "R", driver_id, None, "Team", finish, finish, 57, "Finished", "none", False, False)
+                )
 
         rows_active = []
         for rnd, finish_map in [
@@ -397,7 +399,9 @@ class TestModelStatePruning:
         ]:
             for driver_id, finish in finish_map.items():
                 for year in (2011, 2012):
-                    rows_active.append((year, rnd, "R", driver_id, None, "Team", finish, finish, 57, "Finished", "none", False, False))
+                    rows_active.append(
+                        (year, rnd, "R", driver_id, None, "Team", finish, finish, 57, "Finished", "none", False, False)
+                    )
 
         _write_race_parquet(tmp_db, rows_2000 + rows_active)
 
