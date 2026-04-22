@@ -166,7 +166,7 @@ class RatingsStore:
         self.con.execute(_CREATE_MODEL_STATE_INDEX_SQL)
 
         # Load existing elo_snapshots from per-year Parquet files
-        for p in sorted(self.data_dir.glob("elo_snapshots_*.parquet")):
+        for p in sorted((self.data_dir / "elo_snapshots").glob("*.parquet")):
             self.con.execute(
                 f"INSERT OR REPLACE INTO elo_snapshots SELECT {_SNAPSHOT_LOAD_COLS} FROM read_parquet('{p}')"
             )
@@ -179,17 +179,18 @@ class RatingsStore:
         # Register race_entries as a read-only view when source Parquet files exist.
         # If no files are present yet (fresh data dir), the view is omitted; callers
         # that query race_entries will see a CatalogException which they handle.
-        if list(self.data_dir.glob("race_entries_*.parquet")):
-            race_glob = str(self.data_dir / "race_entries_*.parquet")
+        if list((self.data_dir / "race_entries").glob("*.parquet")):
+            race_glob = str(self.data_dir / "race_entries" / "*.parquet")
             self.con.execute(f"CREATE OR REPLACE VIEW race_entries AS SELECT * FROM read_parquet('{race_glob}')")
 
     def flush(self) -> None:
         """Write in-memory tables back to year-partitioned Parquet files."""
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        (self.data_dir / "elo_snapshots").mkdir(parents=True, exist_ok=True)
 
         years = [r[0] for r in self.con.execute("SELECT DISTINCT year FROM elo_snapshots ORDER BY year").fetchall()]
         for year in years:
-            p = self.data_dir / f"elo_snapshots_{year}.parquet"
+            p = self.data_dir / "elo_snapshots" / f"{year}.parquet"
             self.con.execute(
                 f"COPY (SELECT * FROM elo_snapshots WHERE year = {year}) TO '{p}' (FORMAT PARQUET, COMPRESSION ZSTD)"
             )

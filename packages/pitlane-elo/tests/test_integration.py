@@ -16,7 +16,7 @@ from pitlane_elo.prediction.forecast import compare_models, evaluate_model, run_
 from pitlane_elo.ratings.endure_elo import EndureElo
 from pitlane_elo.ratings.speed_elo import SpeedElo
 
-_db_exists = any(get_data_dir().glob("race_entries_*.parquet"))
+_db_exists = any((get_data_dir() / "race_entries").glob("*.parquet"))
 
 
 @pytest.mark.slow

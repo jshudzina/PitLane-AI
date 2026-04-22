@@ -47,7 +47,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pitlane_agent"]
-artifacts = ["src/pitlane_agent/data/*.parquet"]
+artifacts = [
+  "src/pitlane_agent/data/*.parquet",
+  "src/pitlane_agent/data/**/*.parquet",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

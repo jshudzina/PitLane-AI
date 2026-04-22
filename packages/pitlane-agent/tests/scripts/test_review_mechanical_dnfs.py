@@ -404,7 +404,7 @@ class TestUpdateDnfCategory:
         assert count == 1
 
         # Verify the update via read_parquet
-        parquet_path = db / "race_entries_2024.parquet"
+        parquet_path = db / "race_entries" / "2024.parquet"
         con = duckdb.connect()
         try:
             row = con.execute(

@@ -76,7 +76,7 @@ def _fetch_mechanical_dnfs(
     round_numbers: tuple[int, ...] | None = None,
 ) -> list[dict]:
     """Return mechanical-DNF rows from race_entries for the given filters."""
-    race_path = data_dir / f"race_entries_{year}.parquet"
+    race_path = data_dir / "race_entries" / f"{year}.parquet"
     stats_path = data_dir / "session_stats.parquet"
     if not race_path.exists():
         return []
@@ -255,7 +255,7 @@ def _update_dnf_category(
         by_year[u["year"]].append(u)
 
     for year, year_updates in by_year.items():
-        parquet_path = data_dir / f"race_entries_{year}.parquet"
+        parquet_path = data_dir / "race_entries" / f"{year}.parquet"
         if not parquet_path.exists():
             continue
         con = duckdb.connect()

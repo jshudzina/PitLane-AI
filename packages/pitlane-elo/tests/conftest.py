@@ -118,7 +118,8 @@ def _write_race_parquet(data_dir: Path, rows: list[tuple]) -> None:
     for row in rows:
         by_year[row[0]].append(row)
     for year, year_rows in by_year.items():
-        parquet_path = data_dir / f"race_entries_{year}.parquet"
+        parquet_path = data_dir / "race_entries" / f"{year}.parquet"
+        parquet_path.parent.mkdir(parents=True, exist_ok=True)
         con = duckdb.connect()
         try:
             con.execute(f"CREATE TABLE race_entries ({_RACE_DDL})")
@@ -139,7 +140,8 @@ def _write_qual_parquet(data_dir: Path, rows: list[tuple]) -> None:
     for row in rows:
         by_year[row[0]].append(row)
     for year, year_rows in by_year.items():
-        parquet_path = data_dir / f"qualifying_entries_{year}.parquet"
+        parquet_path = data_dir / "qualifying_entries" / f"{year}.parquet"
+        parquet_path.parent.mkdir(parents=True, exist_ok=True)
         con = duckdb.connect()
         try:
             con.execute(f"CREATE TABLE qualifying_entries ({_QUAL_DDL})")

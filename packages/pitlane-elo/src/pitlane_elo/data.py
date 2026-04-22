@@ -169,7 +169,7 @@ def get_race_entries(
         no rows match.
     """
     d = data_dir or get_data_dir()
-    parquet_path = d / f"race_entries_{year}.parquet"
+    parquet_path = d / "race_entries" / f"{year}.parquet"
     if session_type is not None:
         sql = f"SELECT {RACE_COLS} FROM read_parquet('{parquet_path}') WHERE session_type = ? ORDER BY round, driver_id"
         result = _query_parquet(parquet_path, sql, [session_type])
@@ -197,7 +197,7 @@ def get_qualifying_entries(
         exist or no rows match.
     """
     d = data_dir or get_data_dir()
-    parquet_path = d / f"qualifying_entries_{year}.parquet"
+    parquet_path = d / "qualifying_entries" / f"{year}.parquet"
     if session_type is not None:
         sql = (
             f"SELECT {_QUALIFYING_COLS} FROM read_parquet('{parquet_path}') "
@@ -227,7 +227,7 @@ def get_race_entries_range(
         List of RaceEntry dicts, or None if no rows match.
     """
     d = data_dir or get_data_dir()
-    glob_pattern = str(d / "race_entries_*.parquet")
+    glob_pattern = str(d / "race_entries" / "*.parquet")
     sql = (
         f"SELECT {RACE_COLS} FROM read_parquet('{glob_pattern}') "
         "WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id"
@@ -253,7 +253,7 @@ def get_qualifying_entries_range(
         List of QualifyingEntry dicts, or None if no rows match.
     """
     d = data_dir or get_data_dir()
-    glob_pattern = str(d / "qualifying_entries_*.parquet")
+    glob_pattern = str(d / "qualifying_entries" / "*.parquet")
     sql = (
         f"SELECT {_QUALIFYING_COLS} FROM read_parquet('{glob_pattern}') "
         "WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id"

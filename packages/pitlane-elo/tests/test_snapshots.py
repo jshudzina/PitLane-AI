@@ -40,7 +40,8 @@ def _write_race_parquet(data_dir: Path, rows: list[tuple]) -> None:
     for row in rows:
         by_year[row[0]].append(row)
     for year, year_rows in by_year.items():
-        parquet_path = data_dir / f"race_entries_{year}.parquet"
+        parquet_path = data_dir / "race_entries" / f"{year}.parquet"
+        parquet_path.parent.mkdir(parents=True, exist_ok=True)
         con = duckdb.connect()
         try:
             con.execute(f"CREATE TABLE race_entries ({_RACE_DDL})")
@@ -58,8 +59,8 @@ def _write_race_parquet(data_dir: Path, rows: list[tuple]) -> None:
 
 def _read_snapshots(data_dir: Path, sql_suffix: str = "", params: list | None = None) -> list[tuple]:
     """Query elo_snapshots Parquet files and return rows."""
-    glob_pattern = str(data_dir / "elo_snapshots_*.parquet")
-    if not list(data_dir.glob("elo_snapshots_*.parquet")):
+    glob_pattern = str(data_dir / "elo_snapshots" / "*.parquet")
+    if not list((data_dir / "elo_snapshots").glob("*.parquet")):
         return []
     con = duckdb.connect()
     try:
@@ -84,7 +85,7 @@ def _read_model_state(data_dir: Path, sql_suffix: str = "", params: list | None 
 
 def _reset_elo_parquet(data_dir: Path) -> None:
     """Delete all ELO Parquet files from data_dir (resets snapshot state)."""
-    for f in data_dir.glob("elo_snapshots_*.parquet"):
+    for f in (data_dir / "elo_snapshots").glob("*.parquet"):
         f.unlink()
     model_state = data_dir / "elo_model_state.parquet"
     if model_state.exists():
@@ -130,7 +131,7 @@ class TestBuildSnapshots:
 
     def test_probabilities_sum_to_one(self, multi_race_db: Path) -> None:
         build_snapshots(2023, 2024, data_dir=multi_race_db)
-        glob_pattern = str(multi_race_db / "elo_snapshots_*.parquet")
+        glob_pattern = str(multi_race_db / "elo_snapshots" / "*.parquet")
         con = duckdb.connect()
         try:
             rows = con.execute(
@@ -145,7 +146,7 @@ class TestBuildSnapshots:
 
     def test_round1_pre_race_ratings_are_initial(self, multi_race_db: Path) -> None:
         build_snapshots(2023, 2024, data_dir=multi_race_db)
-        glob_pattern = str(multi_race_db / "elo_snapshots_*.parquet")
+        glob_pattern = str(multi_race_db / "elo_snapshots" / "*.parquet")
         con = duckdb.connect()
         try:
             rows = con.execute(
@@ -159,7 +160,7 @@ class TestBuildSnapshots:
 
     def test_winner_finish_position_captured(self, multi_race_db: Path) -> None:
         build_snapshots(2023, 2024, data_dir=multi_race_db)
-        glob_pattern = str(multi_race_db / "elo_snapshots_*.parquet")
+        glob_pattern = str(multi_race_db / "elo_snapshots" / "*.parquet")
         con = duckdb.connect()
         try:
             row = con.execute(
@@ -173,7 +174,7 @@ class TestBuildSnapshots:
 
     def test_dnf_category_captured(self, multi_race_db: Path) -> None:
         build_snapshots(2023, 2024, data_dir=multi_race_db)
-        glob_pattern = str(multi_race_db / "elo_snapshots_*.parquet")
+        glob_pattern = str(multi_race_db / "elo_snapshots" / "*.parquet")
         con = duckdb.connect()
         try:
             row = con.execute(
@@ -194,7 +195,7 @@ class TestBuildSnapshots:
 
     def test_k_factors_positive(self, multi_race_db: Path) -> None:
         build_snapshots(2023, 2024, data_dir=multi_race_db)
-        glob_pattern = str(multi_race_db / "elo_snapshots_*.parquet")
+        glob_pattern = str(multi_race_db / "elo_snapshots" / "*.parquet")
         con = duckdb.connect()
         try:
             min_k = con.execute(f"SELECT MIN(pre_race_k) FROM read_parquet('{glob_pattern}')").fetchone()[0]
@@ -204,7 +205,7 @@ class TestBuildSnapshots:
 
     def test_podium_probabilities_in_range(self, multi_race_db: Path) -> None:
         build_snapshots(2023, 2024, data_dir=multi_race_db)
-        glob_pattern = str(multi_race_db / "elo_snapshots_*.parquet")
+        glob_pattern = str(multi_race_db / "elo_snapshots" / "*.parquet")
         con = duckdb.connect()
         try:
             row = con.execute(
@@ -217,7 +218,7 @@ class TestBuildSnapshots:
 
     def test_podium_probability_gte_win_probability(self, multi_race_db: Path) -> None:
         build_snapshots(2023, 2024, data_dir=multi_race_db)
-        glob_pattern = str(multi_race_db / "elo_snapshots_*.parquet")
+        glob_pattern = str(multi_race_db / "elo_snapshots" / "*.parquet")
         con = duckdb.connect()
         try:
             violations = con.execute(
@@ -474,7 +475,7 @@ class TestAddRaceSnapshot:
         build_snapshots(2023, 2024, data_dir=db_b)
 
         def fetch_r1(d: Path) -> dict[str, tuple]:
-            glob_pattern = str(d / "elo_snapshots_*.parquet")
+            glob_pattern = str(d / "elo_snapshots" / "*.parquet")
             con = duckdb.connect()
             try:
                 rows = con.execute(
@@ -497,7 +498,7 @@ class TestAddRaceSnapshot:
         n1 = add_race_snapshot(2024, 1, data_dir=multi_race_db)
         n2 = add_race_snapshot(2024, 1, data_dir=multi_race_db)
         assert n1 == n2
-        glob_pattern = str(multi_race_db / "elo_snapshots_*.parquet")
+        glob_pattern = str(multi_race_db / "elo_snapshots" / "*.parquet")
         con = duckdb.connect()
         try:
             count = con.execute(
@@ -526,13 +527,13 @@ class TestAddRaceSnapshot:
         finally:
             con.close()
 
-        glob_pattern = str(multi_race_db / "elo_snapshots_*.parquet")
+        glob_pattern = str(multi_race_db / "elo_snapshots" / "*.parquet")
         con = duckdb.connect()
         try:
             # Rebuild snapshot Parquet without R2/R3
             years = {r[0] for r in con.execute(f"SELECT DISTINCT year FROM read_parquet('{glob_pattern}')").fetchall()}
             for year in years:
-                snap_path = multi_race_db / f"elo_snapshots_{year}.parquet"
+                snap_path = multi_race_db / "elo_snapshots" / f"{year}.parquet"
                 con.execute(
                     f"COPY (SELECT * FROM read_parquet('{glob_pattern}') "
                     f"WHERE year = {year} AND NOT (year = 2024 AND round >= 2)) "
@@ -564,7 +565,7 @@ class TestAddRaceSnapshot:
         build_snapshots(2023, 2024, data_dir=db_full)
 
         def fetch_r3(d: Path) -> dict[str, tuple]:
-            glob_pattern = str(d / "elo_snapshots_*.parquet")
+            glob_pattern = str(d / "elo_snapshots" / "*.parquet")
             con = duckdb.connect()
             try:
                 rows = con.execute(
@@ -599,7 +600,7 @@ class TestAddRaceSnapshot:
         build_snapshots(2023, 2024, data_dir=db_full)
 
         def fetch_rating(d: Path) -> float:
-            glob_pattern = str(d / "elo_snapshots_*.parquet")
+            glob_pattern = str(d / "elo_snapshots" / "*.parquet")
             con = duckdb.connect()
             try:
                 return con.execute(
@@ -614,7 +615,7 @@ class TestAddRaceSnapshot:
         assert abs(incr_rating - full_rating) < 1e-10
 
         # Sanity: phi_season < 1 means 2024 rating must differ from 2023 R3 pre-race rating
-        glob_full = str(db_full / "elo_snapshots_*.parquet")
+        glob_full = str(db_full / "elo_snapshots" / "*.parquet")
         con = duckdb.connect()
         try:
             r23_r3_pre = con.execute(
@@ -653,7 +654,7 @@ class TestCatchupSnapshots:
         build_snapshots(2023, 2024, data_dir=db_full)
 
         def fetch_2024(d: Path) -> list[tuple]:
-            glob_pattern = str(d / "elo_snapshots_*.parquet")
+            glob_pattern = str(d / "elo_snapshots" / "*.parquet")
             con = duckdb.connect()
             try:
                 return con.execute(
@@ -697,7 +698,7 @@ class TestStarterFilter:
         n = build_snapshots(2024, 2024, data_dir=tmp_db, retention_years=10)
 
         assert n == 3, "DNS driver must not produce a snapshot row"
-        glob_pattern = str(tmp_db / "elo_snapshots_*.parquet")
+        glob_pattern = str(tmp_db / "elo_snapshots" / "*.parquet")
         con = duckdb.connect()
         try:
             ids = {row[0] for row in con.execute(f"SELECT driver_id FROM read_parquet('{glob_pattern}')").fetchall()}
@@ -716,7 +717,7 @@ class TestStarterFilter:
         _write_race_parquet(tmp_db, rows)
 
         build_snapshots(2024, 2024, data_dir=tmp_db, retention_years=10)
-        glob_pattern = str(tmp_db / "elo_snapshots_*.parquet")
+        glob_pattern = str(tmp_db / "elo_snapshots" / "*.parquet")
         con = duckdb.connect()
         try:
             total = con.execute(f"SELECT SUM(win_probability) FROM read_parquet('{glob_pattern}')").fetchone()[0]

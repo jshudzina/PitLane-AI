@@ -446,8 +446,8 @@ def get_race_snapshot(
 ) -> list[EloSnapshot]:
     """All driver snapshots for one race, sorted by win_probability DESC."""
     d = data_dir or get_data_dir()
-    glob_pattern = str(d / "elo_snapshots_*.parquet")
-    if not list(d.glob("elo_snapshots_*.parquet")):
+    glob_pattern = str(d / "elo_snapshots" / "*.parquet")
+    if not list((d / "elo_snapshots").glob("*.parquet")):
         return []
 
     con = duckdb.connect()
@@ -477,8 +477,8 @@ def get_driver_rating_history(
 ) -> list[EloSnapshot]:
     """All snapshot rows for one driver in chronological order."""
     d = data_dir or get_data_dir()
-    glob_pattern = str(d / "elo_snapshots_*.parquet")
-    if not list(d.glob("elo_snapshots_*.parquet")):
+    glob_pattern = str(d / "elo_snapshots" / "*.parquet")
+    if not list((d / "elo_snapshots").glob("*.parquet")):
         return []
 
     con = duckdb.connect()

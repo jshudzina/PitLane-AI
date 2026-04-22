@@ -322,7 +322,7 @@ def upsert_race_entries(data_dir: Path, records: list[RaceEntry]) -> None:
     for r in records:
         by_year[r["year"]].append(r)
     for year, year_records in by_year.items():
-        parquet_path = data_dir / f"race_entries_{year}.parquet"
+        parquet_path = data_dir / "race_entries" / f"{year}.parquet"
         _upsert_parquet_table(
             parquet_path, _CREATE_RACE_ENTRIES_SQL, _UPSERT_RACE_ENTRY_SQL, _RACE_COLUMNS, year_records
         )
@@ -341,7 +341,7 @@ def upsert_qualifying_entries(data_dir: Path, records: list[QualifyingEntry]) ->
     for r in records:
         by_year[r["year"]].append(r)
     for year, year_records in by_year.items():
-        parquet_path = data_dir / f"qualifying_entries_{year}.parquet"
+        parquet_path = data_dir / "qualifying_entries" / f"{year}.parquet"
         _upsert_parquet_table(
             parquet_path,
             _CREATE_QUALIFYING_ENTRIES_SQL,
@@ -362,7 +362,7 @@ def get_race_entries(data_dir: Path, year: int) -> list[RaceEntry] | None:
         List of RaceEntry dicts, or None if the Parquet file does not exist or
         no rows are found for the given year.
     """
-    parquet_path = data_dir / f"race_entries_{year}.parquet"
+    parquet_path = data_dir / "race_entries" / f"{year}.parquet"
     if not parquet_path.exists():
         return None
     con = duckdb.connect()
@@ -390,7 +390,7 @@ def get_qualifying_entries(data_dir: Path, year: int) -> list[QualifyingEntry] |
         List of QualifyingEntry dicts, or None if the Parquet file does not
         exist or no rows are found for the given year.
     """
-    parquet_path = data_dir / f"qualifying_entries_{year}.parquet"
+    parquet_path = data_dir / "qualifying_entries" / f"{year}.parquet"
     if not parquet_path.exists():
         return None
     con = duckdb.connect()

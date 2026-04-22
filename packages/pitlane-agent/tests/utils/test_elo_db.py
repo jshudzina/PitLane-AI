@@ -68,7 +68,7 @@ class TestUpsertRaceEntries:
     def test_inserts_single_record(self, tmp_path):
         upsert_race_entries(tmp_path, [_SAMPLE_RACE_ENTRY])
 
-        parquet_path = tmp_path / "race_entries_2024.parquet"
+        parquet_path = tmp_path / "race_entries" / "2024.parquet"
         assert parquet_path.exists()
         assert _count_parquet(parquet_path) == 1
 
@@ -80,7 +80,7 @@ class TestUpsertRaceEntries:
         ]
         upsert_race_entries(tmp_path, records)
 
-        parquet_path = tmp_path / "race_entries_2024.parquet"
+        parquet_path = tmp_path / "race_entries" / "2024.parquet"
         assert _count_parquet(parquet_path) == 3
 
     def test_replaces_existing_record(self, tmp_path):
@@ -88,7 +88,7 @@ class TestUpsertRaceEntries:
         updated = {**_SAMPLE_RACE_ENTRY, "laps_completed": 42}
         upsert_race_entries(tmp_path, [updated])
 
-        parquet_path = tmp_path / "race_entries_2024.parquet"
+        parquet_path = tmp_path / "race_entries" / "2024.parquet"
         result = _query_parquet(
             parquet_path,
             "laps_completed",
@@ -98,13 +98,13 @@ class TestUpsertRaceEntries:
 
     def test_empty_records_is_noop(self, tmp_path):
         upsert_race_entries(tmp_path, [])
-        assert not (tmp_path / "race_entries_2024.parquet").exists()
+        assert not (tmp_path / "race_entries" / "2024.parquet").exists()
 
     def test_nullable_grid_and_finish_position(self, tmp_path):
         record = {**_SAMPLE_RACE_ENTRY, "grid_position": None, "finish_position": None}
         upsert_race_entries(tmp_path, [record])
 
-        parquet_path = tmp_path / "race_entries_2024.parquet"
+        parquet_path = tmp_path / "race_entries" / "2024.parquet"
         result = _query_parquet(parquet_path, "grid_position, finish_position", "driver_id = 'max_verstappen'")
         assert result[0] is None
         assert result[1] is None
@@ -114,14 +114,14 @@ class TestUpsertRaceEntries:
         sprint = {**_SAMPLE_RACE_ENTRY, "session_type": "S"}
         upsert_race_entries(tmp_path, [race, sprint])
 
-        parquet_path = tmp_path / "race_entries_2024.parquet"
+        parquet_path = tmp_path / "race_entries" / "2024.parquet"
         assert _count_parquet(parquet_path, "driver_id = 'max_verstappen'") == 2
 
     def test_nullable_abbreviation(self, tmp_path):
         record = {**_SAMPLE_RACE_ENTRY, "driver_id": "farina", "abbreviation": None}
         upsert_race_entries(tmp_path, [record])
 
-        parquet_path = tmp_path / "race_entries_2024.parquet"
+        parquet_path = tmp_path / "race_entries" / "2024.parquet"
         result = _query_parquet(parquet_path, "abbreviation", "driver_id = 'farina'")
         assert result[0] is None
 
@@ -132,8 +132,8 @@ class TestUpsertRaceEntries:
         ]
         upsert_race_entries(tmp_path, records)
 
-        assert (tmp_path / "race_entries_2023.parquet").exists()
-        assert (tmp_path / "race_entries_2024.parquet").exists()
+        assert (tmp_path / "race_entries" / "2023.parquet").exists()
+        assert (tmp_path / "race_entries" / "2024.parquet").exists()
 
 
 class TestUpsertQualifyingEntries:
@@ -142,7 +142,7 @@ class TestUpsertQualifyingEntries:
     def test_inserts_single_record(self, tmp_path):
         upsert_qualifying_entries(tmp_path, [_SAMPLE_QUALIFYING_ENTRY])
 
-        parquet_path = tmp_path / "qualifying_entries_2024.parquet"
+        parquet_path = tmp_path / "qualifying_entries" / "2024.parquet"
         assert parquet_path.exists()
         assert _count_parquet(parquet_path) == 1
 
@@ -154,7 +154,7 @@ class TestUpsertQualifyingEntries:
         ]
         upsert_qualifying_entries(tmp_path, records)
 
-        parquet_path = tmp_path / "qualifying_entries_2024.parquet"
+        parquet_path = tmp_path / "qualifying_entries" / "2024.parquet"
         assert _count_parquet(parquet_path) == 3
 
     def test_replaces_existing_record(self, tmp_path):
@@ -162,13 +162,13 @@ class TestUpsertQualifyingEntries:
         updated = {**_SAMPLE_QUALIFYING_ENTRY, "best_q_time_s": 84.999}
         upsert_qualifying_entries(tmp_path, [updated])
 
-        parquet_path = tmp_path / "qualifying_entries_2024.parquet"
+        parquet_path = tmp_path / "qualifying_entries" / "2024.parquet"
         result = _query_parquet(parquet_path, "best_q_time_s", "driver_id = 'max_verstappen' AND session_type = 'Q'")
         assert result[0] == 84.999
 
     def test_empty_records_is_noop(self, tmp_path):
         upsert_qualifying_entries(tmp_path, [])
-        assert not (tmp_path / "qualifying_entries_2024.parquet").exists()
+        assert not (tmp_path / "qualifying_entries" / "2024.parquet").exists()
 
     def test_nullable_q2_and_q3_times(self, tmp_path):
         record = {
@@ -181,7 +181,7 @@ class TestUpsertQualifyingEntries:
         }
         upsert_qualifying_entries(tmp_path, [record])
 
-        parquet_path = tmp_path / "qualifying_entries_2024.parquet"
+        parquet_path = tmp_path / "qualifying_entries" / "2024.parquet"
         result = _query_parquet(parquet_path, "q2_time_s, q3_time_s", "driver_id = 'bottas'")
         assert result[0] is None
         assert result[1] is None
@@ -191,7 +191,7 @@ class TestUpsertQualifyingEntries:
         sq_entry = {**_SAMPLE_QUALIFYING_ENTRY, "session_type": "SQ"}
         upsert_qualifying_entries(tmp_path, [q_entry, sq_entry])
 
-        parquet_path = tmp_path / "qualifying_entries_2024.parquet"
+        parquet_path = tmp_path / "qualifying_entries" / "2024.parquet"
         assert _count_parquet(parquet_path, "driver_id = 'max_verstappen'") == 2
 
     def test_all_q_times_null_pre2006(self, tmp_path):
@@ -210,7 +210,7 @@ class TestUpsertQualifyingEntries:
         }
         upsert_qualifying_entries(tmp_path, [record])
 
-        parquet_path = tmp_path / "qualifying_entries_1995.parquet"
+        parquet_path = tmp_path / "qualifying_entries" / "1995.parquet"
         result = _query_parquet(
             parquet_path,
             "q1_time_s, q2_time_s, q3_time_s, best_q_time_s",
