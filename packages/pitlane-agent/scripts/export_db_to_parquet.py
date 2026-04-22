@@ -72,10 +72,7 @@ def export(db_path: Path, data_dir: Path, *, dry_run: bool = False) -> None:
                 count = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
                 print(f"[dry-run] would write {out_path} ({count} rows)")
             else:
-                con.execute(
-                    f"COPY (SELECT * FROM {table})"
-                    f" TO '{out_path}' (FORMAT PARQUET, COMPRESSION ZSTD)"
-                )
+                con.execute(f"COPY (SELECT * FROM {table}) TO '{out_path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
                 size_kb = out_path.stat().st_size // 1024
                 print(f"  wrote {out_path.name} ({size_kb} KB)")
 

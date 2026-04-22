@@ -149,8 +149,7 @@ class TestBuildSnapshots:
         con = duckdb.connect()
         try:
             rows = con.execute(
-                f"SELECT pre_race_rating FROM read_parquet('{glob_pattern}') "
-                "WHERE year = 2023 AND round = 1"
+                f"SELECT pre_race_rating FROM read_parquet('{glob_pattern}') WHERE year = 2023 AND round = 1"
             ).fetchall()
         finally:
             con.close()
@@ -222,8 +221,7 @@ class TestBuildSnapshots:
         con = duckdb.connect()
         try:
             violations = con.execute(
-                f"SELECT COUNT(*) FROM read_parquet('{glob_pattern}') "
-                "WHERE podium_probability < win_probability - 1e-9"
+                f"SELECT COUNT(*) FROM read_parquet('{glob_pattern}') WHERE podium_probability < win_probability - 1e-9"
             ).fetchone()[0]
         finally:
             con.close()
@@ -447,12 +445,10 @@ class TestModelStatePruning:
         con = duckdb.connect()
         try:
             count_2019 = con.execute(
-                f"SELECT COUNT(*) FROM read_parquet('{model_state_path}') "
-                "WHERE driver_id = 'driver_a' AND year = 2019"
+                f"SELECT COUNT(*) FROM read_parquet('{model_state_path}') WHERE driver_id = 'driver_a' AND year = 2019"
             ).fetchone()[0]
             count_2020 = con.execute(
-                f"SELECT COUNT(*) FROM read_parquet('{model_state_path}') "
-                "WHERE driver_id = 'driver_a' AND year = 2020"
+                f"SELECT COUNT(*) FROM read_parquet('{model_state_path}') WHERE driver_id = 'driver_a' AND year = 2020"
             ).fetchone()[0]
         finally:
             con.close()
@@ -534,9 +530,7 @@ class TestAddRaceSnapshot:
         con = duckdb.connect()
         try:
             # Rebuild snapshot Parquet without R2/R3
-            years = {r[0] for r in con.execute(
-                f"SELECT DISTINCT year FROM read_parquet('{glob_pattern}')"
-            ).fetchall()}
+            years = {r[0] for r in con.execute(f"SELECT DISTINCT year FROM read_parquet('{glob_pattern}')").fetchall()}
             for year in years:
                 snap_path = multi_race_db / f"elo_snapshots_{year}.parquet"
                 con.execute(

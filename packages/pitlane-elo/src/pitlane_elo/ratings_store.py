@@ -174,42 +174,30 @@ class RatingsStore:
         # Load existing elo_model_state
         model_state_path = self.data_dir / "elo_model_state.parquet"
         if model_state_path.exists():
-            self.con.execute(
-                f"INSERT OR REPLACE INTO elo_model_state SELECT * FROM read_parquet('{model_state_path}')"
-            )
+            self.con.execute(f"INSERT OR REPLACE INTO elo_model_state SELECT * FROM read_parquet('{model_state_path}')")
 
         # Register race_entries as a read-only view when source Parquet files exist.
         # If no files are present yet (fresh data dir), the view is omitted; callers
         # that query race_entries will see a CatalogException which they handle.
         if list(self.data_dir.glob("race_entries_*.parquet")):
             race_glob = str(self.data_dir / "race_entries_*.parquet")
-            self.con.execute(
-                f"CREATE OR REPLACE VIEW race_entries AS SELECT * FROM read_parquet('{race_glob}')"
-            )
+            self.con.execute(f"CREATE OR REPLACE VIEW race_entries AS SELECT * FROM read_parquet('{race_glob}')")
 
     def flush(self) -> None:
         """Write in-memory tables back to year-partitioned Parquet files."""
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
-        years = [
-            r[0]
-            for r in self.con.execute(
-                "SELECT DISTINCT year FROM elo_snapshots ORDER BY year"
-            ).fetchall()
-        ]
+        years = [r[0] for r in self.con.execute("SELECT DISTINCT year FROM elo_snapshots ORDER BY year").fetchall()]
         for year in years:
             p = self.data_dir / f"elo_snapshots_{year}.parquet"
             self.con.execute(
-                f"COPY (SELECT * FROM elo_snapshots WHERE year = {year}) TO '{p}' "
-                "(FORMAT PARQUET, COMPRESSION ZSTD)"
+                f"COPY (SELECT * FROM elo_snapshots WHERE year = {year}) TO '{p}' (FORMAT PARQUET, COMPRESSION ZSTD)"
             )
 
         model_state_path = self.data_dir / "elo_model_state.parquet"
         row_count = self.con.execute("SELECT COUNT(*) FROM elo_model_state").fetchone()[0]
         if row_count > 0:
-            self.con.execute(
-                f"COPY elo_model_state TO '{model_state_path}' (FORMAT PARQUET, COMPRESSION ZSTD)"
-            )
+            self.con.execute(f"COPY elo_model_state TO '{model_state_path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
 
     # ----- active driver pruning ------------------------------------------
 

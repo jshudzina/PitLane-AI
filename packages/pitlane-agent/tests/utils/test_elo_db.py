@@ -163,9 +163,7 @@ class TestUpsertQualifyingEntries:
         upsert_qualifying_entries(tmp_path, [updated])
 
         parquet_path = tmp_path / "qualifying_entries_2024.parquet"
-        result = _query_parquet(
-            parquet_path, "best_q_time_s", "driver_id = 'max_verstappen' AND session_type = 'Q'"
-        )
+        result = _query_parquet(parquet_path, "best_q_time_s", "driver_id = 'max_verstappen' AND session_type = 'Q'")
         assert result[0] == 84.999
 
     def test_empty_records_is_noop(self, tmp_path):
@@ -247,9 +245,19 @@ class TestGetRaceEntries:
 
         assert result is not None
         expected_keys = {
-            "year", "round", "session_type", "driver_id", "abbreviation", "team",
-            "grid_position", "finish_position", "laps_completed", "status",
-            "dnf_category", "is_wet_race", "is_street_circuit",
+            "year",
+            "round",
+            "session_type",
+            "driver_id",
+            "abbreviation",
+            "team",
+            "grid_position",
+            "finish_position",
+            "laps_completed",
+            "status",
+            "dnf_category",
+            "is_wet_race",
+            "is_street_circuit",
         }
         assert set(result[0].keys()) == expected_keys
 
@@ -305,8 +313,17 @@ class TestGetQualifyingEntries:
 
         assert result is not None
         expected_keys = {
-            "year", "round", "session_type", "driver_id", "abbreviation", "team",
-            "q1_time_s", "q2_time_s", "q3_time_s", "best_q_time_s", "position",
+            "year",
+            "round",
+            "session_type",
+            "driver_id",
+            "abbreviation",
+            "team",
+            "q1_time_s",
+            "q2_time_s",
+            "q3_time_s",
+            "best_q_time_s",
+            "position",
         }
         assert set(result[0].keys()) == expected_keys
 

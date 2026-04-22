@@ -113,8 +113,15 @@ def _fetch_mechanical_dnfs(
     finally:
         con.close()
     cols = [
-        "year", "round", "session_type", "driver_id",
-        "abbreviation", "team", "laps_completed", "status", "event_name",
+        "year",
+        "round",
+        "session_type",
+        "driver_id",
+        "abbreviation",
+        "team",
+        "laps_completed",
+        "status",
+        "event_name",
     ]
     return [dict(zip(cols, row, strict=True)) for row in rows]
 
@@ -256,8 +263,7 @@ def _update_dnf_category(
             con.execute(f"CREATE TABLE t AS SELECT * FROM read_parquet('{parquet_path}')")
             for u in year_updates:
                 con.execute(
-                    "UPDATE t SET dnf_category = 'crash' "
-                    "WHERE round = ? AND session_type = ? AND driver_id = ?",
+                    "UPDATE t SET dnf_category = 'crash' WHERE round = ? AND session_type = ? AND driver_id = ?",
                     [u["round"], u["session_type"], u["driver_id"]],
                 )
             con.execute(f"COPY t TO '{parquet_path}' (FORMAT PARQUET, COMPRESSION ZSTD)")

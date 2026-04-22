@@ -64,11 +64,7 @@ class QualifyingEntry(_QualifyingEntryRequired, total=False):
 # ---------------------------------------------------------------------------
 
 _DEFAULT_RELATIVE_DATA_DIR = (
-    Path(__file__).resolve().parent.parent.parent.parent
-    / "pitlane-agent"
-    / "src"
-    / "pitlane_agent"
-    / "data"
+    Path(__file__).resolve().parent.parent.parent.parent / "pitlane-agent" / "src" / "pitlane_agent" / "data"
 )
 
 
