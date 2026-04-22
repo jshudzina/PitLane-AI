@@ -512,6 +512,8 @@ def snapshot(
     upsert is idempotent.
     """
     data_dir = Path(db_path) if db_path else get_data_dir()
+    if not data_dir.exists():
+        raise click.ClickException(f"Data directory does not exist: {data_dir}")
     click.echo(f"Running calibrated endure-Elo snapshot ({start_year}–{end_year})...")
     t0 = time.perf_counter()
     n = build_snapshots(

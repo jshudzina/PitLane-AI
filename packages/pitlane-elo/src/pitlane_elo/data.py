@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import itertools
 import os
+import warnings
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -82,6 +83,11 @@ def get_data_dir() -> Path:
         return Path(env)
     env_db = os.environ.get("PITLANE_DB_PATH", "").strip()
     if env_db:
+        warnings.warn(
+            "PITLANE_DB_PATH is deprecated; set PITLANE_DATA_DIR instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return Path(env_db).parent
     return _DEFAULT_RELATIVE_DATA_DIR
 

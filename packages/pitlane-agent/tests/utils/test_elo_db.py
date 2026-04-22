@@ -403,6 +403,66 @@ class TestCategorizeDnf:
     def test_mechanical_ignition(self):
         assert categorize_dnf("Ignition") == "mechanical"
 
+    def test_mechanical_injection(self):
+        assert categorize_dnf("Injection") == "mechanical"
+
+    def test_mechanical_distributor(self):
+        assert categorize_dnf("Distributor") == "mechanical"
+
+    def test_mechanical_electronics(self):
+        assert categorize_dnf("Electronics") == "mechanical"
+
+    def test_mechanical_spark_plugs(self):
+        assert categorize_dnf("Spark plugs") == "mechanical"
+
+    def test_mechanical_axle(self):
+        assert categorize_dnf("Axle") == "mechanical"
+
+    def test_mechanical_drivetrain(self):
+        assert categorize_dnf("Drivetrain") == "mechanical"
+
+    def test_mechanical_power_loss(self):
+        assert categorize_dnf("Power loss") == "mechanical"
+
+    def test_mechanical_stalled(self):
+        assert categorize_dnf("Stalled") == "mechanical"
+
+    def test_non_competitive_injury(self):
+        assert categorize_dnf("Injury") == "mechanical"
+
+    def test_non_competitive_illness(self):
+        assert categorize_dnf("Illness") == "mechanical"
+
+    def test_mechanical_track_rod(self):
+        assert categorize_dnf("Track rod") == "mechanical"
+
+    def test_mechanical_generic_mechanical(self):
+        assert categorize_dnf("Mechanical") == "mechanical"
+
+    def test_mechanical_technical(self):
+        assert categorize_dnf("Technical") == "mechanical"
+
+    def test_non_competitive_driver_unwell(self):
+        assert categorize_dnf("Driver unwell") == "mechanical"
+
+    def test_non_competitive_injured(self):
+        assert categorize_dnf("Injured") == "mechanical"
+
+    def test_non_competitive_physical(self):
+        assert categorize_dnf("Physical") == "mechanical"
+
+    def test_non_competitive_driver_seat(self):
+        assert categorize_dnf("Driver Seat") == "mechanical"
+
+    def test_non_competitive_safety_concerns(self):
+        assert categorize_dnf("Safety concerns") == "mechanical"
+
+    def test_legality_excluded(self):
+        assert categorize_dnf("Excluded") == "mechanical"
+
+    def test_legality_underweight(self):
+        assert categorize_dnf("Underweight") == "mechanical"
+
     def test_non_competitive_withdrew(self):
         assert categorize_dnf("Withdrew") == "mechanical"
 
