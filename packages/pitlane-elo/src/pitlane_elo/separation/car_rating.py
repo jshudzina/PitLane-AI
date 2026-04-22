@@ -87,20 +87,20 @@ def compute_rc_range(
     start_year: int,
     end_year: int,
     *,
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
 ) -> list[CarRating]:
     """Compute Rc for all qualifying sessions across a range of seasons.
 
     Args:
         start_year: First season year.
         end_year: Last season year (inclusive).
-        db_path: Override the database path.
+        data_dir: Override the data directory.
 
     Returns:
         Flat list of :class:`CarRating` across all sessions, ordered
         chronologically.  Returns an empty list if no qualifying data exists.
     """
-    entries = get_qualifying_entries_range(start_year, end_year, db_path=db_path)
+    entries = get_qualifying_entries_range(start_year, end_year, data_dir=data_dir)
     if not entries:
         return []
 

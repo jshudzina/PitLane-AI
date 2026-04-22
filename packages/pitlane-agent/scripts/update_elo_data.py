@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Pre-compute per-driver ELO input data and write it to DuckDB.
+"""Pre-compute per-driver ELO input data and write it to Parquet files.
 
 Loads FastF1 race and qualifying session data for a given year (or specific
-round) and upserts per-driver entries into the DuckDB database for use by
-the ELO computation pipeline.
+round) and upserts per-driver entries into year-partitioned Parquet files for
+use by the ELO computation pipeline.
 
 Race entries store finishing positions and DNF categories needed for
 Powell's endure-Elo. Qualifying entries store Q1/Q2/Q3 lap times needed
@@ -13,7 +13,7 @@ Usage:
     python scripts/update_elo_data.py --year 2024
     python scripts/update_elo_data.py --year 2024 --round 5
     python scripts/update_elo_data.py --year 2024 --force
-    python scripts/update_elo_data.py --year 2024 --db-path /custom/path.duckdb
+    python scripts/update_elo_data.py --year 2024 --data-dir /custom/data/dir
 """
 
 from __future__ import annotations
@@ -35,12 +35,11 @@ from pitlane_agent.utils.elo_db import (
     categorize_dnf,
     get_qualifying_entries,
     get_race_entries,
-    init_elo_tables,
     upsert_qualifying_entries,
     upsert_race_entries,
 )
 from pitlane_agent.utils.fastf1_helpers import load_session, setup_fastf1_cache
-from pitlane_agent.utils.stats_db import get_db_path
+from pitlane_agent.utils.stats_db import get_data_dir, init_data_dir
 from requests.exceptions import RequestException
 
 logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
@@ -304,28 +303,28 @@ def _extract_qualifying_entries(
     help="Specific round number to update (default: all rounds)",
 )
 @click.option(
-    "--db-path",
-    "db_path_str",
+    "--data-dir",
+    "data_dir_str",
     default=None,
     type=str,
-    help="Path to DuckDB file (default: bundled pitlane.duckdb)",
+    help="Path to data directory containing Parquet files (default: bundled data/)",
 )
 @click.option(
     "--force",
     is_flag=True,
     default=False,
-    help="Re-fetch and overwrite rounds already in DB",
+    help="Re-fetch and overwrite rounds already in data directory",
 )
 def update_elo_data(
     year: int,
     round_number: int | None,
-    db_path_str: str | None,
+    data_dir_str: str | None,
     force: bool,
 ) -> None:
-    """Pre-compute per-driver ELO input data and upsert into DuckDB."""
-    db_path = Path(db_path_str) if db_path_str else get_db_path()
-    init_elo_tables(db_path)
-    click.echo(f"DB: {db_path}", err=True)
+    """Pre-compute per-driver ELO input data and upsert into Parquet files."""
+    data_dir = Path(data_dir_str) if data_dir_str else get_data_dir()
+    init_data_dir(data_dir)
+    click.echo(f"Data dir: {data_dir}", err=True)
 
     setup_fastf1_cache()
 
@@ -333,10 +332,10 @@ def update_elo_data(
     existing_race_rounds: set[tuple[int, str]] = set()
     existing_qual_rounds: set[tuple[int, str]] = set()
     if not force:
-        existing_race = get_race_entries(db_path, year)
+        existing_race = get_race_entries(data_dir, year)
         if existing_race:
             existing_race_rounds = {(r["round"], r["session_type"]) for r in existing_race}
-        existing_qual = get_qualifying_entries(db_path, year)
+        existing_qual = get_qualifying_entries(data_dir, year)
         if existing_qual:
             existing_qual_rounds = {(r["round"], r["session_type"]) for r in existing_qual}
         click.echo(
@@ -433,7 +432,7 @@ def update_elo_data(
                 # needs to be processed, build the fallback map from the DB so
                 # that SQ entries with blank Ergast DriverIds can still be resolved.
                 if qt == "Q":
-                    existing_q = get_qualifying_entries(db_path, year) or []
+                    existing_q = get_qualifying_entries(data_dir, year) or []
                     abbrev_to_driver_id = {
                         cast(str, e.get("abbreviation")): e["driver_id"]
                         for e in existing_q
@@ -478,12 +477,12 @@ def update_elo_data(
                 errors += 1
 
     if race_records:
-        upsert_race_entries(db_path, race_records)
-        click.echo(f"\nUpserted {len(race_records)} race entry records to {db_path}", err=True)
+        upsert_race_entries(data_dir, race_records)
+        click.echo(f"\nUpserted {len(race_records)} race entry records to {data_dir}", err=True)
 
     if qual_records:
-        upsert_qualifying_entries(db_path, qual_records)
-        click.echo(f"\nUpserted {len(qual_records)} qualifying entry records to {db_path}", err=True)
+        upsert_qualifying_entries(data_dir, qual_records)
+        click.echo(f"\nUpserted {len(qual_records)} qualifying entry records to {data_dir}", err=True)
 
     click.echo(f"\nDone. Processed: {processed}, Skipped: {skipped}, Errors: {errors}", err=True)
 

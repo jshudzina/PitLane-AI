@@ -1,4 +1,4 @@
-"""DuckDB-backed stats database for pre-computed session statistics."""
+"""Parquet-backed stats database for pre-computed session statistics."""
 
 from __future__ import annotations
 
@@ -28,9 +28,7 @@ class SessionStats(TypedDict, total=False):
     podium: str | None
 
 
-# Schema version 1. There is no migration path — if columns change, drop and
-# recreate the database file (it is a regenerable cache, not source of truth).
-_CREATE_TABLE_SQL = """
+_CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS session_stats (
     year                    INTEGER NOT NULL,
     round                   INTEGER NOT NULL,
@@ -63,23 +61,6 @@ INSERT OR REPLACE INTO session_stats (
 )
 """
 
-
-def get_db_path() -> Path:
-    """Resolve the bundled .duckdb file path via importlib.resources."""
-    ref = importlib.resources.files("pitlane_agent") / "data" / "pitlane.duckdb"
-    return Path(str(ref))
-
-
-def init_db(db_path: Path) -> None:
-    """Create the session_stats table if it does not exist."""
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    con = duckdb.connect(str(db_path))
-    try:
-        con.execute(_CREATE_TABLE_SQL)
-    finally:
-        con.close()
-
-
 _COLUMNS = (
     "year",
     "round",
@@ -99,43 +80,63 @@ _COLUMNS = (
     "podium",
 )
 
+_PARQUET_FILE = "session_stats.parquet"
 
-def upsert_session_stats(db_path: Path, records: list[SessionStats]) -> None:
+
+def get_data_dir() -> Path:
+    """Resolve the bundled data directory path via importlib.resources."""
+    ref = importlib.resources.files("pitlane_agent") / "data"
+    return Path(str(ref))
+
+
+def init_data_dir(data_dir: Path) -> None:
+    """Create the data directory if it does not exist."""
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+
+def upsert_session_stats(data_dir: Path, records: list[SessionStats]) -> None:
     """Insert or replace rows keyed on (year, round, session_type).
 
-    The database must already be initialised via :func:`init_db` before
-    calling this function; the session_stats table must exist.
-
     Args:
-        db_path: Path to the DuckDB database file.
+        data_dir: Path to the data directory containing Parquet files.
         records: List of dicts with keys matching the session_stats schema.
     """
     if not records:
         return
+    parquet_path = data_dir / _PARQUET_FILE
     rows = [[r.get(col) for col in _COLUMNS] for r in records]
-    con = duckdb.connect(str(db_path))
+    con = duckdb.connect()
     try:
+        con.execute(_CREATE_SQL)
+        if parquet_path.exists():
+            con.execute(f"INSERT OR REPLACE INTO session_stats SELECT * FROM read_parquet('{parquet_path}')")
         con.executemany(_UPSERT_SQL, rows)
+        data_dir.mkdir(parents=True, exist_ok=True)
+        con.execute(f"COPY session_stats TO '{parquet_path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
     finally:
         con.close()
 
 
-def get_season_stats(db_path: Path, year: int) -> list[SessionStats] | None:
+def get_season_stats(data_dir: Path, year: int) -> list[SessionStats] | None:
     """Fetch all rows for a season ordered by round.
 
     Args:
-        db_path: Path to the DuckDB database file.
+        data_dir: Path to the data directory containing Parquet files.
         year: The F1 season year to query.
 
     Returns:
-        List of dicts for each session, or None if the database does not exist
-        or no rows are found for the given year.
+        List of dicts for each session, or None if the Parquet file does not
+        exist or no rows are found for the given year.
     """
-    if not db_path.exists():
+    parquet_path = data_dir / _PARQUET_FILE
+    if not parquet_path.exists():
         return None
-    con = duckdb.connect(str(db_path), read_only=True)
+    con = duckdb.connect()
     try:
-        cursor = con.execute("SELECT * FROM session_stats WHERE year = ? ORDER BY round", [year])
+        cursor = con.execute(
+            f"SELECT * FROM read_parquet('{parquet_path}') WHERE year = ? ORDER BY round",
+            [year],
+        )
         rows = cursor.fetchall()
         if not rows:
             return None

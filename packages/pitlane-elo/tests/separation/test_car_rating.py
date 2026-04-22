@@ -195,7 +195,7 @@ class TestGroupQualifyingBySession:
 
 class TestComputeRcRange:
     def test_with_multi_race_db(self, multi_race_db: Path) -> None:
-        result = compute_rc_range(2023, 2024, db_path=multi_race_db)
+        result = compute_rc_range(2023, 2024, data_dir=multi_race_db)
 
         # 6 sessions * 3 teams = 18 CarRating entries
         assert len(result) == 18
@@ -210,12 +210,12 @@ class TestComputeRcRange:
 
     def test_empty_range(self, multi_race_db: Path) -> None:
         """Year range with no data returns empty list."""
-        result = compute_rc_range(1950, 1951, db_path=multi_race_db)
+        result = compute_rc_range(1950, 1951, data_dir=multi_race_db)
         assert result == []
 
     def test_with_populated_db(self, populated_db: Path) -> None:
         """Verify against populated_db fixture (1 session, 2024 R1)."""
-        result = compute_rc_range(2024, 2024, db_path=populated_db)
+        result = compute_rc_range(2024, 2024, data_dir=populated_db)
 
         # 3 teams: Red Bull, Mercedes, Ferrari
         assert len(result) == 3

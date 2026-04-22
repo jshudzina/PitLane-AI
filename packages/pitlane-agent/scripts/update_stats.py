@@ -35,9 +35,9 @@ from pitlane_agent.utils.race_stats import (
 )
 from pitlane_agent.utils.stats_db import (
     SessionStats,
-    get_db_path,
+    get_data_dir,
     get_season_stats,
-    init_db,
+    init_data_dir,
     upsert_session_stats,
 )
 from requests.exceptions import RequestException
@@ -157,11 +157,11 @@ def _process_session(
     help="Specific round number to update (default: all rounds)",
 )
 @click.option(
-    "--db-path",
-    "db_path_str",
+    "--data-dir",
+    "data_dir_str",
     default=None,
     type=str,
-    help="Path to DuckDB file (default: bundled pitlane.duckdb)",
+    help="Path to data directory containing Parquet files (default: bundled data/)",
 )
 @click.option(
     "--with-telemetry/--no-telemetry",
@@ -182,21 +182,21 @@ def _process_session(
 def update_stats(
     year: int,
     round_number: int | None,
-    db_path_str: str | None,
+    data_dir_str: str | None,
     with_telemetry: bool,
     force: bool,
 ) -> None:
-    """Pre-compute session stats and upsert them into DuckDB."""
-    db_path = Path(db_path_str) if db_path_str else get_db_path()
-    init_db(db_path)
-    click.echo(f"DB: {db_path}", err=True)
+    """Pre-compute session stats and upsert them into Parquet files."""
+    data_dir = Path(data_dir_str) if data_dir_str else get_data_dir()
+    init_data_dir(data_dir)
+    click.echo(f"Data dir: {data_dir}", err=True)
 
     setup_fastf1_cache()
 
     # Build set of already-processed (round, session_type) pairs to skip
     existing: set[tuple[int, str]] = set()
     if not force:
-        existing_rows = get_season_stats(db_path, year)
+        existing_rows = get_season_stats(data_dir, year)
         if existing_rows:
             existing = {(r["round"], r["session_type"]) for r in existing_rows}
         click.echo(f"Found {len(existing)} sessions already in DB for {year}", err=True)
@@ -252,8 +252,8 @@ def update_stats(
                 errors += 1
 
     if records:
-        upsert_session_stats(db_path, records)
-        click.echo(f"\nUpserted {len(records)} records to {db_path}", err=True)
+        upsert_session_stats(data_dir, records)
+        click.echo(f"\nUpserted {len(records)} records to {data_dir}", err=True)
 
     click.echo(
         f"\nDone. Processed: {processed}, Skipped: {skipped}, Errors: {errors}",

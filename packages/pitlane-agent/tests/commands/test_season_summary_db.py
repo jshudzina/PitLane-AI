@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from pitlane_agent.commands.fetch.season_summary import _build_summary_from_db, get_season_summary
 from pitlane_agent.utils.constants import AVG_CIRCUIT_LENGTH_KM
-from pitlane_agent.utils.stats_db import init_db, upsert_session_stats
+from pitlane_agent.utils.stats_db import init_data_dir, upsert_session_stats
 
 _SAMPLE_ROW = {
     "year": 2024,
@@ -39,30 +39,28 @@ class TestBuildSummaryFromDb:
 
     def test_returns_none_when_db_missing(self, tmp_path: Path) -> None:
         with patch(
-            "pitlane_agent.commands.fetch.season_summary.get_db_path",
-            return_value=tmp_path / "missing.duckdb",
+            "pitlane_agent.commands.fetch.season_summary.get_data_dir",
+            return_value=tmp_path / "missing",
         ):
             result = _build_summary_from_db(2024)
         assert result is None
 
     def test_returns_none_when_no_rows_for_year(self, tmp_path: Path) -> None:
-        db_path = tmp_path / "test.duckdb"
-        init_db(db_path)
-        upsert_session_stats(db_path, [{**_SAMPLE_ROW, "year": 2023}])
+        init_data_dir(tmp_path)
+        upsert_session_stats(tmp_path, [{**_SAMPLE_ROW, "year": 2023}])
         with patch(
-            "pitlane_agent.commands.fetch.season_summary.get_db_path",
-            return_value=db_path,
+            "pitlane_agent.commands.fetch.season_summary.get_data_dir",
+            return_value=tmp_path,
         ):
             result = _build_summary_from_db(2024)
         assert result is None
 
     def test_returns_summary_for_single_race(self, tmp_path: Path) -> None:
-        db_path = tmp_path / "test.duckdb"
-        init_db(db_path)
-        upsert_session_stats(db_path, [_SAMPLE_ROW])
+        init_data_dir(tmp_path)
+        upsert_session_stats(tmp_path, [_SAMPLE_ROW])
         with patch(
-            "pitlane_agent.commands.fetch.season_summary.get_db_path",
-            return_value=db_path,
+            "pitlane_agent.commands.fetch.season_summary.get_data_dir",
+            return_value=tmp_path,
         ):
             result = _build_summary_from_db(2024)
         assert result is not None
@@ -75,12 +73,11 @@ class TestBuildSummaryFromDb:
         assert race["circuit_length_km"] == 5.412
 
     def test_podium_deserialized_from_json(self, tmp_path: Path) -> None:
-        db_path = tmp_path / "test.duckdb"
-        init_db(db_path)
-        upsert_session_stats(db_path, [_SAMPLE_ROW])
+        init_data_dir(tmp_path)
+        upsert_session_stats(tmp_path, [_SAMPLE_ROW])
         with patch(
-            "pitlane_agent.commands.fetch.season_summary.get_db_path",
-            return_value=db_path,
+            "pitlane_agent.commands.fetch.season_summary.get_data_dir",
+            return_value=tmp_path,
         ):
             result = _build_summary_from_db(2024)
         assert result is not None
@@ -91,24 +88,22 @@ class TestBuildSummaryFromDb:
         assert podium[0]["team"] == "Red Bull Racing"
 
     def test_null_podium_becomes_empty_list(self, tmp_path: Path) -> None:
-        db_path = tmp_path / "test.duckdb"
-        init_db(db_path)
-        upsert_session_stats(db_path, [{**_SAMPLE_ROW, "podium": None}])
+        init_data_dir(tmp_path)
+        upsert_session_stats(tmp_path, [{**_SAMPLE_ROW, "podium": None}])
         with patch(
-            "pitlane_agent.commands.fetch.season_summary.get_db_path",
-            return_value=db_path,
+            "pitlane_agent.commands.fetch.season_summary.get_data_dir",
+            return_value=tmp_path,
         ):
             result = _build_summary_from_db(2024)
         assert result is not None
         assert result["races"][0]["podium"] == []
 
     def test_race_distance_uses_circuit_length(self, tmp_path: Path) -> None:
-        db_path = tmp_path / "test.duckdb"
-        init_db(db_path)
-        upsert_session_stats(db_path, [_SAMPLE_ROW])
+        init_data_dir(tmp_path)
+        upsert_session_stats(tmp_path, [_SAMPLE_ROW])
         with patch(
-            "pitlane_agent.commands.fetch.season_summary.get_db_path",
-            return_value=db_path,
+            "pitlane_agent.commands.fetch.season_summary.get_data_dir",
+            return_value=tmp_path,
         ):
             result = _build_summary_from_db(2024)
         assert result is not None
@@ -116,12 +111,11 @@ class TestBuildSummaryFromDb:
         assert abs(result["races"][0]["race_distance_km"] - expected) < 0.01
 
     def test_race_distance_uses_avg_fallback_when_no_circuit_length(self, tmp_path: Path) -> None:
-        db_path = tmp_path / "test.duckdb"
-        init_db(db_path)
-        upsert_session_stats(db_path, [{**_SAMPLE_ROW, "circuit_length_km": None}])
+        init_data_dir(tmp_path)
+        upsert_session_stats(tmp_path, [{**_SAMPLE_ROW, "circuit_length_km": None}])
         with patch(
-            "pitlane_agent.commands.fetch.season_summary.get_db_path",
-            return_value=db_path,
+            "pitlane_agent.commands.fetch.season_summary.get_data_dir",
+            return_value=tmp_path,
         ):
             result = _build_summary_from_db(2024)
         assert result is not None
@@ -129,12 +123,11 @@ class TestBuildSummaryFromDb:
         assert abs(result["races"][0]["race_distance_km"] - expected) < 0.01
 
     def test_wildness_score_in_range(self, tmp_path: Path) -> None:
-        db_path = tmp_path / "test.duckdb"
-        init_db(db_path)
-        upsert_session_stats(db_path, [_SAMPLE_ROW])
+        init_data_dir(tmp_path)
+        upsert_session_stats(tmp_path, [_SAMPLE_ROW])
         with patch(
-            "pitlane_agent.commands.fetch.season_summary.get_db_path",
-            return_value=db_path,
+            "pitlane_agent.commands.fetch.season_summary.get_data_dir",
+            return_value=tmp_path,
         ):
             result = _build_summary_from_db(2024)
         assert result is not None
@@ -142,16 +135,15 @@ class TestBuildSummaryFromDb:
         assert 0.0 <= score <= 1.0
 
     def test_races_sorted_by_wildness_descending(self, tmp_path: Path) -> None:
-        db_path = tmp_path / "test.duckdb"
-        init_db(db_path)
+        init_data_dir(tmp_path)
         rows = [
             {**_SAMPLE_ROW, "round": 1, "total_overtakes": 5, "num_safety_cars": 0},
             {**_SAMPLE_ROW, "round": 2, "total_overtakes": 50, "num_safety_cars": 3},
         ]
-        upsert_session_stats(db_path, rows)
+        upsert_session_stats(tmp_path, rows)
         with patch(
-            "pitlane_agent.commands.fetch.season_summary.get_db_path",
-            return_value=db_path,
+            "pitlane_agent.commands.fetch.season_summary.get_data_dir",
+            return_value=tmp_path,
         ):
             result = _build_summary_from_db(2024)
         assert result is not None
@@ -159,12 +151,11 @@ class TestBuildSummaryFromDb:
         assert scores == sorted(scores, reverse=True)
 
     def test_season_averages_computed(self, tmp_path: Path) -> None:
-        db_path = tmp_path / "test.duckdb"
-        init_db(db_path)
-        upsert_session_stats(db_path, [_SAMPLE_ROW])
+        init_data_dir(tmp_path)
+        upsert_session_stats(tmp_path, [_SAMPLE_ROW])
         with patch(
-            "pitlane_agent.commands.fetch.season_summary.get_db_path",
-            return_value=db_path,
+            "pitlane_agent.commands.fetch.season_summary.get_data_dir",
+            return_value=tmp_path,
         ):
             result = _build_summary_from_db(2024)
         assert result is not None
@@ -179,14 +170,13 @@ class TestBuildSummaryFromDb:
 class TestGetSeasonSummaryDbFirst:
     """Tests for the DB-first fast path in get_season_summary."""
 
-    def test_db_path_used_when_data_exists(self, tmp_path: Path) -> None:
-        db_path = tmp_path / "test.duckdb"
-        init_db(db_path)
-        upsert_session_stats(db_path, [_SAMPLE_ROW])
+    def test_data_dir_used_when_data_exists(self, tmp_path: Path) -> None:
+        init_data_dir(tmp_path)
+        upsert_session_stats(tmp_path, [_SAMPLE_ROW])
         with (
             patch(
-                "pitlane_agent.commands.fetch.season_summary.get_db_path",
-                return_value=db_path,
+                "pitlane_agent.commands.fetch.season_summary.get_data_dir",
+                return_value=tmp_path,
             ),
             patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache") as mock_cache,
         ):
@@ -197,11 +187,10 @@ class TestGetSeasonSummaryDbFirst:
         assert result["total_races"] == 1
 
     def test_falls_back_to_live_when_db_empty(self, tmp_path: Path) -> None:
-        db_path = tmp_path / "missing.duckdb"
         with (
             patch(
-                "pitlane_agent.commands.fetch.season_summary.get_db_path",
-                return_value=db_path,
+                "pitlane_agent.commands.fetch.season_summary.get_data_dir",
+                return_value=tmp_path / "missing",
             ),
             patch("pitlane_agent.commands.fetch.season_summary.setup_fastf1_cache") as mock_cache,
             patch("pitlane_agent.commands.fetch.season_summary.fastf1") as mock_ff1,

@@ -23,7 +23,7 @@ import duckdb
 from pitlane_elo.config import ENDURE_ELO_CALIBRATED
 from pitlane_elo.data import (
     RaceEntry,
-    get_db_path,
+    get_data_dir,
     get_race_entries_range,
     group_entries_by_race,
 )
@@ -79,9 +79,9 @@ class EloSnapshot:
 # ---------------------------------------------------------------------------
 
 
-def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
+def ensure_schema(con: duckdb.DuckDBPyConnection, data_dir: Path) -> None:
     """Create elo_snapshots and elo_model_state tables/indexes. Idempotent."""
-    RatingsStore(con, retention_years=DEFAULT_STATE_RETENTION_YEARS).ensure_schema()
+    RatingsStore(con, data_dir, retention_years=DEFAULT_STATE_RETENTION_YEARS).ensure_schema()
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +166,7 @@ def build_snapshots(
     start_year: int = 1970,
     end_year: int = 2026,
     *,
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
     session_type: str = "R",
     retention_years: int | None = None,
 ) -> int:
@@ -183,7 +183,7 @@ def build_snapshots(
     Args:
         start_year: First season to process (warm-up + snapshot start).
         end_year: Last season (inclusive).
-        db_path: Override the database path.
+        data_dir: Override the data directory.
         session_type: "R" (race) or "S" (sprint).
         retention_years: Years of history used to decide which drivers to keep
             in checkpoints. Defaults to the ``PITLANE_STATE_RETENTION_YEARS``
@@ -192,10 +192,10 @@ def build_snapshots(
     Returns:
         Number of snapshot rows written.
     """
-    path = db_path or get_db_path()
+    d = data_dir or get_data_dir()
     retention = _resolve_retention_years(retention_years)
 
-    all_entries = get_race_entries_range(start_year, end_year, db_path=path)
+    all_entries = get_race_entries_range(start_year, end_year, data_dir=d)
     if not all_entries:
         return 0
 
@@ -210,8 +210,8 @@ def build_snapshots(
     current_year: int | None = None
     active_ids_cache: dict[int, set[str]] = {}
 
-    with duckdb.connect(str(path)) as con:
-        store = RatingsStore(con, retention_years=retention)
+    with duckdb.connect() as con:
+        store = RatingsStore(con, d, retention_years=retention)
         store.ensure_schema()
 
         for race_entries in races:
@@ -233,7 +233,7 @@ def build_snapshots(
             )
             total_rows += len(rows)
 
-        con.commit()
+        store.flush()
 
     return total_rows
 
@@ -243,7 +243,7 @@ def add_race_snapshot(
     round_num: int,
     *,
     session_type: str = "R",
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
     retention_years: int | None = None,
 ) -> int:
     """Incrementally add one race to the snapshot without re-running history.
@@ -258,11 +258,11 @@ def add_race_snapshot(
     Raises:
         click.ClickException: If prerequisites are not met.
     """
-    path = db_path or get_db_path()
+    d = data_dir or get_data_dir()
     retention = _resolve_retention_years(retention_years)
 
-    with duckdb.connect(str(path)) as con:
-        store = RatingsStore(con, retention_years=retention)
+    with duckdb.connect() as con:
+        store = RatingsStore(con, d, retention_years=retention)
         store.ensure_schema()
 
         latest = store.latest_checkpoint(session_type)
@@ -298,7 +298,7 @@ def add_race_snapshot(
         try:
             race_entries = store.read_race_entries(year, round_num, session_type)
         except duckdb.CatalogException as err:
-            raise click.ClickException("race_entries table not found. Check your database path.") from err
+            raise click.ClickException("race_entries view not found. Check your data directory.") from err
 
         if not race_entries:
             raise click.ClickException(
@@ -324,7 +324,7 @@ def add_race_snapshot(
             session_type,
             active_driver_ids=active_ids,
         )
-        con.commit()
+        store.flush()
 
     return len(snapshot_rows)
 
@@ -332,7 +332,7 @@ def add_race_snapshot(
 def catchup_snapshots(
     *,
     session_type: str = "R",
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
     retention_years: int | None = None,
 ) -> int:
     """Add every race in race_entries that has no model-state checkpoint yet.
@@ -344,12 +344,12 @@ def catchup_snapshots(
     Raises:
         click.ClickException: If no prior checkpoint exists.
     """
-    path = db_path or get_db_path()
+    d = data_dir or get_data_dir()
     retention = _resolve_retention_years(retention_years)
     total_rows = 0
 
-    with duckdb.connect(str(path)) as con:
-        store = RatingsStore(con, retention_years=retention)
+    with duckdb.connect() as con:
+        store = RatingsStore(con, d, retention_years=retention)
         store.ensure_schema()
 
         checkpoint = store.latest_checkpoint(session_type)
@@ -362,7 +362,7 @@ def catchup_snapshots(
         try:
             pending = store.pending_races_after_checkpoint(checkpoint.year, checkpoint.round, session_type)
         except duckdb.CatalogException as err:
-            raise click.ClickException("race_entries table not found. Check your database path.") from err
+            raise click.ClickException("race_entries view not found. Check your data directory.") from err
 
         if not pending:
             return 0
@@ -401,7 +401,7 @@ def catchup_snapshots(
             )
             total_rows += len(snapshot_rows)
 
-        con.commit()
+        store.flush()
 
     return total_rows
 
@@ -442,27 +442,28 @@ def get_race_snapshot(
     round_num: int,
     *,
     session_type: str = "R",
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
 ) -> list[EloSnapshot]:
     """All driver snapshots for one race, sorted by win_probability DESC."""
-    path = db_path or get_db_path()
-    if not path.exists():
+    d = data_dir or get_data_dir()
+    glob_pattern = str(d / "elo_snapshots" / "*.parquet")
+    if not list((d / "elo_snapshots").glob("*.parquet")):
         return []
 
-    sql = (
-        f"SELECT {_SNAPSHOT_COLS} FROM elo_snapshots "
-        "WHERE year = ? AND round = ? AND session_type = ? "
-        "ORDER BY win_probability DESC"
-    )
-    with duckdb.connect(str(path), read_only=True) as con:
-        try:
-            cursor = con.execute(sql, [year, round_num, session_type])
-        except duckdb.CatalogException:
-            return []
+    con = duckdb.connect()
+    try:
+        cursor = con.execute(
+            f"SELECT {_SNAPSHOT_COLS} FROM read_parquet('{glob_pattern}') "
+            "WHERE year = ? AND round = ? AND session_type = ? "
+            "ORDER BY win_probability DESC",
+            [year, round_num, session_type],
+        )
         rows = cursor.fetchall()
         if not rows:
             return []
         columns = [desc[0] for desc in cursor.description]
+    finally:
+        con.close()
     return _rows_to_snapshots(rows, columns)
 
 
@@ -472,27 +473,28 @@ def get_driver_rating_history(
     start_year: int = 1970,
     end_year: int = 2026,
     session_type: str = "R",
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
 ) -> list[EloSnapshot]:
     """All snapshot rows for one driver in chronological order."""
-    path = db_path or get_db_path()
-    if not path.exists():
+    d = data_dir or get_data_dir()
+    glob_pattern = str(d / "elo_snapshots" / "*.parquet")
+    if not list((d / "elo_snapshots").glob("*.parquet")):
         return []
 
-    sql = (
-        f"SELECT {_SNAPSHOT_COLS} FROM elo_snapshots "
-        "WHERE driver_id = ? AND year BETWEEN ? AND ? AND session_type = ? "
-        "ORDER BY year ASC, round ASC"
-    )
-    with duckdb.connect(str(path), read_only=True) as con:
-        try:
-            cursor = con.execute(sql, [driver_id, start_year, end_year, session_type])
-        except duckdb.CatalogException:
-            return []
+    con = duckdb.connect()
+    try:
+        cursor = con.execute(
+            f"SELECT {_SNAPSHOT_COLS} FROM read_parquet('{glob_pattern}') "
+            "WHERE driver_id = ? AND year BETWEEN ? AND ? AND session_type = ? "
+            "ORDER BY year ASC, round ASC",
+            [driver_id, start_year, end_year, session_type],
+        )
         rows = cursor.fetchall()
         if not rows:
             return []
         columns = [desc[0] for desc in cursor.description]
+    finally:
+        con.close()
     return _rows_to_snapshots(rows, columns)
 
 

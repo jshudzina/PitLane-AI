@@ -4,15 +4,17 @@ Owns every DuckDB interaction previously tangled inside ``snapshots.py``:
 schema DDL, snapshot-row upserts, post-race model-state checkpoints, and the
 checkpoint-discovery queries used to drive incremental adds.
 
-Callers pass an open connection and a retention policy; the store neither
-opens nor closes the connection. ``load_checkpoint`` returns a
-:class:`ModelState` so model hydration stays explicit — no method here
-mutates a model.
+Callers pass an open in-memory DuckDB connection and a data directory; the
+store neither opens nor closes the connection. ``ensure_schema`` loads existing
+Parquet data into the in-memory connection and registers a ``race_entries``
+view. ``flush`` writes modified tables back to Parquet. ``load_checkpoint``
+returns a :class:`ModelState` so model hydration stays explicit — no method
+here mutates a model.
 """
 
 from __future__ import annotations
 
-import contextlib
+from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
 import duckdb
@@ -37,11 +39,6 @@ CREATE TABLE IF NOT EXISTS elo_snapshots (
     created_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (year, round, session_type, driver_id)
 )
-"""
-
-_ADD_PODIUM_COL_SQL = """
-ALTER TABLE elo_snapshots
-    ADD COLUMN podium_probability DOUBLE DEFAULT 0.0
 """
 
 _CREATE_DRIVER_INDEX_SQL = """
@@ -83,6 +80,13 @@ INSERT OR REPLACE INTO elo_model_state
     (year, round, session_type, driver_id, rating, k_factor)
 VALUES (?, ?, ?, ?, ?, ?)
 """
+
+# Columns to SELECT from elo_snapshots when loading into the in-memory table
+# (excludes created_at so DEFAULT CURRENT_TIMESTAMP fires on insert)
+_SNAPSHOT_LOAD_COLS = (
+    "year, round, session_type, driver_id, pre_race_rating, pre_race_k, "
+    "win_probability, podium_probability, finish_position, dnf_category, created_at"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -132,23 +136,69 @@ class SnapshotRow(NamedTuple):
 
 
 class RatingsStore:
-    """DuckDB-backed store for ELO snapshot rows and model-state checkpoints."""
+    """DuckDB-backed (in-memory) store for ELO snapshot rows and model-state checkpoints.
 
-    def __init__(self, con: duckdb.DuckDBPyConnection, *, retention_years: int) -> None:
+    Uses an in-memory DuckDB connection. ``ensure_schema`` loads existing
+    Parquet data from ``data_dir`` into the in-memory tables and registers
+    a ``race_entries`` view pointing at the source Parquet files.
+    ``flush`` writes the modified tables back to year-partitioned Parquet.
+    """
+
+    def __init__(
+        self,
+        con: duckdb.DuckDBPyConnection,
+        data_dir: Path,
+        *,
+        retention_years: int,
+    ) -> None:
         self.con = con
+        self.data_dir = data_dir
         self.retention_years = retention_years
 
     # ----- schema ---------------------------------------------------------
 
     def ensure_schema(self) -> None:
-        """Create tables and indexes if they do not exist. Idempotent."""
+        """Create in-memory tables, load existing Parquet data, register views."""
         self.con.execute(_CREATE_TABLE_SQL)
-        with contextlib.suppress(duckdb.CatalogException):
-            self.con.execute(_ADD_PODIUM_COL_SQL)
         self.con.execute(_CREATE_DRIVER_INDEX_SQL)
         self.con.execute(_CREATE_RACE_INDEX_SQL)
         self.con.execute(_CREATE_MODEL_STATE_SQL)
         self.con.execute(_CREATE_MODEL_STATE_INDEX_SQL)
+
+        # Load existing elo_snapshots from per-year Parquet files
+        for p in sorted((self.data_dir / "elo_snapshots").glob("*.parquet")):
+            self.con.execute(
+                f"INSERT OR REPLACE INTO elo_snapshots SELECT {_SNAPSHOT_LOAD_COLS} FROM read_parquet('{p}')"
+            )
+
+        # Load existing elo_model_state
+        model_state_path = self.data_dir / "elo_model_state.parquet"
+        if model_state_path.exists():
+            self.con.execute(f"INSERT OR REPLACE INTO elo_model_state SELECT * FROM read_parquet('{model_state_path}')")
+
+        # Register race_entries as a read-only view when source Parquet files exist.
+        # If no files are present yet (fresh data dir), the view is omitted; callers
+        # that query race_entries will see a CatalogException which they handle.
+        if list((self.data_dir / "race_entries").glob("*.parquet")):
+            race_glob = str(self.data_dir / "race_entries" / "*.parquet")
+            self.con.execute(f"CREATE OR REPLACE VIEW race_entries AS SELECT * FROM read_parquet('{race_glob}')")
+
+    def flush(self) -> None:
+        """Write in-memory tables back to year-partitioned Parquet files."""
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        (self.data_dir / "elo_snapshots").mkdir(parents=True, exist_ok=True)
+
+        years = [r[0] for r in self.con.execute("SELECT DISTINCT year FROM elo_snapshots ORDER BY year").fetchall()]
+        for year in years:
+            p = self.data_dir / "elo_snapshots" / f"{year}.parquet"
+            self.con.execute(
+                f"COPY (SELECT * FROM elo_snapshots WHERE year = {year}) TO '{p}' (FORMAT PARQUET, COMPRESSION ZSTD)"
+            )
+
+        model_state_path = self.data_dir / "elo_model_state.parquet"
+        row_count = self.con.execute("SELECT COUNT(*) FROM elo_model_state").fetchone()[0]
+        if row_count > 0:
+            self.con.execute(f"COPY elo_model_state TO '{model_state_path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
 
     # ----- active driver pruning ------------------------------------------
 

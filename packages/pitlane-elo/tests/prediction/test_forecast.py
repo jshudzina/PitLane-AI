@@ -12,12 +12,12 @@ from pitlane_elo.ratings.speed_elo import SpeedElo
 
 @pytest.fixture()
 def _use_populated_db(populated_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PITLANE_DB_PATH", str(populated_db))
+    monkeypatch.setenv("PITLANE_DATA_DIR", str(populated_db))
 
 
 @pytest.fixture()
 def _use_multi_race_db(multi_race_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PITLANE_DB_PATH", str(multi_race_db))
+    monkeypatch.setenv("PITLANE_DATA_DIR", str(multi_race_db))
 
 
 @pytest.mark.usefixtures("_use_populated_db")

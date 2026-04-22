@@ -25,7 +25,7 @@ def estimate_alpha(
     start_year: int,
     end_year: int,
     *,
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
 ) -> float:
     """Estimate the constructor-adjustment weight alpha via OLS variance decomposition.
 
@@ -45,12 +45,12 @@ def estimate_alpha(
     Args:
         start_year: First season to process (used for warm-up and estimation).
         end_year: Last season (inclusive).
-        db_path: Override the database path.
+        data_dir: Override the data directory.
 
     Returns:
         Estimated alpha value.
     """
-    all_entries = get_race_entries_range(start_year, end_year, db_path=db_path)
+    all_entries = get_race_entries_range(start_year, end_year, data_dir=data_dir)
     if not all_entries:
         return 0.0
 

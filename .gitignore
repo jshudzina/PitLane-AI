@@ -189,6 +189,9 @@ cython_debug/
 # .vscode/
 
 # macOS
+# DuckDB binary files (replaced by Parquet)
+*.duckdb
+*.duckdb.wal
 .DS_Store
 
 # Ruff stuff:

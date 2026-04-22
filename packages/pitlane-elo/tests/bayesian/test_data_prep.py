@@ -222,21 +222,21 @@ class TestContextFlags:
 
 class TestPrepareSeasonFromDb:
     def test_returns_none_for_empty_year(self, tmp_db: Path) -> None:
-        result = prepare_season_from_db(1900, db_path=tmp_db)
+        result = prepare_season_from_db(1900, data_dir=tmp_db)
         assert result is None
 
     def test_returns_season_data_for_populated_year(self, multi_race_db: Path) -> None:
-        result = prepare_season_from_db(2023, db_path=multi_race_db)
+        result = prepare_season_from_db(2023, data_dir=multi_race_db)
         assert isinstance(result, SeasonData)
 
     def test_correct_driver_count_from_db(self, multi_race_db: Path) -> None:
-        result = prepare_season_from_db(2023, db_path=multi_race_db)
+        result = prepare_season_from_db(2023, data_dir=multi_race_db)
         assert result is not None
         # multi_race_db has 5 drivers.
         assert result.n_drivers == 5
 
     def test_correct_race_count_from_db(self, multi_race_db: Path) -> None:
-        result = prepare_season_from_db(2023, db_path=multi_race_db)
+        result = prepare_season_from_db(2023, data_dir=multi_race_db)
         assert result is not None
         # multi_race_db has 3 rounds in 2023; HAM's mechanical DNF in R2
         # means after filtering R2 still has 4 finishers (>= min_finishers=2).
