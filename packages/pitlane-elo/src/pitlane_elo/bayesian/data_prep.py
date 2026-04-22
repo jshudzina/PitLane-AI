@@ -124,7 +124,7 @@ def prepare_season(
 def prepare_season_from_db(
     year: int,
     *,
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
 ) -> SeasonData | None:
     """Convenience wrapper: fetch race entries from DB, group, and prepare.
 
@@ -132,12 +132,12 @@ def prepare_season_from_db(
 
     Args:
         year: F1 season year.
-        db_path: Override the database path. Defaults to get_db_path().
+        data_dir: Override the data directory.
 
     Returns:
         SeasonData, or None if the database has no entries for the year.
     """
-    entries = get_race_entries(year, db_path=db_path, session_type="R")
+    entries = get_race_entries(year, data_dir=data_dir, session_type="R")
     if not entries:
         return None
     races = group_entries_by_race(entries)

@@ -1,13 +1,14 @@
-"""DuckDB-backed ELO data store for per-driver race and qualifying entries."""
+"""Parquet-backed ELO data store for per-driver race and qualifying entries."""
 
 from __future__ import annotations
 
+from collections import defaultdict
 from pathlib import Path
 from typing import TypedDict, cast
 
 import duckdb
 
-from pitlane_agent.utils.stats_db import get_db_path
+from pitlane_agent.utils.stats_db import get_data_dir
 
 
 class _RaceEntryRequired(TypedDict):
@@ -73,8 +74,6 @@ class QualifyingEntry(_QualifyingEntryRequired, total=False):
     best_q_time_s: float | None  # min() of available times; None if no times recorded
 
 
-# Schema version 1. No migration path — if columns change, drop and recreate
-# the database file (it is a regenerable cache, not a source of truth).
 _CREATE_RACE_ENTRIES_SQL = """
 CREATE TABLE IF NOT EXISTS race_entries (
     year              INTEGER NOT NULL,
@@ -88,7 +87,6 @@ CREATE TABLE IF NOT EXISTS race_entries (
     laps_completed    INTEGER NOT NULL,
     status            VARCHAR NOT NULL,
     dnf_category      VARCHAR NOT NULL,
-    -- Phase 1 stubs: always FALSE until wet/street detection is implemented
     is_wet_race       BOOLEAN NOT NULL DEFAULT FALSE,
     is_street_circuit BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (year, round, session_type, driver_id)
@@ -99,14 +97,10 @@ _CREATE_QUALIFYING_ENTRIES_SQL = """
 CREATE TABLE IF NOT EXISTS qualifying_entries (
     year          INTEGER NOT NULL,
     round         INTEGER NOT NULL,
-    -- "Q" = main qualifying (sets race grid); "SQ" = sprint qualifying/shootout (sets sprint grid).
-    -- Xun's Rc uses "Q" only. "SQ" data is collected for future analysis.
     session_type  VARCHAR NOT NULL,
     driver_id     VARCHAR NOT NULL,
     abbreviation  VARCHAR,
     team          VARCHAR NOT NULL,
-    -- Q1/Q2/Q3 data is only reliable from 2006 (knockout qualifying format).
-    -- Pre-2006 sessions have NaT values in FastF1, stored as NULL here.
     q1_time_s     DOUBLE,
     q2_time_s     DOUBLE,
     q3_time_s     DOUBLE,
@@ -285,82 +279,91 @@ def categorize_dnf(status: str) -> str:
     return "crash"
 
 
-def init_elo_tables(db_path: Path) -> None:
-    """Create race_entries and qualifying_entries tables if they do not exist.
-
-    Safe to call on an existing DB that already has a session_stats table —
-    uses CREATE TABLE IF NOT EXISTS for both tables. Creates parent directories.
-
-    Args:
-        db_path: Path to the DuckDB database file.
-    """
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    con = duckdb.connect(str(db_path))
+def _upsert_parquet_table(
+    parquet_path: Path,
+    create_sql: str,
+    upsert_sql: str,
+    columns: tuple[str, ...],
+    records: list[dict],
+) -> None:
+    """Generic in-memory DuckDB upsert to a Parquet file."""
+    rows = [[r.get(col) for col in columns] for r in records]
+    con = duckdb.connect()
     try:
-        con.execute(_CREATE_RACE_ENTRIES_SQL)
-        con.execute(_CREATE_QUALIFYING_ENTRIES_SQL)
+        con.execute(create_sql)
+        if parquet_path.exists():
+            con.execute(f"INSERT OR REPLACE INTO {_table_name(create_sql)} SELECT * FROM read_parquet('{parquet_path}')")
+        con.executemany(upsert_sql, rows)
+        parquet_path.parent.mkdir(parents=True, exist_ok=True)
+        con.execute(f"COPY {_table_name(create_sql)} TO '{parquet_path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
     finally:
         con.close()
 
 
-def upsert_race_entries(db_path: Path, records: list[RaceEntry]) -> None:
+def _table_name(create_sql: str) -> str:
+    """Extract table name from a CREATE TABLE IF NOT EXISTS statement."""
+    for token in create_sql.split():
+        if token.lower() not in ("create", "table", "if", "not", "exists"):
+            return token
+    raise ValueError(f"Cannot extract table name from: {create_sql[:60]}")
+
+
+def upsert_race_entries(data_dir: Path, records: list[RaceEntry]) -> None:
     """Insert or replace race entry rows keyed on (year, round, session_type, driver_id).
 
-    The database must already be initialised via :func:`init_elo_tables` before
-    calling this function; the race_entries table must exist.
-
     Args:
-        db_path: Path to the DuckDB database file.
+        data_dir: Path to the data directory containing Parquet files.
         records: List of RaceEntry dicts with keys matching the schema.
     """
     if not records:
         return
-    rows = [[r.get(col) for col in _RACE_COLUMNS] for r in records]
-    con = duckdb.connect(str(db_path))
-    try:
-        con.executemany(_UPSERT_RACE_ENTRY_SQL, rows)
-    finally:
-        con.close()
+    by_year: dict[int, list[RaceEntry]] = defaultdict(list)
+    for r in records:
+        by_year[r["year"]].append(r)
+    for year, year_records in by_year.items():
+        parquet_path = data_dir / f"race_entries_{year}.parquet"
+        _upsert_parquet_table(
+            parquet_path, _CREATE_RACE_ENTRIES_SQL, _UPSERT_RACE_ENTRY_SQL, _RACE_COLUMNS, year_records
+        )
 
 
-def upsert_qualifying_entries(db_path: Path, records: list[QualifyingEntry]) -> None:
+def upsert_qualifying_entries(data_dir: Path, records: list[QualifyingEntry]) -> None:
     """Insert or replace qualifying entry rows keyed on (year, round, driver_id).
 
-    The database must already be initialised via :func:`init_elo_tables` before
-    calling this function; the qualifying_entries table must exist.
-
     Args:
-        db_path: Path to the DuckDB database file.
+        data_dir: Path to the data directory containing Parquet files.
         records: List of QualifyingEntry dicts with keys matching the schema.
     """
     if not records:
         return
-    rows = [[r.get(col) for col in _QUALIFYING_COLUMNS] for r in records]
-    con = duckdb.connect(str(db_path))
-    try:
-        con.executemany(_UPSERT_QUALIFYING_ENTRY_SQL, rows)
-    finally:
-        con.close()
+    by_year: dict[int, list[QualifyingEntry]] = defaultdict(list)
+    for r in records:
+        by_year[r["year"]].append(r)
+    for year, year_records in by_year.items():
+        parquet_path = data_dir / f"qualifying_entries_{year}.parquet"
+        _upsert_parquet_table(
+            parquet_path, _CREATE_QUALIFYING_ENTRIES_SQL, _UPSERT_QUALIFYING_ENTRY_SQL, _QUALIFYING_COLUMNS, year_records
+        )
 
 
-def get_race_entries(db_path: Path, year: int) -> list[RaceEntry] | None:
+def get_race_entries(data_dir: Path, year: int) -> list[RaceEntry] | None:
     """Fetch all race entries for a season ordered by round then driver.
 
     Args:
-        db_path: Path to the DuckDB database file.
+        data_dir: Path to the data directory containing Parquet files.
         year: The F1 season year to query.
 
     Returns:
-        List of RaceEntry dicts, or None if the database does not exist or no
-        rows are found for the given year.
+        List of RaceEntry dicts, or None if the Parquet file does not exist or
+        no rows are found for the given year.
     """
-    if not db_path.exists():
+    parquet_path = data_dir / f"race_entries_{year}.parquet"
+    if not parquet_path.exists():
         return None
-    con = duckdb.connect(str(db_path), read_only=True)
+    con = duckdb.connect()
     try:
         cursor = con.execute(
-            "SELECT * FROM race_entries WHERE year = ? ORDER BY round, driver_id",
-            [year],
+            f"SELECT * FROM read_parquet('{parquet_path}') ORDER BY round, driver_id",
         )
         rows = cursor.fetchall()
         if not rows:
@@ -371,24 +374,24 @@ def get_race_entries(db_path: Path, year: int) -> list[RaceEntry] | None:
     return [cast(RaceEntry, dict(zip(columns, row, strict=True))) for row in rows]
 
 
-def get_qualifying_entries(db_path: Path, year: int) -> list[QualifyingEntry] | None:
+def get_qualifying_entries(data_dir: Path, year: int) -> list[QualifyingEntry] | None:
     """Fetch all qualifying entries for a season ordered by round then driver.
 
     Args:
-        db_path: Path to the DuckDB database file.
+        data_dir: Path to the data directory containing Parquet files.
         year: The F1 season year to query.
 
     Returns:
-        List of QualifyingEntry dicts, or None if the database does not exist
-        or no rows are found for the given year.
+        List of QualifyingEntry dicts, or None if the Parquet file does not
+        exist or no rows are found for the given year.
     """
-    if not db_path.exists():
+    parquet_path = data_dir / f"qualifying_entries_{year}.parquet"
+    if not parquet_path.exists():
         return None
-    con = duckdb.connect(str(db_path), read_only=True)
+    con = duckdb.connect()
     try:
         cursor = con.execute(
-            "SELECT * FROM qualifying_entries WHERE year = ? ORDER BY round, driver_id",
-            [year],
+            f"SELECT * FROM read_parquet('{parquet_path}') ORDER BY round, driver_id",
         )
         rows = cursor.fetchall()
         if not rows:
@@ -403,8 +406,7 @@ __all__ = [
     "RaceEntry",
     "QualifyingEntry",
     "categorize_dnf",
-    "get_db_path",
-    "init_elo_tables",
+    "get_data_dir",
     "upsert_race_entries",
     "upsert_qualifying_entries",
     "get_race_entries",

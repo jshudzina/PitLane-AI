@@ -7,8 +7,7 @@ from unittest.mock import patch
 
 import duckdb
 import pytest
-from pitlane_agent.utils.elo_db import RaceEntry, init_elo_tables, upsert_race_entries
-from pitlane_agent.utils.stats_db import init_db as init_stats_db
+from pitlane_agent.utils.elo_db import RaceEntry, upsert_race_entries
 
 # Import the script module directly since it lives outside the package src tree.
 _SCRIPT_PATH = Path(__file__).parents[2] / "scripts" / "review_mechanical_dnfs.py"
@@ -64,11 +63,8 @@ def _make_result_message(structured_output=None):
 
 @pytest.fixture()
 def db(tmp_path: Path) -> Path:
-    """Create a temporary DuckDB with the race_entries and session_stats tables."""
-    db_path = tmp_path / "test.duckdb"
-    init_elo_tables(db_path)
-    init_stats_db(db_path)
-    return db_path
+    """Return a temporary data directory for Parquet files."""
+    return tmp_path
 
 
 class TestFetchMechanicalDnfs:
@@ -407,17 +403,20 @@ class TestUpdateDnfCategory:
         count = _update_dnf_category(db, updates)
         assert count == 1
 
-        # Verify the update
-        con = duckdb.connect(str(db), read_only=True)
+        # Verify the update via read_parquet
+        parquet_path = db / "race_entries_2024.parquet"
+        con = duckdb.connect()
         try:
             row = con.execute(
-                "SELECT dnf_category FROM race_entries WHERE year = 2024 AND round = 2 AND driver_id = 'stroll'"
+                f"SELECT dnf_category FROM read_parquet('{parquet_path}') "
+                "WHERE year = 2024 AND round = 2 AND driver_id = 'stroll'"
             ).fetchone()
             assert row[0] == "crash"
 
             # Alonso should remain mechanical
             row2 = con.execute(
-                "SELECT dnf_category FROM race_entries WHERE year = 2024 AND round = 3 AND driver_id = 'alonso'"
+                f"SELECT dnf_category FROM read_parquet('{parquet_path}') "
+                "WHERE year = 2024 AND round = 3 AND driver_id = 'alonso'"
             ).fetchone()
             assert row2[0] == "mechanical"
         finally:

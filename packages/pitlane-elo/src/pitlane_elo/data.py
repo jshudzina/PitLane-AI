@@ -1,4 +1,4 @@
-"""Read-only access to the pitlane DuckDB database.
+"""Read-only access to the pitlane Parquet data files.
 
 Provides TypedDicts and query functions for race and qualifying entries.
 Adapted from pitlane_agent.utils.elo_db — only the read-only subset is
@@ -60,31 +60,34 @@ class QualifyingEntry(_QualifyingEntryRequired, total=False):
 
 
 # ---------------------------------------------------------------------------
-# DB path resolution
+# Data directory path resolution
 # ---------------------------------------------------------------------------
 
-_DEFAULT_RELATIVE_DB = (
+_DEFAULT_RELATIVE_DATA_DIR = (
     Path(__file__).resolve().parent.parent.parent.parent
     / "pitlane-agent"
     / "src"
     / "pitlane_agent"
     / "data"
-    / "pitlane.duckdb"
 )
 
 
-def get_db_path() -> Path:
-    """Resolve the path to the pitlane DuckDB database.
+def get_data_dir() -> Path:
+    """Resolve the path to the pitlane data directory.
 
     Resolution order:
-    1. ``PITLANE_DB_PATH`` environment variable (if set and non-empty).
-    2. Default: ``packages/pitlane-agent/src/pitlane_agent/data/pitlane.duckdb``
+    1. ``PITLANE_DATA_DIR`` environment variable (if set and non-empty).
+    2. ``PITLANE_DB_PATH`` environment variable (backwards compat — uses parent dir).
+    3. Default: ``packages/pitlane-agent/src/pitlane_agent/data/``
        relative to the pitlane-elo package location.
     """
-    env = os.environ.get("PITLANE_DB_PATH", "").strip()
+    env = os.environ.get("PITLANE_DATA_DIR", "").strip()
     if env:
         return Path(env)
-    return _DEFAULT_RELATIVE_DB
+    env_db = os.environ.get("PITLANE_DB_PATH", "").strip()
+    if env_db:
+        return Path(env_db).parent
+    return _DEFAULT_RELATIVE_DATA_DIR
 
 
 # ---------------------------------------------------------------------------
@@ -103,25 +106,48 @@ _QUALIFYING_COLS = (
 
 
 # ---------------------------------------------------------------------------
-# Read-only query helpers
+# Internal query helper
 # ---------------------------------------------------------------------------
 
 
-def _query(
-    path: Path,
+def _query_parquet(
+    parquet_path: Path,
     sql: str,
     params: list[object],
 ) -> list[dict[str, object]] | None:
-    """Execute a read-only query and return a list of row dicts, or None."""
-    if not path.exists():
+    """Execute a read-only query on a Parquet file via DuckDB. Returns None if
+    the file does not exist or the query returns no rows."""
+    if not parquet_path.exists():
         return None
-    with duckdb.connect(str(path), read_only=True) as con:
+    con = duckdb.connect()
+    try:
         cursor = con.execute(sql, params)
         rows = cursor.fetchall()
         if not rows:
             return None
         columns = [desc[0] for desc in cursor.description]
         return [dict(zip(columns, row, strict=True)) for row in rows]
+    finally:
+        con.close()
+
+
+def _query_glob(
+    sql: str,
+    params: list[object],
+) -> list[dict[str, object]] | None:
+    """Execute a query across a glob of Parquet files. Returns None if no rows match."""
+    con = duckdb.connect()
+    try:
+        cursor = con.execute(sql, params)
+        rows = cursor.fetchall()
+        if not rows:
+            return None
+        columns = [desc[0] for desc in cursor.description]
+        return [dict(zip(columns, row, strict=True)) for row in rows]
+    except duckdb.IOException:
+        return None
+    finally:
+        con.close()
 
 
 # ---------------------------------------------------------------------------
@@ -132,57 +158,59 @@ def _query(
 def get_race_entries(
     year: int,
     *,
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
     session_type: str | None = None,
 ) -> list[RaceEntry] | None:
     """Fetch race entries for a season, optionally filtered by session type.
 
     Args:
         year: The F1 season year to query.
-        db_path: Override the database path. Defaults to :func:`get_db_path`.
+        data_dir: Override the data directory. Defaults to :func:`get_data_dir`.
         session_type: If provided, filter to this session type ("R" or "S").
 
     Returns:
-        List of RaceEntry dicts, or None if the database does not exist or
+        List of RaceEntry dicts, or None if the Parquet file does not exist or
         no rows match.
     """
-    path = db_path or get_db_path()
+    d = data_dir or get_data_dir()
+    parquet_path = d / f"race_entries_{year}.parquet"
     if session_type is not None:
-        sql = f"SELECT {RACE_COLS} FROM race_entries WHERE year = ? AND session_type = ? ORDER BY round, driver_id"
-        result = _query(path, sql, [year, session_type])
+        sql = f"SELECT {RACE_COLS} FROM read_parquet('{parquet_path}') WHERE session_type = ? ORDER BY round, driver_id"
+        result = _query_parquet(parquet_path, sql, [session_type])
     else:
-        sql = f"SELECT {RACE_COLS} FROM race_entries WHERE year = ? ORDER BY round, driver_id"
-        result = _query(path, sql, [year])
+        sql = f"SELECT {RACE_COLS} FROM read_parquet('{parquet_path}') ORDER BY round, driver_id"
+        result = _query_parquet(parquet_path, sql, [])
     return cast(list[RaceEntry], result) if result else None
 
 
 def get_qualifying_entries(
     year: int,
     *,
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
     session_type: str | None = None,
 ) -> list[QualifyingEntry] | None:
     """Fetch qualifying entries for a season, optionally filtered by session type.
 
     Args:
         year: The F1 season year to query.
-        db_path: Override the database path. Defaults to :func:`get_db_path`.
+        data_dir: Override the data directory. Defaults to :func:`get_data_dir`.
         session_type: If provided, filter to this session type ("Q" or "SQ").
 
     Returns:
-        List of QualifyingEntry dicts, or None if the database does not exist
-        or no rows match.
+        List of QualifyingEntry dicts, or None if the Parquet file does not
+        exist or no rows match.
     """
-    path = db_path or get_db_path()
+    d = data_dir or get_data_dir()
+    parquet_path = d / f"qualifying_entries_{year}.parquet"
     if session_type is not None:
         sql = (
-            f"SELECT {_QUALIFYING_COLS} FROM qualifying_entries"
-            " WHERE year = ? AND session_type = ? ORDER BY round, driver_id"
+            f"SELECT {_QUALIFYING_COLS} FROM read_parquet('{parquet_path}') "
+            "WHERE session_type = ? ORDER BY round, driver_id"
         )
-        result = _query(path, sql, [year, session_type])
+        result = _query_parquet(parquet_path, sql, [session_type])
     else:
-        sql = f"SELECT {_QUALIFYING_COLS} FROM qualifying_entries WHERE year = ? ORDER BY round, driver_id"
-        result = _query(path, sql, [year])
+        sql = f"SELECT {_QUALIFYING_COLS} FROM read_parquet('{parquet_path}') ORDER BY round, driver_id"
+        result = _query_parquet(parquet_path, sql, [])
     return cast(list[QualifyingEntry], result) if result else None
 
 
@@ -190,21 +218,25 @@ def get_race_entries_range(
     start_year: int,
     end_year: int,
     *,
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
 ) -> list[RaceEntry] | None:
     """Fetch race entries across a range of seasons (inclusive).
 
     Args:
         start_year: First season year.
         end_year: Last season year (inclusive).
-        db_path: Override the database path.
+        data_dir: Override the data directory.
 
     Returns:
         List of RaceEntry dicts, or None if no rows match.
     """
-    path = db_path or get_db_path()
-    sql = f"SELECT {RACE_COLS} FROM race_entries WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id"
-    result = _query(path, sql, [start_year, end_year])
+    d = data_dir or get_data_dir()
+    glob_pattern = str(d / "race_entries_*.parquet")
+    sql = (
+        f"SELECT {RACE_COLS} FROM read_parquet('{glob_pattern}') "
+        "WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id"
+    )
+    result = _query_glob(sql, [start_year, end_year])
     return cast(list[RaceEntry], result) if result else None
 
 
@@ -212,23 +244,25 @@ def get_qualifying_entries_range(
     start_year: int,
     end_year: int,
     *,
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
 ) -> list[QualifyingEntry] | None:
     """Fetch qualifying entries across a range of seasons (inclusive).
 
     Args:
         start_year: First season year.
         end_year: Last season year (inclusive).
-        db_path: Override the database path.
+        data_dir: Override the data directory.
 
     Returns:
         List of QualifyingEntry dicts, or None if no rows match.
     """
-    path = db_path or get_db_path()
+    d = data_dir or get_data_dir()
+    glob_pattern = str(d / "qualifying_entries_*.parquet")
     sql = (
-        f"SELECT {_QUALIFYING_COLS} FROM qualifying_entries WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id"
+        f"SELECT {_QUALIFYING_COLS} FROM read_parquet('{glob_pattern}') "
+        "WHERE year BETWEEN ? AND ? ORDER BY year, round, driver_id"
     )
-    result = _query(path, sql, [start_year, end_year])
+    result = _query_glob(sql, [start_year, end_year])
     return cast(list[QualifyingEntry], result) if result else None
 
 
@@ -292,7 +326,7 @@ __all__ = [
     "RACE_COLS",
     "RaceEntry",
     "QualifyingEntry",
-    "get_db_path",
+    "get_data_dir",
     "get_race_entries",
     "get_qualifying_entries",
     "get_race_entries_range",

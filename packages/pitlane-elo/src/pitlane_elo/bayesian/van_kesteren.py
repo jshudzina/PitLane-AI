@@ -127,18 +127,18 @@ class VanKesterenModel(BayesianSeasonModel):
         self,
         year: int,
         *,
-        db_path: Path | None = None,
+        data_dir: Path | None = None,
     ) -> az.InferenceData | None:
         """Convenience: fetch from DB and fit.
 
         Args:
             year: F1 season year.
-            db_path: Override the database path.
+            data_dir: Override the data directory.
 
         Returns:
             InferenceData, or None if no data exists for the year.
         """
-        data = prepare_season_from_db(year, db_path=db_path)
+        data = prepare_season_from_db(year, data_dir=data_dir)
         if data is None:
             return None
         model = self._build_model(data)

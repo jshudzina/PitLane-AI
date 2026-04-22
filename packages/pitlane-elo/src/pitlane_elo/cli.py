@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 from pitlane_elo.calibration import calibrate as run_calibrate
 from pitlane_elo.config import ENDURE_ELO_DEFAULT, SPEED_ELO_DEFAULT
-from pitlane_elo.data import get_db_path
+from pitlane_elo.data import get_data_dir
 from pitlane_elo.prediction.forecast import compare_models, evaluate_model, run_historical
 from pitlane_elo.ratings.endure_elo import EndureElo
 from pitlane_elo.ratings.speed_elo import SpeedElo
@@ -511,15 +511,13 @@ def snapshot(
     one row per driver per race to the elo_snapshots table. Safe to re-run;
     upsert is idempotent.
     """
-    path = Path(db_path) if db_path else get_db_path()
-    if not path.exists():
-        raise click.ClickException(f"Database not found: {path}. Check your database path.")
+    data_dir = Path(db_path) if db_path else get_data_dir()
     click.echo(f"Running calibrated endure-Elo snapshot ({start_year}–{end_year})...")
     t0 = time.perf_counter()
     n = build_snapshots(
         start_year,
         end_year,
-        db_path=path,
+        data_dir=data_dir,
         session_type=session_type,
         retention_years=retention_years,
     )
@@ -559,14 +557,14 @@ def snapshot_add(
     Cancelled rounds (no entries in race_entries) are automatically skipped
     when checking for gaps — only real races block incremental adds.
     """
-    path = Path(db_path) if db_path else get_db_path()
+    data_dir = Path(db_path) if db_path else get_data_dir()
     click.echo(f"Adding snapshot for {year} R{round_num} ({session_type})...")
     t0 = time.perf_counter()
     n = add_race_snapshot(
         year,
         round_num,
         session_type=session_type,
-        db_path=path,
+        data_dir=data_dir,
         retention_years=retention_years,
     )
     elapsed = time.perf_counter() - t0
@@ -593,12 +591,12 @@ def snapshot_catchup(
     chronological order.  Cancelled rounds are naturally skipped.  Run
     `pitlane-elo snapshot` first to build the initial state.
     """
-    path = Path(db_path) if db_path else get_db_path()
+    data_dir = Path(db_path) if db_path else get_data_dir()
     click.echo(f"Catching up snapshots ({session_type})...")
     t0 = time.perf_counter()
     n = catchup_snapshots(
         session_type=session_type,
-        db_path=path,
+        data_dir=data_dir,
         retention_years=retention_years,
     )
     elapsed = time.perf_counter() - t0
@@ -619,8 +617,8 @@ def predict(year: int, round_num: int, session_type: str, db_path: str | None) -
     Displays a ranked table of drivers by predicted win probability alongside
     their actual finishing position. Run `pitlane-elo snapshot` first.
     """
-    path = Path(db_path) if db_path else None
-    rows = get_race_snapshot(year, round_num, session_type=session_type, db_path=path)
+    data_dir = Path(db_path) if db_path else None
+    rows = get_race_snapshot(year, round_num, session_type=session_type, data_dir=data_dir)
     if not rows:
         raise click.ClickException(f"No snapshot found for {year} R{round_num}. Run `pitlane-elo snapshot` first.")
 

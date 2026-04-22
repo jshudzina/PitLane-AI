@@ -17,7 +17,7 @@ def run_historical_bayesian(
     start_year: int,
     end_year: int,
     *,
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
     predict_cap: int | None = None,
 ) -> list[RacePrediction]:
     """Year-lagged evaluation of the VanKesterenModel.
@@ -33,7 +33,7 @@ def run_historical_bayesian(
         config: VanKesterenConfig controlling sampling speed and quality.
         start_year: First training year. Predictions begin at start_year+1.
         end_year: Last evaluation year (inclusive).
-        db_path: Override the default database path.
+        data_dir: Override the default data directory.
         predict_cap: If set, only predict for the top-N participants by
             posterior mean eta (theta_d + theta_t for their team).
 
@@ -45,7 +45,7 @@ def run_historical_bayesian(
     for year in range(start_year + 1, end_year + 1):
         logger.info("Bayesian eval: fitting on %d, predicting %d", year - 1, year)
         model = VanKesterenModel(config)
-        if model.fit_from_db(year - 1, db_path=db_path) is None:
+        if model.fit_from_db(year - 1, data_dir=data_dir) is None:
             logger.warning("No data for training year %d, skipping %d", year - 1, year)
             continue
 
@@ -112,7 +112,7 @@ def run_sequential_bayesian(
     start_year: int,
     end_year: int,
     *,
-    db_path: Path | None = None,
+    data_dir: Path | None = None,
     predict_cap: int | None = None,
     min_races: int = 3,
 ) -> list[RacePrediction]:
@@ -131,7 +131,7 @@ def run_sequential_bayesian(
         config: VanKesterenConfig controlling sampling speed and quality.
         start_year: First season to evaluate.
         end_year: Last evaluation year (inclusive).
-        db_path: Override the default database path.
+        data_dir: Override the default data directory.
         predict_cap: If set, only predict for the top-N participants by
             posterior mean eta (theta_d + theta_t for their team).
         min_races: Number of completed races required before first prediction.
@@ -143,7 +143,7 @@ def run_sequential_bayesian(
 
     for year in range(start_year, end_year + 1):
         logger.info("Sequential Bayesian eval: year %d", year)
-        all_entries = get_race_entries_range(year, year, db_path=db_path)
+        all_entries = get_race_entries_range(year, year, data_dir=data_dir)
         if not all_entries:
             logger.warning("No race data for year %d", year)
             continue

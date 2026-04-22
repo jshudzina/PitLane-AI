@@ -11,12 +11,12 @@ Tests here use a 5-season window to stay under ~30s.
 from __future__ import annotations
 
 import pytest
-from pitlane_elo.data import get_db_path
+from pitlane_elo.data import get_data_dir
 from pitlane_elo.prediction.forecast import compare_models, evaluate_model, run_historical
 from pitlane_elo.ratings.endure_elo import EndureElo
 from pitlane_elo.ratings.speed_elo import SpeedElo
 
-_db_exists = get_db_path().exists()
+_db_exists = any(get_data_dir().glob("race_entries_*.parquet"))
 
 
 @pytest.mark.slow

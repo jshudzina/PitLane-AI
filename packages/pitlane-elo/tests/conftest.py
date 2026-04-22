@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from pathlib import Path
 
 import duckdb
@@ -70,8 +71,12 @@ SAMPLE_QUALIFYING_ENTRY: QualifyingEntry = {
     "position": 1,
 }
 
-_CREATE_RACE_ENTRIES_SQL = """
-CREATE TABLE IF NOT EXISTS race_entries (
+
+# ---------------------------------------------------------------------------
+# Parquet helpers (self-contained — no pitlane-agent dependency)
+# ---------------------------------------------------------------------------
+
+_RACE_DDL = """
     year              INTEGER NOT NULL,
     round             INTEGER NOT NULL,
     session_type      VARCHAR NOT NULL,
@@ -83,14 +88,11 @@ CREATE TABLE IF NOT EXISTS race_entries (
     laps_completed    INTEGER NOT NULL,
     status            VARCHAR NOT NULL,
     dnf_category      VARCHAR NOT NULL,
-    is_wet_race       BOOLEAN NOT NULL DEFAULT FALSE,
-    is_street_circuit BOOLEAN NOT NULL DEFAULT FALSE,
-    PRIMARY KEY (year, round, session_type, driver_id)
-)
+    is_wet_race       BOOLEAN NOT NULL,
+    is_street_circuit BOOLEAN NOT NULL
 """
 
-_CREATE_QUALIFYING_ENTRIES_SQL = """
-CREATE TABLE IF NOT EXISTS qualifying_entries (
+_QUAL_DDL = """
     year          INTEGER NOT NULL,
     round         INTEGER NOT NULL,
     session_type  VARCHAR NOT NULL,
@@ -101,28 +103,67 @@ CREATE TABLE IF NOT EXISTS qualifying_entries (
     q2_time_s     DOUBLE,
     q3_time_s     DOUBLE,
     best_q_time_s DOUBLE,
-    position      INTEGER NOT NULL,
-    PRIMARY KEY (year, round, session_type, driver_id)
-)
+    position      INTEGER NOT NULL
 """
+
+
+def _write_race_parquet(data_dir: Path, rows: list[tuple]) -> None:
+    """Write race entry tuples to year-partitioned Parquet files.
+
+    Each row must be: (year, round, session_type, driver_id, abbreviation, team,
+    grid_position, finish_position, laps_completed, status, dnf_category,
+    is_wet_race, is_street_circuit).
+    """
+    by_year: dict[int, list[tuple]] = defaultdict(list)
+    for row in rows:
+        by_year[row[0]].append(row)
+    for year, year_rows in by_year.items():
+        parquet_path = data_dir / f"race_entries_{year}.parquet"
+        con = duckdb.connect()
+        try:
+            con.execute(f"CREATE TABLE race_entries ({_RACE_DDL})")
+            for row in year_rows:
+                con.execute("INSERT INTO race_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", list(row))
+            con.execute(f"COPY race_entries TO '{parquet_path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+        finally:
+            con.close()
+
+
+def _write_qual_parquet(data_dir: Path, rows: list[tuple]) -> None:
+    """Write qualifying entry tuples to year-partitioned Parquet files.
+
+    Each row must be: (year, round, session_type, driver_id, abbreviation, team,
+    q1_time_s, q2_time_s, q3_time_s, best_q_time_s, position).
+    """
+    by_year: dict[int, list[tuple]] = defaultdict(list)
+    for row in rows:
+        by_year[row[0]].append(row)
+    for year, year_rows in by_year.items():
+        parquet_path = data_dir / f"qualifying_entries_{year}.parquet"
+        con = duckdb.connect()
+        try:
+            con.execute(f"CREATE TABLE qualifying_entries ({_QUAL_DDL})")
+            for row in year_rows:
+                con.execute("INSERT INTO qualifying_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", list(row))
+            con.execute(f"COPY qualifying_entries TO '{parquet_path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+        finally:
+            con.close()
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
 def tmp_db(tmp_path: Path) -> Path:
-    """Create a temporary DuckDB with race_entries and qualifying_entries tables."""
-    db_path = tmp_path / "test.duckdb"
-    con = duckdb.connect(str(db_path))
-    try:
-        con.execute(_CREATE_RACE_ENTRIES_SQL)
-        con.execute(_CREATE_QUALIFYING_ENTRIES_SQL)
-    finally:
-        con.close()
-    return db_path
+    """Return a temporary data directory (no Parquet files yet)."""
+    return tmp_path
 
 
 @pytest.fixture()
-def populated_db(tmp_db: Path) -> Path:
-    """Temporary DB pre-populated with a small set of race and qualifying entries."""
+def populated_db(tmp_path: Path) -> Path:
+    """Temporary data dir pre-populated with a small set of race and qualifying entries."""
     drivers = [
         ("max_verstappen", "VER", "Red Bull Racing", 1),
         ("sergio_perez", "PER", "Red Bull Racing", 2),
@@ -130,39 +171,28 @@ def populated_db(tmp_db: Path) -> Path:
         ("carlos_sainz", "SAI", "Ferrari", 4),
         ("charles_leclerc", "LEC", "Ferrari", 5),
     ]
-    con = duckdb.connect(str(tmp_db))
-    try:
-        for driver_id, abbr, team, pos in drivers:
-            con.execute(
-                """INSERT INTO race_entries
-                   (year, round, session_type, driver_id, abbreviation, team,
-                    grid_position, finish_position, laps_completed, status,
-                    dnf_category, is_wet_race, is_street_circuit)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                [2024, 1, "R", driver_id, abbr, team, pos, pos, 57, "Finished", "none", False, False],
-            )
-            con.execute(
-                """INSERT INTO qualifying_entries
-                   (year, round, session_type, driver_id, abbreviation, team,
-                    q1_time_s, q2_time_s, q3_time_s, best_q_time_s, position)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                [2024, 1, "Q", driver_id, abbr, team, 90.0 + pos, 89.0 + pos, 88.0 + pos, 88.0 + pos, pos],
-            )
-    finally:
-        con.close()
-    return tmp_db
+    race_rows = [
+        (2024, 1, "R", driver_id, abbr, team, pos, pos, 57, "Finished", "none", False, False)
+        for driver_id, abbr, team, pos in drivers
+    ]
+    qual_rows = [
+        (2024, 1, "Q", driver_id, abbr, team, 90.0 + pos, 89.0 + pos, 88.0 + pos, 88.0 + pos, pos)
+        for driver_id, abbr, team, pos in drivers
+    ]
+    _write_race_parquet(tmp_path, race_rows)
+    _write_qual_parquet(tmp_path, qual_rows)
+    return tmp_path
 
 
 @pytest.fixture()
-def multi_race_db(tmp_db: Path) -> Path:
-    """DB with 2 seasons (2023-2024), 3 races each, 5 drivers.
+def multi_race_db(tmp_path: Path) -> Path:
+    """Data dir with 2 seasons (2023-2024), 3 races each, 5 drivers.
 
     Includes a mechanical DNF (HAM in 2023 R2) and a crash DNF (LEC in 2024 R1).
-    Finish positions vary across races to exercise rating updates properly.
     """
-    # (year, round, driver_id, abbr, team, grid, finish, laps, status, dnf_cat)
+    # (year, round, driver_id, abbr, team, grid, finish, laps, status, dnf)
     race_data = [
-        # 2023 Round 1 — normal race
+        # 2023 Round 1
         (2023, 1, "max_verstappen", "VER", "Red Bull Racing", 1, 1, 57, "Finished", "none"),
         (2023, 1, "sergio_perez", "PER", "Red Bull Racing", 3, 2, 57, "Finished", "none"),
         (2023, 1, "lewis_hamilton", "HAM", "Mercedes", 2, 3, 57, "Finished", "none"),
@@ -199,8 +229,7 @@ def multi_race_db(tmp_db: Path) -> Path:
         (2024, 3, "sergio_perez", "PER", "Red Bull Racing", 4, 4, 57, "Finished", "none"),
         (2024, 3, "carlos_sainz", "SAI", "Ferrari", 5, 5, 57, "Finished", "none"),
     ]
-    # (year, round, driver_id, abbr, team, q1, q2, q3, best, pos)
-    qualifying_data = [
+    qual_data = [
         # 2023 Round 1
         (2023, 1, "max_verstappen", "VER", "Red Bull Racing", 91.0, 90.0, 89.0, 89.0, 1),
         (2023, 1, "sergio_perez", "PER", "Red Bull Racing", 91.5, 90.5, 89.5, 89.5, 2),
@@ -238,36 +267,22 @@ def multi_race_db(tmp_db: Path) -> Path:
         (2024, 3, "sergio_perez", "PER", "Red Bull Racing", 101.0, 100.0, 99.0, 99.0, 4),
         (2024, 3, "carlos_sainz", "SAI", "Ferrari", 101.0, 100.0, 99.0, 99.0, 5),
     ]
-    con = duckdb.connect(str(tmp_db))
-    try:
-        for year, rnd, driver_id, abbr, team, grid, finish, laps, status, dnf in race_data:
-            con.execute(
-                """INSERT INTO race_entries
-                   (year, round, session_type, driver_id, abbreviation, team,
-                    grid_position, finish_position, laps_completed, status,
-                    dnf_category, is_wet_race, is_street_circuit)
-                   VALUES (?, ?, 'R', ?, ?, ?, ?, ?, ?, ?, ?, FALSE, FALSE)""",
-                [year, rnd, driver_id, abbr, team, grid, finish, laps, status, dnf],
-            )
-        for year, rnd, driver_id, abbr, team, q1, q2, q3, best, pos in qualifying_data:
-            con.execute(
-                """INSERT INTO qualifying_entries
-                   (year, round, session_type, driver_id, abbreviation, team,
-                    q1_time_s, q2_time_s, q3_time_s, best_q_time_s, position)
-                   VALUES (?, ?, 'Q', ?, ?, ?, ?, ?, ?, ?, ?)""",
-                [year, rnd, driver_id, abbr, team, q1, q2, q3, best, pos],
-            )
-    finally:
-        con.close()
-    return tmp_db
+    race_rows = [
+        (year, rnd, "R", driver_id, abbr, team, grid, finish, laps, status, dnf, False, False)
+        for year, rnd, driver_id, abbr, team, grid, finish, laps, status, dnf in race_data
+    ]
+    qual_rows = [
+        (year, rnd, "Q", driver_id, abbr, team, q1, q2, q3, best, pos)
+        for year, rnd, driver_id, abbr, team, q1, q2, q3, best, pos in qual_data
+    ]
+    _write_race_parquet(tmp_path, race_rows)
+    _write_qual_parquet(tmp_path, qual_rows)
+    return tmp_path
 
 
 @pytest.fixture()
-def cancelled_rounds_db(tmp_db: Path) -> Path:
-    """DB with 2023 R1-R3 and 2024 R1 + R3 (R2 intentionally absent — simulates cancellation).
-
-    Uses the same 5-driver roster as multi_race_db.
-    """
+def cancelled_rounds_db(tmp_path: Path) -> Path:
+    """Data dir with 2023 R1-R3 and 2024 R1 + R3 (R2 intentionally absent — simulates cancellation)."""
     race_data = [
         # 2023 Round 1
         (2023, 1, "max_verstappen", "VER", "Red Bull Racing", 1, 1, 57, "Finished", "none"),
@@ -300,17 +315,9 @@ def cancelled_rounds_db(tmp_db: Path) -> Path:
         (2024, 3, "sergio_perez", "PER", "Red Bull Racing", 4, 4, 57, "Finished", "none"),
         (2024, 3, "carlos_sainz", "SAI", "Ferrari", 5, 5, 57, "Finished", "none"),
     ]
-    con = duckdb.connect(str(tmp_db))
-    try:
-        for year, rnd, driver_id, abbr, team, grid, finish, laps, status, dnf in race_data:
-            con.execute(
-                """INSERT INTO race_entries
-                   (year, round, session_type, driver_id, abbreviation, team,
-                    grid_position, finish_position, laps_completed, status,
-                    dnf_category, is_wet_race, is_street_circuit)
-                   VALUES (?, ?, 'R', ?, ?, ?, ?, ?, ?, ?, ?, FALSE, FALSE)""",
-                [year, rnd, driver_id, abbr, team, grid, finish, laps, status, dnf],
-            )
-    finally:
-        con.close()
-    return tmp_db
+    race_rows = [
+        (year, rnd, "R", driver_id, abbr, team, grid, finish, laps, status, dnf, False, False)
+        for year, rnd, driver_id, abbr, team, grid, finish, laps, status, dnf in race_data
+    ]
+    _write_race_parquet(tmp_path, race_rows)
+    return tmp_path

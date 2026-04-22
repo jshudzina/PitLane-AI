@@ -23,7 +23,7 @@ from pitlane_agent.utils.race_stats import (
     count_track_interruptions,
     get_circuit_length_km,
 )
-from pitlane_agent.utils.stats_db import get_db_path, get_season_stats
+from pitlane_agent.utils.stats_db import get_data_dir, get_season_stats
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ def _build_summary_from_db(year: int) -> SeasonSummary | None:
         exist for the year (DB missing, empty, or year not yet populated).
         Partial seasons (not all rounds cached) are returned as-is.
     """
-    rows = get_season_stats(get_db_path(), year)
+    rows = get_season_stats(get_data_dir(), year)
     if not rows:
         return None
 

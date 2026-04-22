@@ -26,9 +26,7 @@ import click
 import duckdb
 from claude_agent_sdk import ClaudeAgentOptions, query
 from claude_agent_sdk.types import ResultMessage
-from pitlane_agent.utils.elo_db import init_elo_tables
-from pitlane_agent.utils.stats_db import get_db_path
-from pitlane_agent.utils.stats_db import init_db as init_stats_db
+from pitlane_agent.utils.stats_db import get_data_dir, init_data_dir
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -73,42 +71,49 @@ _VERDICT_SCHEMA: dict[str, Any] = {
 
 
 def _fetch_mechanical_dnfs(
-    db_path: Path,
+    data_dir: Path,
     year: int,
     round_numbers: tuple[int, ...] | None = None,
 ) -> list[dict]:
     """Return mechanical-DNF rows from race_entries for the given filters."""
-    con = duckdb.connect(str(db_path), read_only=True)
-    try:
-        sql = (
+    race_path = data_dir / f"race_entries_{year}.parquet"
+    stats_path = data_dir / "session_stats.parquet"
+    if not race_path.exists():
+        return []
+    has_stats = stats_path.exists()
+    if has_stats:
+        select = (
             "SELECT r.year, r.round, r.session_type, r.driver_id, r.abbreviation, "
             "r.team, r.laps_completed, r.status, s.event_name "
-            "FROM race_entries r "
-            "LEFT JOIN session_stats s "
+            f"FROM read_parquet('{race_path}') r "
+            f"LEFT JOIN read_parquet('{stats_path}') s "
             "ON r.year = s.year AND r.round = s.round AND r.session_type = s.session_type "
-            "WHERE r.year = ? AND r.dnf_category = 'mechanical'"
+            "WHERE r.dnf_category = 'mechanical'"
         )
-        params: list[object] = [year]
-        if round_numbers:
-            placeholders = ", ".join("?" * len(round_numbers))
-            sql += f" AND r.round IN ({placeholders})"
-            params.extend(round_numbers)
-        sql += " ORDER BY r.round, r.driver_id"
+        round_col = "r.round"
+        order_by = "ORDER BY r.round, r.driver_id"
+    else:
+        select = (
+            "SELECT year, round, session_type, driver_id, abbreviation, "
+            "team, laps_completed, status, NULL AS event_name "
+            f"FROM read_parquet('{race_path}') "
+            "WHERE dnf_category = 'mechanical'"
+        )
+        round_col = "round"
+        order_by = "ORDER BY round, driver_id"
+    params: list[object] = []
+    if round_numbers:
+        placeholders = ", ".join("?" * len(round_numbers))
+        select += f" AND {round_col} IN ({placeholders})"
+        params.extend(round_numbers)
+    sql = f"{select} {order_by}"
+    con = duckdb.connect()
+    try:
         rows = con.execute(sql, params).fetchall()
-        cols = [
-            "year",
-            "round",
-            "session_type",
-            "driver_id",
-            "abbreviation",
-            "team",
-            "laps_completed",
-            "status",
-            "event_name",
-        ]
-        return [dict(zip(cols, row, strict=True)) for row in rows]
     finally:
         con.close()
+    cols = ["year", "round", "session_type", "driver_id", "abbreviation", "team", "laps_completed", "status", "event_name"]
+    return [dict(zip(cols, row, strict=True)) for row in rows]
 
 
 def _build_user_prompt(entry: dict) -> str:
@@ -224,7 +229,7 @@ def _parse_verdict_from_text(text: str) -> dict | None:
 
 
 def _update_dnf_category(
-    db_path: Path,
+    data_dir: Path,
     updates: list[dict],
 ) -> int:
     """Batch-update dnf_category to 'crash' for confirmed entries.
@@ -233,21 +238,34 @@ def _update_dnf_category(
     """
     if not updates:
         return 0
-    con = duckdb.connect(str(db_path))
-    try:
-        for u in updates:
-            con.execute(
-                "UPDATE race_entries SET dnf_category = 'crash' "
-                "WHERE year = ? AND round = ? AND session_type = ? AND driver_id = ?",
-                [u["year"], u["round"], u["session_type"], u["driver_id"]],
-            )
-        return len(updates)
-    finally:
-        con.close()
+    from collections import defaultdict
+
+    by_year: dict[int, list[dict]] = defaultdict(list)
+    for u in updates:
+        by_year[u["year"]].append(u)
+
+    for year, year_updates in by_year.items():
+        parquet_path = data_dir / f"race_entries_{year}.parquet"
+        if not parquet_path.exists():
+            continue
+        con = duckdb.connect()
+        try:
+            con.execute(f"CREATE TABLE t AS SELECT * FROM read_parquet('{parquet_path}')")
+            for u in year_updates:
+                con.execute(
+                    "UPDATE t SET dnf_category = 'crash' "
+                    "WHERE round = ? AND session_type = ? AND driver_id = ?",
+                    [u["round"], u["session_type"], u["driver_id"]],
+                )
+            con.execute(f"COPY t TO '{parquet_path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+        finally:
+            con.close()
+
+    return len(updates)
 
 
 async def _review_async(
-    db_path: Path,
+    data_dir: Path,
     entries: list[dict],
     dry_run: bool,
     model: str,
@@ -319,8 +337,8 @@ async def _review_async(
             click.echo(f"  Year {e['year']} Rd {e['round']} {d}: mechanical → crash", err=True)
         return
 
-    updated = _update_dnf_category(db_path, reclassified)
-    click.echo(f"\nUpdated {updated} record(s) in {db_path}", err=True)
+    updated = _update_dnf_category(data_dir, reclassified)
+    click.echo(f"\nUpdated {updated} record(s) in {data_dir}", err=True)
 
 
 @click.command()
@@ -334,17 +352,17 @@ async def _review_async(
     help="Round number(s) to review (repeatable, default: all rounds)",
 )
 @click.option(
-    "--db-path",
-    "db_path_str",
+    "--data-dir",
+    "data_dir_str",
     default=None,
     type=str,
-    help="Path to DuckDB file (default: bundled pitlane.duckdb)",
+    help="Path to data directory containing Parquet files (default: bundled data/)",
 )
 @click.option(
     "--dry-run",
     is_flag=True,
     default=False,
-    help="Print proposed changes without writing to DB",
+    help="Print proposed changes without writing to Parquet files",
 )
 @click.option(
     "--model",
@@ -356,7 +374,7 @@ async def _review_async(
 def review_mechanical_dnfs(
     year: int,
     round_numbers: tuple[int, ...],
-    db_path_str: str | None,
+    data_dir_str: str | None,
     dry_run: bool,
     model_override: str | None,
 ) -> None:
@@ -367,12 +385,11 @@ def review_mechanical_dnfs(
         click.echo("This script targets years >= 2023 where Ergast collapses DNF reasons.", err=True)
         raise SystemExit(1)
 
-    db_path = Path(db_path_str) if db_path_str else get_db_path()
-    init_elo_tables(db_path)
-    init_stats_db(db_path)
-    click.echo(f"DB: {db_path}", err=True)
+    data_dir = Path(data_dir_str) if data_dir_str else get_data_dir()
+    init_data_dir(data_dir)
+    click.echo(f"Data dir: {data_dir}", err=True)
 
-    entries = _fetch_mechanical_dnfs(db_path, year, round_numbers or None)
+    entries = _fetch_mechanical_dnfs(data_dir, year, round_numbers or None)
     rounds_label = f" rounds {sorted(round_numbers)}" if round_numbers else ""
     click.echo(
         f"Found {len(entries)} mechanical DNF(s) for {year}{rounds_label}",
@@ -381,7 +398,7 @@ def review_mechanical_dnfs(
     if not entries:
         return
 
-    asyncio.run(_review_async(db_path, entries, dry_run, model))
+    asyncio.run(_review_async(data_dir, entries, dry_run, model))
 
 
 if __name__ == "__main__":
