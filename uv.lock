@@ -2374,7 +2374,7 @@ wheels = [
 
 [[package]]
 name = "pitlane-agent"
-version = "0.4.5"
+version = "0.4.6"
 source = { editable = "packages/pitlane-agent" }
 dependencies = [
     { name = "backoff" },
@@ -2409,7 +2409,7 @@ requires-dist = [
 
 [[package]]
 name = "pitlane-ai"
-version = "0.4.5"
+version = "0.4.6"
 source = { virtual = "." }
 dependencies = [
     { name = "pitlane-agent" },
@@ -2512,7 +2512,7 @@ dev = [
 
 [[package]]
 name = "pitlane-web"
-version = "0.4.5"
+version = "0.4.6"
 source = { editable = "packages/pitlane-web" }
 dependencies = [
     { name = "fastapi" },
