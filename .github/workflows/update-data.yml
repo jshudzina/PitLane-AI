@@ -30,11 +30,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Get week stamp for cache key
+        id: week
+        run: echo "key=$(date -u +%Y-W%V)" >> "$GITHUB_OUTPUT"
+
       - name: Cache FastF1 data
         uses: actions/cache@v4
         with:
           path: ~/.pitlane/cache/fastf1
-          key: fastf1-${{ runner.os }}-${{ github.run_id }}
+          key: fastf1-${{ runner.os }}-${{ steps.week.outputs.key }}
           restore-keys: |
             fastf1-${{ runner.os }}-
 
@@ -43,18 +47,24 @@ jobs:
 
       - name: Update ELO data (race entries + qualifying entries)
         working-directory: packages/pitlane-agent
+        env:
+          INPUT_YEAR: ${{ inputs.year }}
+          INPUT_FORCE: ${{ inputs.force }}
         run: |
           ARGS=""
-          if [ -n "${{ inputs.year }}" ]; then ARGS="$ARGS --year ${{ inputs.year }}"; fi
-          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          if [ -n "$INPUT_YEAR" ]; then ARGS="$ARGS --year $INPUT_YEAR"; fi
+          if [ "$INPUT_FORCE" = "true" ]; then ARGS="$ARGS --force"; fi
           uv run python scripts/update_elo_data.py $ARGS
 
       - name: Update session stats
         working-directory: packages/pitlane-agent
+        env:
+          INPUT_YEAR: ${{ inputs.year }}
+          INPUT_FORCE: ${{ inputs.force }}
         run: |
           ARGS="--no-telemetry"
-          if [ -n "${{ inputs.year }}" ]; then ARGS="$ARGS --year ${{ inputs.year }}"; fi
-          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          if [ -n "$INPUT_YEAR" ]; then ARGS="$ARGS --year $INPUT_YEAR"; fi
+          if [ "$INPUT_FORCE" = "true" ]; then ARGS="$ARGS --force"; fi
           uv run python scripts/update_stats.py $ARGS
 
       - name: Update ELO snapshots
