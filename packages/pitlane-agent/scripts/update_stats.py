@@ -19,6 +19,7 @@ import json
 import logging
 import sys
 import time
+from datetime import date
 from pathlib import Path
 
 import backoff
@@ -231,6 +232,11 @@ def update_stats(
         event_date = event["EventDate"]
         date_str = event_date.isoformat()[:10] if pd.notna(event_date) else None
         event_format = event.get("EventFormat", "conventional")
+
+        if pd.notna(event_date) and event_date.date() > date.today():
+            click.echo(f"  Skipping round {rn}: {event_name} (future event)", err=True)
+            skipped += 1
+            continue
 
         session_types = ["R"]
         if event_format in ("sprint", "sprint_shootout", "sprint_qualifying"):
