@@ -29,6 +29,7 @@ import click
 import fastf1
 import pandas as pd
 from fastf1.events import EventSchedule, Session
+from pitlane_agent.temporal.context import get_temporal_context
 from pitlane_agent.utils.elo_db import (
     QualifyingEntry,
     RaceEntry,
@@ -294,7 +295,7 @@ def _extract_qualifying_entries(
 
 
 @click.command()
-@click.option("--year", required=True, type=int, help="F1 season year (e.g. 2024)")
+@click.option("--year", required=False, default=None, type=int, help="F1 season year (default: current season)")
 @click.option(
     "--round",
     "round_number",
@@ -316,12 +317,14 @@ def _extract_qualifying_entries(
     help="Re-fetch and overwrite rounds already in data directory",
 )
 def update_elo_data(
-    year: int,
+    year: int | None,
     round_number: int | None,
     data_dir_str: str | None,
     force: bool,
 ) -> None:
     """Pre-compute per-driver ELO input data and upsert into Parquet files."""
+    if year is None:
+        year = get_temporal_context().current_season
     data_dir = Path(data_dir_str) if data_dir_str else get_data_dir()
     init_data_dir(data_dir)
     click.echo(f"Data dir: {data_dir}", err=True)

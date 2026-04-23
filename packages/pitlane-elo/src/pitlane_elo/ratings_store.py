@@ -154,6 +154,7 @@ class RatingsStore:
         self.con = con
         self.data_dir = data_dir
         self.retention_years = retention_years
+        self._dirty_years: set[int] = set()
 
     # ----- schema ---------------------------------------------------------
 
@@ -188,12 +189,12 @@ class RatingsStore:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         (self.data_dir / "elo_snapshots").mkdir(parents=True, exist_ok=True)
 
-        years = [r[0] for r in self.con.execute("SELECT DISTINCT year FROM elo_snapshots ORDER BY year").fetchall()]
-        for year in years:
+        for year in sorted(self._dirty_years):
             p = self.data_dir / "elo_snapshots" / f"{year}.parquet"
             self.con.execute(
                 f"COPY (SELECT * FROM elo_snapshots WHERE year = {year}) TO '{p}' (FORMAT PARQUET, COMPRESSION ZSTD)"
             )
+        self._dirty_years.clear()
 
         model_state_path = self.data_dir / "elo_model_state.parquet"
         row_count = self.con.execute("SELECT COUNT(*) FROM elo_model_state").fetchone()[0]
@@ -315,6 +316,8 @@ class RatingsStore:
         if not rows:
             return
         self.con.executemany(_UPSERT_SNAPSHOT_SQL, rows)
+        for row in rows:
+            self._dirty_years.add(row.year)
 
     # ----- race-entries read ----------------------------------------------
 
