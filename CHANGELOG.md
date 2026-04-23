@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.6] - 2026-04-23
+
+### Bug Fixes
+
+- **elo**: Rewrite estimate-alpha to use OLS variance decomposition ([#160](https://github.com/jshudzina/PitLane-AI/pull/160))
+
+- **elo**: Exclude DNS entries from win probability, decouple ratings persistence ([#171](https://github.com/jshudzina/PitLane-AI/pull/171))
+
+
+### Documentation
+
+- Update system design — Bayesian primary + endure-Elo real-time architecture ([#161](https://github.com/jshudzina/PitLane-AI/pull/161))
+
+
+### Features
+
+- **elo**: Add DuckDB data layer for ELO input collection ([#149](https://github.com/jshudzina/PitLane-AI/pull/149))
+
+- **elo**: Add pitlane-elo experimentation package ([#150](https://github.com/jshudzina/PitLane-AI/pull/150))
+
+- **elo**: Phase 1 rating engines and evaluation pipeline ([#151](https://github.com/jshudzina/PitLane-AI/pull/151))
+
+- **agent**: Classify Retired DNF via race control messages ([#152](https://github.com/jshudzina/PitLane-AI/pull/152))
+
+- **elo**: Implement qualifying Rc car rating (Xun) ([#153](https://github.com/jshudzina/PitLane-AI/pull/153))
+
+- ELO data fixes - 2025 season complete and 2023 backfill ([#154](https://github.com/jshudzina/PitLane-AI/pull/154))
+
+- **elo**: Hyperparameter calibration pipeline ([#155](https://github.com/jshudzina/PitLane-AI/pull/155))
+
+- **elo**: Van Kesteren & Bergkamp Bayesian F1 model (Phase 3a) ([#163](https://github.com/jshudzina/PitLane-AI/pull/163))
+
+- **elo**: ELO snapshot persistence, predict CLI, and podium probability ([#169](https://github.com/jshudzina/PitLane-AI/pull/169))
+
+- GitHub Action to auto-update F1 Parquet data ([#176](https://github.com/jshudzina/PitLane-AI/pull/176))
+
+- Automated F1 data update workflow ([#177](https://github.com/jshudzina/PitLane-AI/pull/177))
+
+
+### Miscellaneous Tasks
+
+- **ci**: Bump action versions to Node.js 24 compatible releases ([#138](https://github.com/jshudzina/PitLane-AI/pull/138))
+
+- **ci**: Add Dependabot configuration for uv and GitHub Actions ([#139](https://github.com/jshudzina/PitLane-AI/pull/139))
+
+- Ignore .vscode ([#170](https://github.com/jshudzina/PitLane-AI/pull/170))
+
+
+### Refactoring
+
+- Replace pitlane.duckdb with year-partitioned Parquet files ([#175](https://github.com/jshudzina/PitLane-AI/pull/175))
+
+
+### Data
+
+- Update F1 Parquet data [skip ci] ([#179](https://github.com/jshudzina/PitLane-AI/pull/179))
+
 ## [0.4.5] - 2026-03-22
 
 ### Bug Fixes
