@@ -194,6 +194,7 @@ class RatingsStore:
             self.con.execute(
                 f"COPY (SELECT * FROM elo_snapshots WHERE year = {year}) TO '{p}' (FORMAT PARQUET, COMPRESSION ZSTD)"
             )
+        self._dirty_years.clear()
 
         model_state_path = self.data_dir / "elo_model_state.parquet"
         row_count = self.con.execute("SELECT COUNT(*) FROM elo_model_state").fetchone()[0]
