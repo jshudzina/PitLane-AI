@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Pre-compute per-session stats and write them to DuckDB.
+"""Pre-compute per-session stats and write them to Parquet files.
 
 Loads FastF1 session data for a given year (or specific round) and upserts
-the computed stats into the DuckDB database for fast retrieval by the
+the computed stats into session_stats.parquet for fast retrieval by the
 season-summary command.
 
 Usage:
+    python scripts/update_stats.py
     python scripts/update_stats.py --year 2024
     python scripts/update_stats.py --year 2024 --round 5
     python scripts/update_stats.py --year 2024 --no-telemetry
     python scripts/update_stats.py --year 2024 --force
-    python scripts/update_stats.py --year 2024 --db-path /custom/path.duckdb
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ import backoff
 import click
 import fastf1
 import pandas as pd
+from pitlane_agent.temporal.context import get_temporal_context
 from pitlane_agent.utils.fastf1_helpers import load_session, setup_fastf1_cache
 from pitlane_agent.utils.race_stats import (
     RaceSummaryStats,
@@ -148,7 +149,7 @@ def _process_session(
 
 
 @click.command()
-@click.option("--year", required=True, type=int, help="F1 season year (e.g. 2024)")
+@click.option("--year", required=False, default=None, type=int, help="F1 season year (default: current season)")
 @click.option(
     "--round",
     "round_number",
@@ -180,13 +181,15 @@ def _process_session(
     help="Re-compute and overwrite sessions already in DB",
 )
 def update_stats(
-    year: int,
+    year: int | None,
     round_number: int | None,
     data_dir_str: str | None,
     with_telemetry: bool,
     force: bool,
 ) -> None:
     """Pre-compute session stats and upsert them into Parquet files."""
+    if year is None:
+        year = get_temporal_context().current_season
     data_dir = Path(data_dir_str) if data_dir_str else get_data_dir()
     init_data_dir(data_dir)
     click.echo(f"Data dir: {data_dir}", err=True)
