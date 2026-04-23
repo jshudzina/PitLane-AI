@@ -51,10 +51,10 @@ jobs:
           INPUT_YEAR: ${{ inputs.year }}
           INPUT_FORCE: ${{ inputs.force }}
         run: |
-          ARGS=""
-          if [ -n "$INPUT_YEAR" ]; then ARGS="$ARGS --year $INPUT_YEAR"; fi
-          if [ "$INPUT_FORCE" = "true" ]; then ARGS="$ARGS --force"; fi
-          uv run python scripts/update_elo_data.py $ARGS
+          ARGS=()
+          if [ -n "$INPUT_YEAR" ]; then ARGS+=(--year "$INPUT_YEAR"); fi
+          if [ "$INPUT_FORCE" = "true" ]; then ARGS+=(--force); fi
+          uv run python scripts/update_elo_data.py "${ARGS[@]}"
 
       - name: Update session stats
         working-directory: packages/pitlane-agent
@@ -62,10 +62,10 @@ jobs:
           INPUT_YEAR: ${{ inputs.year }}
           INPUT_FORCE: ${{ inputs.force }}
         run: |
-          ARGS="--no-telemetry"
-          if [ -n "$INPUT_YEAR" ]; then ARGS="$ARGS --year $INPUT_YEAR"; fi
-          if [ "$INPUT_FORCE" = "true" ]; then ARGS="$ARGS --force"; fi
-          uv run python scripts/update_stats.py $ARGS
+          ARGS=(--no-telemetry)
+          if [ -n "$INPUT_YEAR" ]; then ARGS+=(--year "$INPUT_YEAR"); fi
+          if [ "$INPUT_FORCE" = "true" ]; then ARGS+=(--force); fi
+          uv run python scripts/update_stats.py "${ARGS[@]}"
 
       - name: Update ELO snapshots
         run: uv run pitlane-elo snapshot-catchup
@@ -83,4 +83,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add packages/pitlane-agent/src/pitlane_agent/data/
           git commit -m "data: update F1 Parquet data [skip ci]"
-          git push
+          git push origin HEAD:${{ github.ref_name }}
