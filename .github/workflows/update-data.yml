@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v4
@@ -76,11 +77,18 @@ jobs:
           git diff --quiet packages/pitlane-agent/src/pitlane_agent/data/ \
             || echo "has_changes=true" >> "$GITHUB_OUTPUT"
 
-      - name: Commit and push updated Parquet files
+      - name: Create PR with updated Parquet files
         if: steps.changes.outputs.has_changes == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add packages/pitlane-agent/src/pitlane_agent/data/
-          git commit -m "data: update F1 Parquet data [skip ci]"
-          git push origin HEAD:${{ github.ref_name }}
+        uses: peter-evans/create-pull-request@v8.1.1
+        with:
+          commit-message: "data: update F1 Parquet data [skip ci]"
+          committer: PitLane Agent <pitlaneagent@gmail.com>
+          branch: data/update-${{ github.run_id }}
+          delete-branch: true
+          sign-commits: true
+          title: "data: update F1 Parquet data"
+          body: |
+            Automated F1 Parquet data update.
+
+            This PR was created automatically by the update-data workflow.
+          add-paths: packages/pitlane-agent/src/pitlane_agent/data/
