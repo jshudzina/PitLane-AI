@@ -2,12 +2,14 @@
 """
 Atomically bump version across all PitLane-AI packages.
 
-This script updates the version number in all 5 locations:
+This script updates the version number in all 7 locations:
 1. /pyproject.toml (root package)
 2. /packages/pitlane-agent/pyproject.toml
-3. /packages/pitlane-web/pyproject.toml
-4. /packages/pitlane-agent/src/pitlane_agent/__init__.py
-5. /packages/pitlane-web/src/pitlane_web/__init__.py
+3. /packages/pitlane-elo/pyproject.toml
+4. /packages/pitlane-web/pyproject.toml
+5. /packages/pitlane-agent/src/pitlane_agent/__init__.py
+6. /packages/pitlane-elo/src/pitlane_elo/__init__.py
+7. /packages/pitlane-web/src/pitlane_web/__init__.py
 
 Supports PEP 440 versioning including pre-release and local versions.
 
@@ -142,8 +144,10 @@ def bump_version(version: str) -> None:
     files_to_update: list[tuple[Path, callable]] = [
         (repo_root / "pyproject.toml", update_pyproject_toml),
         (repo_root / "packages/pitlane-agent/pyproject.toml", update_pyproject_toml),
+        (repo_root / "packages/pitlane-elo/pyproject.toml", update_pyproject_toml),
         (repo_root / "packages/pitlane-web/pyproject.toml", update_pyproject_toml),
         (repo_root / "packages/pitlane-agent/src/pitlane_agent/__init__.py", update_init_py),
+        (repo_root / "packages/pitlane-elo/src/pitlane_elo/__init__.py", update_init_py),
         (repo_root / "packages/pitlane-web/src/pitlane_web/__init__.py", update_init_py),
     ]
 
