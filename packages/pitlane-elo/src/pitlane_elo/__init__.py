@@ -1,5 +1,7 @@
 """ELO rating models and story detection for F1."""
 
+__version__ = "0.4.6"
+
 import os
 
 # workqueue is Numba's most portable threading backend and avoids TBB/OpenMP
