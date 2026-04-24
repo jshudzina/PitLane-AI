@@ -1,6 +1,6 @@
 """ELO rating models and story detection for F1."""
 
-__version__ = "0.4.6"
+__version__ = "0.4.7"
 
 import os
 

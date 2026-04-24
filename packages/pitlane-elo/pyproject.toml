@@ -1,6 +1,6 @@
 [project]
 name = "pitlane-elo"
-version = "0.4.6"
+version = "0.4.7"
 description = "ELO rating models and story detection for F1"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
