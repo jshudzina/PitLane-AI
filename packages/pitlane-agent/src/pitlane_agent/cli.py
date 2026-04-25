@@ -16,6 +16,7 @@ import click
 
 from pitlane_agent.cli_analyze import analyze
 from pitlane_agent.cli_fetch import fetch
+from pitlane_agent.cli_stories import stories
 from pitlane_agent.commands.workspace import (
     clean_workspaces,
     create_workspace,
@@ -195,6 +196,7 @@ def temporal_context(format: str, refresh: bool, verbosity: str):
 pitlane.add_command(workspace)
 pitlane.add_command(fetch)
 pitlane.add_command(analyze)
+pitlane.add_command(stories)
 
 
 if __name__ == "__main__":
