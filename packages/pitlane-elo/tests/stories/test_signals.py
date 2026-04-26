@@ -636,3 +636,31 @@ class TestDetectStories:
         signals = detect_stories(2024, 5, data_dir=tmp_path)
         abs_values = [abs(s.value) for s in signals]
         assert abs_values == sorted(abs_values, reverse=True)
+
+    def test_single_duckdb_connection_for_multiple_drivers(self, tmp_path):
+        # detect_trend_signals must open exactly one DuckDB connection regardless of driver
+        # count. Currently _get_recent_snapshots opens a new connection per driver call.
+        import duckdb as real_duckdb
+        from unittest.mock import patch
+
+        rows = []
+        for driver in ("VER", "HAM", "SAI"):
+            for rnd in (2, 3, 4):
+                rows.append((2024, rnd, "R", driver, 1.0, 0.1, 0.5, 0.8, 1, "none"))
+        _write_snapshot_parquet(tmp_path, rows)
+
+        snaps = [_make_snap(d, rating=1.5) for d in ("VER", "HAM", "SAI")]
+        connect_calls = []
+        original_connect = real_duckdb.connect
+
+        def counting_connect(*args, **kwargs):
+            connect_calls.append(1)
+            return original_connect(*args, **kwargs)
+
+        with patch("pitlane_elo.stories.signals.duckdb.connect", side_effect=counting_connect):
+            detect_trend_signals(snaps, 2024, 5, n=3, data_dir=tmp_path)
+
+        assert len(connect_calls) == 1, (
+            f"Expected 1 DuckDB connection for 3 drivers; got {len(connect_calls)}. "
+            "_get_recent_snapshots is opening a new connection per driver call."
+        )
