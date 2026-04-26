@@ -275,6 +275,17 @@ class TestDetectOutput:
         data = json.loads(result.output)
         assert data["story_count"] == 0
 
+    def test_exception_exits_1_with_error_json(self):
+        from unittest.mock import patch
+
+        with patch("pitlane_elo.cli_stories.detect_stories", side_effect=RuntimeError("snapshot missing")):
+            runner = CliRunner()
+            result = runner.invoke(stories, ["detect", "--year", "2024", "--round", "5"])
+        assert result.exit_code == 1
+        err = json.loads(result.output)
+        assert "error" in err
+        assert "snapshot missing" in err["error"]
+
 
 # ---------------------------------------------------------------------------
 # season — help and argument validation
@@ -405,6 +416,19 @@ class TestSeasonOutput:
         data = json.loads(result.output)
         r1 = next(r for r in data["races"] if r["round"] == 1)
         assert r1["story_count"] > 0
+
+    def test_exception_exits_1_with_error_json(self, tmp_path):
+        from unittest.mock import patch
+
+        _write_race_parquet(tmp_path, _minimal_race_rows(2024, 3))
+        _write_snapshot_parquet(tmp_path, _minimal_snapshots(2024, 3))
+        with patch("pitlane_elo.cli_stories.detect_stories", side_effect=RuntimeError("duckdb error")):
+            runner = CliRunner()
+            result = runner.invoke(stories, ["season", "--year", "2024", "--db-path", str(tmp_path)])
+        assert result.exit_code == 1
+        err = json.loads(result.output)
+        assert "error" in err
+        assert "duckdb error" in err["error"]
 
 
 # ---------------------------------------------------------------------------
