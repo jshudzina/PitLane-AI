@@ -640,8 +640,9 @@ class TestDetectStories:
     def test_single_duckdb_connection_for_multiple_drivers(self, tmp_path):
         # detect_trend_signals must open exactly one DuckDB connection regardless of driver
         # count. Currently _get_recent_snapshots opens a new connection per driver call.
-        import duckdb as real_duckdb
         from unittest.mock import patch
+
+        import duckdb as real_duckdb
 
         rows = []
         for driver in ("VER", "HAM", "SAI"):
