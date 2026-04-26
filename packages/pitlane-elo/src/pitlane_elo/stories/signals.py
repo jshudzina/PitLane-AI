@@ -23,12 +23,12 @@ from pitlane_elo.snapshots import EloSnapshot, get_race_snapshot
 # Thresholds — from design doc §7
 # ---------------------------------------------------------------------------
 
-_TREND_3_HOT_THRESHOLD = 0.5    # ΔR̂_3race > 0.5 → hot streak
+_TREND_3_HOT_THRESHOLD = 0.5  # ΔR̂_3race > 0.5 → hot streak
 _TREND_3_COLD_THRESHOLD = -0.5  # ΔR̂_3race < -0.5 → slump
-_SURPRISE_THRESHOLD = 2.0       # |SurpriseScore| > 2.0 → story candidate
-_TEAMMATE_DELTA_RACES = 3       # Consecutive races confirming teammate shift
-_TEAMMATE_GAP_MIN = 0.1         # Minimum ELO gap to flag a consistent lead
-_TREND_TOP_N = 3                # Top/bottom N drivers flagged for momentum
+_SURPRISE_THRESHOLD = 2.0  # |SurpriseScore| > 2.0 → story candidate
+_TEAMMATE_DELTA_RACES = 3  # Consecutive races confirming teammate shift
+_TEAMMATE_GAP_MIN = 0.1  # Minimum ELO gap to flag a consistent lead
+_TREND_TOP_N = 3  # Top/bottom N drivers flagged for momentum
 
 _SNAPSHOT_SELECT = (
     "year, round, session_type, driver_id, pre_race_rating, pre_race_k, "
@@ -101,7 +101,7 @@ def _get_recent_snapshots(
     snapshots_dir = d / "elo_snapshots"
     if not snapshots_dir.exists() or not list(snapshots_dir.glob("*.parquet")):
         return []
-    glob_pattern = str(snapshots_dir / "*.parquet")
+    glob_pattern = str(snapshots_dir / "*.parquet").replace("'", "''")
 
     con = duckdb.connect()
     try:
@@ -156,8 +156,12 @@ def detect_trend_signals(
 
     for driver_id, current_rating in current.items():
         history = _get_recent_snapshots(
-            driver_id, year, round_num, n,
-            session_type=session_type, data_dir=data_dir,
+            driver_id,
+            year,
+            round_num,
+            n,
+            session_type=session_type,
+            data_dir=data_dir,
         )
         if len(history) < n:
             continue
@@ -172,35 +176,39 @@ def detect_trend_signals(
 
     for driver_id, delta in deltas[:_TREND_TOP_N]:
         if delta > _TREND_3_HOT_THRESHOLD:
-            signals.append(StorySignal(
-                signal_type="hot_streak",
-                driver_id=driver_id,
-                year=year,
-                round=round_num,
-                value=delta,
-                threshold=_TREND_3_HOT_THRESHOLD,
-                narrative=(
-                    f"{driver_id} has gained {delta:+.3f} ELO over the last {n} races"
-                    " — hottest momentum in the field"
-                ),
-                context={"lookback_races": n, "current_rating": round(current[driver_id], 4)},
-            ))
+            signals.append(
+                StorySignal(
+                    signal_type="hot_streak",
+                    driver_id=driver_id,
+                    year=year,
+                    round=round_num,
+                    value=delta,
+                    threshold=_TREND_3_HOT_THRESHOLD,
+                    narrative=(
+                        f"{driver_id} has gained {delta:+.3f} ELO over the last {n} races"
+                        " — hottest momentum in the field"
+                    ),
+                    context={"lookback_races": n, "current_rating": round(current[driver_id], 4)},
+                )
+            )
 
     for driver_id, delta in deltas[-_TREND_TOP_N:]:
         if delta < _TREND_3_COLD_THRESHOLD:
-            signals.append(StorySignal(
-                signal_type="slump",
-                driver_id=driver_id,
-                year=year,
-                round=round_num,
-                value=delta,
-                threshold=_TREND_3_COLD_THRESHOLD,
-                narrative=(
-                    f"{driver_id} has lost {abs(delta):.3f} ELO over the last {n} races"
-                    " — deepest slump in the field"
-                ),
-                context={"lookback_races": n, "current_rating": round(current[driver_id], 4)},
-            ))
+            signals.append(
+                StorySignal(
+                    signal_type="slump",
+                    driver_id=driver_id,
+                    year=year,
+                    round=round_num,
+                    value=delta,
+                    threshold=_TREND_3_COLD_THRESHOLD,
+                    narrative=(
+                        f"{driver_id} has lost {abs(delta):.3f} ELO over the last {n} races"
+                        " — deepest slump in the field"
+                    ),
+                    context={"lookback_races": n, "current_rating": round(current[driver_id], 4)},
+                )
+            )
 
     return signals
 
@@ -225,43 +233,47 @@ def detect_surprise_signals(
         score = (snap.finish_position - exp_pos) / sigma
 
         if score < -_SURPRISE_THRESHOLD:
-            signals.append(StorySignal(
-                signal_type="surprise_over",
-                driver_id=snap.driver_id,
-                year=year,
-                round=round_num,
-                value=score,
-                threshold=-_SURPRISE_THRESHOLD,
-                narrative=(
-                    f"{snap.driver_id} massively overperformed: expected P{exp_pos},"
-                    f" finished P{snap.finish_position} (SurpriseScore {score:.2f})"
-                ),
-                context={
-                    "expected_position": exp_pos,
-                    "actual_position": snap.finish_position,
-                    "win_probability": round(snap.win_probability, 4),
-                    "pre_race_rating": round(snap.pre_race_rating, 4),
-                },
-            ))
+            signals.append(
+                StorySignal(
+                    signal_type="surprise_over",
+                    driver_id=snap.driver_id,
+                    year=year,
+                    round=round_num,
+                    value=score,
+                    threshold=-_SURPRISE_THRESHOLD,
+                    narrative=(
+                        f"{snap.driver_id} massively overperformed: expected P{exp_pos},"
+                        f" finished P{snap.finish_position} (SurpriseScore {score:.2f})"
+                    ),
+                    context={
+                        "expected_position": exp_pos,
+                        "actual_position": snap.finish_position,
+                        "win_probability": round(snap.win_probability, 4),
+                        "pre_race_rating": round(snap.pre_race_rating, 4),
+                    },
+                )
+            )
         elif score > _SURPRISE_THRESHOLD:
-            signals.append(StorySignal(
-                signal_type="surprise_under",
-                driver_id=snap.driver_id,
-                year=year,
-                round=round_num,
-                value=score,
-                threshold=_SURPRISE_THRESHOLD,
-                narrative=(
-                    f"{snap.driver_id} massively underperformed: expected P{exp_pos},"
-                    f" finished P{snap.finish_position} (SurpriseScore {score:.2f})"
-                ),
-                context={
-                    "expected_position": exp_pos,
-                    "actual_position": snap.finish_position,
-                    "win_probability": round(snap.win_probability, 4),
-                    "pre_race_rating": round(snap.pre_race_rating, 4),
-                },
-            ))
+            signals.append(
+                StorySignal(
+                    signal_type="surprise_under",
+                    driver_id=snap.driver_id,
+                    year=year,
+                    round=round_num,
+                    value=score,
+                    threshold=_SURPRISE_THRESHOLD,
+                    narrative=(
+                        f"{snap.driver_id} massively underperformed: expected P{exp_pos},"
+                        f" finished P{snap.finish_position} (SurpriseScore {score:.2f})"
+                    ),
+                    context={
+                        "expected_position": exp_pos,
+                        "actual_position": snap.finish_position,
+                        "win_probability": round(snap.win_probability, 4),
+                        "pre_race_rating": round(snap.pre_race_rating, 4),
+                    },
+                )
+            )
 
     return signals
 
@@ -316,45 +328,49 @@ def detect_teammate_delta(
 
         if gap_flipped:
             leader, trailer = (a, b) if current_delta > 0 else (b, a)
-            signals.append(StorySignal(
-                signal_type="teammate_shift",
-                driver_id=leader,
-                year=year,
-                round=round_num,
-                value=abs(current_delta),
-                threshold=0.0,
-                narrative=(
-                    f"{leader} has taken the upper hand over {trailer} at {team}"
-                    f" — internal gap has reversed over the last {lookback} races"
-                ),
-                context={
-                    "team": team,
-                    "teammate": trailer,
-                    "current_delta": round(current_delta, 4),
-                    "historical_deltas": [round(d, 4) for d in historical_deltas],
-                },
-            ))
+            signals.append(
+                StorySignal(
+                    signal_type="teammate_shift",
+                    driver_id=leader,
+                    year=year,
+                    round=round_num,
+                    value=abs(current_delta),
+                    threshold=0.0,
+                    narrative=(
+                        f"{leader} has taken the upper hand over {trailer} at {team}"
+                        f" — internal gap has reversed over the last {lookback} races"
+                    ),
+                    context={
+                        "team": team,
+                        "teammate": trailer,
+                        "current_delta": round(current_delta, 4),
+                        "historical_deltas": [round(d, 4) for d in historical_deltas],
+                    },
+                )
+            )
         elif (all_positive or all_negative) and abs(current_delta) > _TEAMMATE_GAP_MIN:
             leader, trailer = (a, b) if current_delta > 0 else (b, a)
             gap = abs(current_delta)
-            signals.append(StorySignal(
-                signal_type="teammate_shift",
-                driver_id=leader,
-                year=year,
-                round=round_num,
-                value=gap,
-                threshold=_TEAMMATE_GAP_MIN,
-                narrative=(
-                    f"{leader} holds a consistent {gap:.3f} ELO advantage over {trailer}"
-                    f" at {team} across {lookback} races"
-                ),
-                context={
-                    "team": team,
-                    "teammate": trailer,
-                    "current_delta": round(current_delta, 4),
-                    "historical_deltas": [round(d, 4) for d in historical_deltas],
-                },
-            ))
+            signals.append(
+                StorySignal(
+                    signal_type="teammate_shift",
+                    driver_id=leader,
+                    year=year,
+                    round=round_num,
+                    value=gap,
+                    threshold=_TEAMMATE_GAP_MIN,
+                    narrative=(
+                        f"{leader} holds a consistent {gap:.3f} ELO advantage over {trailer}"
+                        f" at {team} across {lookback} races"
+                    ),
+                    context={
+                        "team": team,
+                        "teammate": trailer,
+                        "current_delta": round(current_delta, 4),
+                        "historical_deltas": [round(d, 4) for d in historical_deltas],
+                    },
+                )
+            )
 
     return signals
 
@@ -387,15 +403,27 @@ def detect_stories(
         race_entries = [e for e in year_entries if e.get("round") == round_num]
 
     signals: list[StorySignal] = []
-    signals.extend(detect_trend_signals(
-        race_snapshots, year, round_num,
-        n=trend_lookback, session_type=session_type, data_dir=data_dir,
-    ))
+    signals.extend(
+        detect_trend_signals(
+            race_snapshots,
+            year,
+            round_num,
+            n=trend_lookback,
+            session_type=session_type,
+            data_dir=data_dir,
+        )
+    )
     signals.extend(detect_surprise_signals(race_snapshots, year, round_num))
-    signals.extend(detect_teammate_delta(
-        race_snapshots, race_entries, year, round_num,
-        session_type=session_type, data_dir=data_dir,
-    ))
+    signals.extend(
+        detect_teammate_delta(
+            race_snapshots,
+            race_entries,
+            year,
+            round_num,
+            session_type=session_type,
+            data_dir=data_dir,
+        )
+    )
 
     signals.sort(key=lambda s: abs(s.value), reverse=True)
     return signals
