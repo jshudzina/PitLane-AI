@@ -92,6 +92,7 @@ def _get_recent_snapshots(
     *,
     session_type: str = "R",
     data_dir: Path | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
 ) -> list[EloSnapshot]:
     """Return up to N snapshots for driver_id in races strictly before (before_year, before_round).
 
@@ -103,9 +104,10 @@ def _get_recent_snapshots(
         return []
     glob_pattern = str(snapshots_dir / "*.parquet").replace("'", "''")
 
-    con = duckdb.connect()
+    _con = con or duckdb.connect()
+    _close = con is None
     try:
-        cursor = con.execute(
+        cursor = _con.execute(
             f"SELECT {_SNAPSHOT_SELECT} FROM read_parquet('{glob_pattern}') "
             "WHERE driver_id = ? AND session_type = ? "
             "AND (year < ? OR (year = ? AND round < ?)) "
@@ -118,7 +120,8 @@ def _get_recent_snapshots(
             return []
         columns = [desc[0] for desc in cursor.description]
     finally:
-        con.close()
+        if _close:
+            _con.close()
     return _rows_to_snapshots(rows, columns)
 
 
@@ -149,24 +152,32 @@ def detect_trend_signals(
     n: int = 3,
     session_type: str = "R",
     data_dir: Path | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
 ) -> list[StorySignal]:
     """Detect momentum: trailing N-race ΔR̂, flagging top/bottom N drivers."""
     current = {s.driver_id: s.pre_race_rating for s in race_snapshots}
     deltas: list[tuple[str, float]] = []
 
-    for driver_id, current_rating in current.items():
-        history = _get_recent_snapshots(
-            driver_id,
-            year,
-            round_num,
-            n,
-            session_type=session_type,
-            data_dir=data_dir,
-        )
-        if len(history) < n:
-            continue
-        oldest = history[n - 1]  # history is newest-first, oldest is index n-1
-        deltas.append((driver_id, current_rating - oldest.pre_race_rating))
+    _con = con or duckdb.connect()
+    _close = con is None
+    try:
+        for driver_id, current_rating in current.items():
+            history = _get_recent_snapshots(
+                driver_id,
+                year,
+                round_num,
+                n,
+                session_type=session_type,
+                data_dir=data_dir,
+                con=_con,
+            )
+            if len(history) < n:
+                continue
+            oldest = history[n - 1]  # history is newest-first, oldest is index n-1
+            deltas.append((driver_id, current_rating - oldest.pre_race_rating))
+    finally:
+        if _close:
+            _con.close()
 
     if not deltas:
         return []
@@ -287,6 +298,7 @@ def detect_teammate_delta(
     session_type: str = "R",
     data_dir: Path | None = None,
     lookback: int = _TEAMMATE_DELTA_RACES,
+    con: duckdb.DuckDBPyConnection | None = None,
 ) -> list[StorySignal]:
     """Detect teammate battles via within-team ΔR̂ over recent races."""
     team_drivers: dict[str, list[str]] = {}
@@ -299,78 +311,88 @@ def detect_teammate_delta(
     current = {s.driver_id: s.pre_race_rating for s in race_snapshots}
     signals: list[StorySignal] = []
 
-    for team, drivers in team_drivers.items():
-        if len(drivers) < 2:
-            continue
-        a, b = drivers[0], drivers[1]
-        if a not in current or b not in current:
-            continue
+    _con = con or duckdb.connect()
+    _close = con is None
+    try:
+        for team, drivers in team_drivers.items():
+            if len(drivers) < 2:
+                continue
+            a, b = drivers[0], drivers[1]
+            if a not in current or b not in current:
+                continue
 
-        history_a = _get_recent_snapshots(a, year, round_num, lookback, session_type=session_type, data_dir=data_dir)
-        history_b = _get_recent_snapshots(b, year, round_num, lookback, session_type=session_type, data_dir=data_dir)
-        if not history_a or not history_b:
-            continue
-
-        a_by_race = {(s.year, s.round): s.pre_race_rating for s in history_a}
-        b_by_race = {(s.year, s.round): s.pre_race_rating for s in history_b}
-        common = sorted(set(a_by_race) & set(b_by_race), reverse=True)[:lookback]
-
-        if len(common) < lookback:
-            continue
-
-        historical_deltas = [a_by_race[r] - b_by_race[r] for r in common]
-        current_delta = current[a] - current[b]
-
-        all_positive = all(d > 0 for d in historical_deltas)
-        all_negative = all(d < 0 for d in historical_deltas)
-        # Gap flipped relative to the historical trend
-        gap_flipped = (current_delta > 0 and all_negative) or (current_delta < 0 and all_positive)
-
-        if gap_flipped:
-            leader, trailer = (a, b) if current_delta > 0 else (b, a)
-            signals.append(
-                StorySignal(
-                    signal_type="teammate_shift",
-                    driver_id=leader,
-                    year=year,
-                    round=round_num,
-                    value=abs(current_delta),
-                    threshold=0.0,
-                    narrative=(
-                        f"{leader} has taken the upper hand over {trailer} at {team}"
-                        f" — internal gap has reversed over the last {lookback} races"
-                    ),
-                    context={
-                        "team": team,
-                        "teammate": trailer,
-                        "current_delta": round(current_delta, 4),
-                        "historical_deltas": [round(d, 4) for d in historical_deltas],
-                    },
-                )
+            history_a = _get_recent_snapshots(
+                a, year, round_num, lookback, session_type=session_type, data_dir=data_dir, con=_con
             )
-        elif (all_positive or all_negative) and abs(current_delta) > _TEAMMATE_GAP_MIN:
-            leader, trailer = (a, b) if current_delta > 0 else (b, a)
-            gap = abs(current_delta)
-            signals.append(
-                StorySignal(
-                    signal_type="teammate_shift",
-                    driver_id=leader,
-                    year=year,
-                    round=round_num,
-                    value=gap,
-                    threshold=_TEAMMATE_GAP_MIN,
-                    narrative=(
-                        f"{leader} holds a consistent {gap:.3f} ELO advantage over {trailer}"
-                        f" at {team} across {lookback} races"
-                    ),
-                    context={
-                        "team": team,
-                        "teammate": trailer,
-                        "current_delta": round(current_delta, 4),
-                        "historical_deltas": [round(d, 4) for d in historical_deltas],
-                    },
-                )
+            history_b = _get_recent_snapshots(
+                b, year, round_num, lookback, session_type=session_type, data_dir=data_dir, con=_con
             )
+            if not history_a or not history_b:
+                continue
+
+            a_by_race = {(s.year, s.round): s.pre_race_rating for s in history_a}
+            b_by_race = {(s.year, s.round): s.pre_race_rating for s in history_b}
+            common = sorted(set(a_by_race) & set(b_by_race), reverse=True)[:lookback]
+
+            if len(common) < lookback:
+                continue
+
+            historical_deltas = [a_by_race[r] - b_by_race[r] for r in common]
+            current_delta = current[a] - current[b]
+
+            all_positive = all(d > 0 for d in historical_deltas)
+            all_negative = all(d < 0 for d in historical_deltas)
+            # Gap flipped relative to the historical trend
+            gap_flipped = (current_delta > 0 and all_negative) or (current_delta < 0 and all_positive)
+
+            if gap_flipped:
+                leader, trailer = (a, b) if current_delta > 0 else (b, a)
+                signals.append(
+                    StorySignal(
+                        signal_type="teammate_shift",
+                        driver_id=leader,
+                        year=year,
+                        round=round_num,
+                        value=abs(current_delta),
+                        threshold=0.0,
+                        narrative=(
+                            f"{leader} has taken the upper hand over {trailer} at {team}"
+                            f" — internal gap has reversed over the last {lookback} races"
+                        ),
+                        context={
+                            "team": team,
+                            "teammate": trailer,
+                            "current_delta": round(current_delta, 4),
+                            "historical_deltas": [round(d, 4) for d in historical_deltas],
+                        },
+                    )
+                )
+            elif (all_positive or all_negative) and abs(current_delta) > _TEAMMATE_GAP_MIN:
+                leader, trailer = (a, b) if current_delta > 0 else (b, a)
+                gap = abs(current_delta)
+                signals.append(
+                    StorySignal(
+                        signal_type="teammate_shift",
+                        driver_id=leader,
+                        year=year,
+                        round=round_num,
+                        value=gap,
+                        threshold=_TEAMMATE_GAP_MIN,
+                        narrative=(
+                            f"{leader} holds a consistent {gap:.3f} ELO advantage over {trailer}"
+                            f" at {team} across {lookback} races"
+                        ),
+                        context={
+                            "team": team,
+                            "teammate": trailer,
+                            "current_delta": round(current_delta, 4),
+                            "historical_deltas": [round(d, 4) for d in historical_deltas],
+                        },
+                    )
+                )
+    finally:
+        if _close:
+            _con.close()
 
     return signals
 
@@ -403,27 +425,33 @@ def detect_stories(
         race_entries = [e for e in year_entries if e.get("round") == round_num]
 
     signals: list[StorySignal] = []
-    signals.extend(
-        detect_trend_signals(
-            race_snapshots,
-            year,
-            round_num,
-            n=trend_lookback,
-            session_type=session_type,
-            data_dir=data_dir,
+    con = duckdb.connect()
+    try:
+        signals.extend(
+            detect_trend_signals(
+                race_snapshots,
+                year,
+                round_num,
+                n=trend_lookback,
+                session_type=session_type,
+                data_dir=data_dir,
+                con=con,
+            )
         )
-    )
-    signals.extend(detect_surprise_signals(race_snapshots, year, round_num))
-    signals.extend(
-        detect_teammate_delta(
-            race_snapshots,
-            race_entries,
-            year,
-            round_num,
-            session_type=session_type,
-            data_dir=data_dir,
+        signals.extend(detect_surprise_signals(race_snapshots, year, round_num))
+        signals.extend(
+            detect_teammate_delta(
+                race_snapshots,
+                race_entries,
+                year,
+                round_num,
+                session_type=session_type,
+                data_dir=data_dir,
+                con=con,
+            )
         )
-    )
+    finally:
+        con.close()
 
     signals.sort(key=lambda s: abs(s.value), reverse=True)
     return signals
