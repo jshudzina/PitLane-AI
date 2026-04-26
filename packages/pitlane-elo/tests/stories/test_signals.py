@@ -116,8 +116,14 @@ class TestStorySignal:
         sig = StorySignal("slump", "HAM", 2024, 5, -0.7, -0.5, "narrative", {})
         d = sig.to_dict()
         assert set(d) == {
-            "signal_type", "driver_id", "year", "round",
-            "value", "threshold", "narrative", "context",
+            "signal_type",
+            "driver_id",
+            "year",
+            "round",
+            "value",
+            "threshold",
+            "narrative",
+            "context",
         }
 
     def test_to_dict_preserves_context(self):
@@ -174,9 +180,16 @@ class TestExpectedPositions:
 
 class TestRowsToSnapshots:
     _COLS = [
-        "year", "round", "session_type", "driver_id",
-        "pre_race_rating", "pre_race_k", "win_probability",
-        "podium_probability", "finish_position", "dnf_category",
+        "year",
+        "round",
+        "session_type",
+        "driver_id",
+        "pre_race_rating",
+        "pre_race_k",
+        "win_probability",
+        "podium_probability",
+        "finish_position",
+        "dnf_category",
     ]
 
     def test_maps_columns_to_dataclass(self):
@@ -197,10 +210,7 @@ class TestRowsToSnapshots:
         assert _rows_to_snapshots([], []) == []
 
     def test_multiple_rows(self):
-        rows = [
-            (2024, 5, "R", f"D{i}", float(i), 0.1, 0.1, 0.3, i + 1, "none")
-            for i in range(3)
-        ]
+        rows = [(2024, 5, "R", f"D{i}", float(i), 0.1, 0.1, 0.3, i + 1, "none") for i in range(3)]
         snaps = _rows_to_snapshots(rows, self._COLS)
         assert len(snaps) == 3
         assert [s.driver_id for s in snaps] == ["D0", "D1", "D2"]
@@ -217,10 +227,7 @@ def _big_field_overperformer() -> list[EloSnapshot]:
     Expected position for VER = 20. sigma = 3.0 (k=0).
     SurpriseScore = (1 - 20) / 3.0 = -6.33 → surprise_over.
     """
-    others = [
-        _make_snap(f"D{i}", win_prob=1.0 / (i + 1), k=0.0, finish_position=i + 1)
-        for i in range(19)
-    ]
+    others = [_make_snap(f"D{i}", win_prob=1.0 / (i + 1), k=0.0, finish_position=i + 1) for i in range(19)]
     ver = _make_snap("VER", win_prob=0.001, k=0.0, finish_position=1)
     return others + [ver]
 
@@ -231,10 +238,7 @@ def _big_field_underperformer() -> list[EloSnapshot]:
     Expected position for VER = 1. sigma = 3.0 (k=0).
     SurpriseScore = (20 - 1) / 3.0 = 6.33 → surprise_under.
     """
-    others = [
-        _make_snap(f"D{i}", win_prob=1.0 / (i + 2), k=0.0, finish_position=i + 2)
-        for i in range(19)
-    ]
+    others = [_make_snap(f"D{i}", win_prob=1.0 / (i + 2), k=0.0, finish_position=i + 2) for i in range(19)]
     ver = _make_snap("VER", win_prob=1.0, k=0.0, finish_position=20)
     return others + [ver]
 
@@ -329,20 +333,26 @@ class TestDetectTrendSignals:
 
     def test_insufficient_history_skips_driver(self, tmp_path):
         # Only 2 historical races; n=3 requires 3 → driver skipped
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 3, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 3, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),
+            ],
+        )
         snaps = [_make_snap("VER", rating=1.5)]
         assert detect_trend_signals(snaps, 2024, 5, n=3, data_dir=tmp_path) == []
 
     def test_hot_streak_detected(self, tmp_path):
         # delta = 1.5 − 0.7 = 0.8 > 0.5 threshold
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 2, "R", "VER", 0.7, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 2, "R", "VER", 0.7, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),
+            ],
+        )
         snaps = [_make_snap("VER", rating=1.5)]
         signals = detect_trend_signals(snaps, 2024, 5, n=3, data_dir=tmp_path)
         hot = [s for s in signals if s.signal_type == "hot_streak"]
@@ -352,11 +362,14 @@ class TestDetectTrendSignals:
 
     def test_slump_detected(self, tmp_path):
         # delta = 0.8 − 1.5 = -0.7 < -0.5 threshold
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 2, "R", "HAM", 1.5, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "HAM", 1.3, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "HAM", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 2, "R", "HAM", 1.5, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "HAM", 1.3, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "HAM", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+            ],
+        )
         snaps = [_make_snap("HAM", rating=0.8)]
         signals = detect_trend_signals(snaps, 2024, 5, n=3, data_dir=tmp_path)
         slump = [s for s in signals if s.signal_type == "slump"]
@@ -366,26 +379,32 @@ class TestDetectTrendSignals:
 
     def test_delta_below_threshold_no_signal(self, tmp_path):
         # delta = 1.0 − 0.9 = 0.1 < 0.5 threshold → no signal
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 2, "R", "SAI", 0.9, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "SAI", 0.95, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 1, "none"),
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 2, "R", "SAI", 0.9, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "SAI", 0.95, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 1, "none"),
+            ],
+        )
         snaps = [_make_snap("SAI", rating=1.0)]
         assert detect_trend_signals(snaps, 2024, 5, n=3, data_dir=tmp_path) == []
 
     def test_hot_and_slump_in_same_field(self, tmp_path):
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 2, "R", "VER", 0.7, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 2, "R", "HAM", 1.5, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "HAM", 1.3, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "HAM", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 2, "R", "SAI", 0.9, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "SAI", 0.95, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 1, "none"),
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 2, "R", "VER", 0.7, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 2, "R", "HAM", 1.5, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "HAM", 1.3, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "HAM", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 2, "R", "SAI", 0.9, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "SAI", 0.95, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 1, "none"),
+            ],
+        )
         snaps = [
             _make_snap("VER", rating=1.5),
             _make_snap("HAM", rating=0.8),
@@ -402,11 +421,14 @@ class TestDetectTrendSignals:
 
     def test_history_excludes_current_race(self, tmp_path):
         # Round 5 itself must not count as history
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 3, "R", "VER", 0.7, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 5, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),  # same race → excluded
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 3, "R", "VER", 0.7, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 5, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),  # same race → excluded
+            ],
+        )
         snaps = [_make_snap("VER", rating=1.5)]
         # Only 2 valid history rows (rounds 3,4) for n=3 → insufficient → no signal
         assert detect_trend_signals(snaps, 2024, 5, n=3, data_dir=tmp_path) == []
@@ -415,12 +437,16 @@ class TestDetectTrendSignals:
         # Paths containing single quotes (e.g. /Users/O'Brien/) must not break
         # the DuckDB query via quote injection in the read_parquet() f-string.
         normal_dir = tmp_path / "normal"
-        _write_snapshot_parquet(normal_dir, [
-            (2024, 2, "R", "VER", 0.7, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),
-        ])
+        _write_snapshot_parquet(
+            normal_dir,
+            [
+                (2024, 2, "R", "VER", 0.7, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),
+            ],
+        )
         import shutil
+
         quoted_dir = tmp_path / "O'Brien"
         quoted_snapshots = quoted_dir / "elo_snapshots"
         quoted_snapshots.mkdir(parents=True)
@@ -434,11 +460,14 @@ class TestDetectTrendSignals:
         assert len(hot) == 1
 
     def test_context_includes_lookback_and_rating(self, tmp_path):
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 2, "R", "VER", 0.7, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 2, "R", "VER", 0.7, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),
+            ],
+        )
         snaps = [_make_snap("VER", rating=1.5)]
         signals = detect_trend_signals(snaps, 2024, 5, n=3, data_dir=tmp_path)
         assert signals[0].context["lookback_races"] == 3
@@ -458,14 +487,17 @@ class TestDetectTeammateDelta:
 
     def test_consistent_leader_signal(self, tmp_path):
         # LEC consistently ahead of SAI in history and now
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 2, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 2, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-            (2024, 3, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-            (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 2, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 2, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+                (2024, 3, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+                (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+            ],
+        )
         snaps = [_make_snap("LEC", rating=1.3), _make_snap("SAI", rating=1.0)]
         entries = [_make_entry("LEC", "Ferrari"), _make_entry("SAI", "Ferrari")]
         signals = detect_teammate_delta(snaps, entries, 2024, 5, data_dir=tmp_path)
@@ -477,14 +509,17 @@ class TestDetectTeammateDelta:
 
     def test_gap_flip_signal(self, tmp_path):
         # HAM historically behind RUS; now HAM ahead → flip
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 2, "R", "HAM", 0.9, 0.1, 0.5, 0.8, 2, "none"),
-            (2024, 3, "R", "HAM", 0.9, 0.1, 0.5, 0.8, 2, "none"),
-            (2024, 4, "R", "HAM", 0.9, 0.1, 0.5, 0.8, 2, "none"),
-            (2024, 2, "R", "RUS", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "RUS", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "RUS", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 2, "R", "HAM", 0.9, 0.1, 0.5, 0.8, 2, "none"),
+                (2024, 3, "R", "HAM", 0.9, 0.1, 0.5, 0.8, 2, "none"),
+                (2024, 4, "R", "HAM", 0.9, 0.1, 0.5, 0.8, 2, "none"),
+                (2024, 2, "R", "RUS", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "RUS", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "RUS", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+            ],
+        )
         snaps = [_make_snap("HAM", rating=1.2), _make_snap("RUS", rating=1.0)]
         entries = [_make_entry("HAM", "Mercedes"), _make_entry("RUS", "Mercedes")]
         signals = detect_teammate_delta(snaps, entries, 2024, 5, data_dir=tmp_path)
@@ -495,12 +530,15 @@ class TestDetectTeammateDelta:
 
     def test_insufficient_common_races_skipped(self, tmp_path):
         # Only 2 common races; lookback=3 → skipped
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 3, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "LEC", 1.2, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-            (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 3, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "LEC", 1.2, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+                (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+            ],
+        )
         snaps = [_make_snap("LEC", rating=1.3), _make_snap("SAI", rating=1.0)]
         entries = [_make_entry("LEC", "Ferrari"), _make_entry("SAI", "Ferrari")]
         signals = detect_teammate_delta(snaps, entries, 2024, 5, lookback=3, data_dir=tmp_path)
@@ -508,14 +546,17 @@ class TestDetectTeammateDelta:
 
     def test_gap_below_minimum_no_signal(self, tmp_path):
         # Consistent leader but gap 0.05 < _TEAMMATE_GAP_MIN=0.1
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 2, "R", "LEC", 1.03, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "LEC", 1.03, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "LEC", 1.03, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 2, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-            (2024, 3, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-            (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 2, "R", "LEC", 1.03, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "LEC", 1.03, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "LEC", 1.03, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 2, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+                (2024, 3, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+                (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+            ],
+        )
         snaps = [_make_snap("LEC", rating=1.05), _make_snap("SAI", rating=1.0)]
         entries = [_make_entry("LEC", "Ferrari"), _make_entry("SAI", "Ferrari")]
         signals = detect_teammate_delta(snaps, entries, 2024, 5, lookback=3, data_dir=tmp_path)
@@ -523,28 +564,34 @@ class TestDetectTeammateDelta:
 
     def test_missing_driver_in_snapshots_skipped(self, tmp_path):
         # SAI has history but not in current race_snapshots → team pair skipped
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 2, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 2, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-            (2024, 3, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-            (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 2, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 2, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+                (2024, 3, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+                (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+            ],
+        )
         snaps = [_make_snap("LEC", rating=1.3)]  # SAI absent from current snapshots
         entries = [_make_entry("LEC", "Ferrari"), _make_entry("SAI", "Ferrari")]
         signals = detect_teammate_delta(snaps, entries, 2024, 5, data_dir=tmp_path)
         assert signals == []
 
     def test_context_includes_team_and_teammate(self, tmp_path):
-        _write_snapshot_parquet(tmp_path, [
-            (2024, 2, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 3, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 4, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
-            (2024, 2, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-            (2024, 3, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-            (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
-        ])
+        _write_snapshot_parquet(
+            tmp_path,
+            [
+                (2024, 2, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 3, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 4, "R", "LEC", 1.1, 0.1, 0.5, 0.8, 1, "none"),
+                (2024, 2, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+                (2024, 3, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+                (2024, 4, "R", "SAI", 1.0, 0.1, 0.5, 0.8, 2, "none"),
+            ],
+        )
         snaps = [_make_snap("LEC", rating=1.3), _make_snap("SAI", rating=1.0)]
         entries = [_make_entry("LEC", "Ferrari"), _make_entry("SAI", "Ferrari")]
         signals = detect_teammate_delta(snaps, entries, 2024, 5, data_dir=tmp_path)
@@ -565,10 +612,7 @@ class TestDetectStories:
 
     def test_returns_list_of_story_signals(self, tmp_path):
         # Set up a race with one clear surprise
-        rows = [
-            (2024, 5, "R", f"D{i}", float(i), 0.0, 1.0 / (i + 1), 0.5, i + 1, "none")
-            for i in range(19)
-        ]
+        rows = [(2024, 5, "R", f"D{i}", float(i), 0.0, 1.0 / (i + 1), 0.5, i + 1, "none") for i in range(19)]
         # VER expected last (win_prob=0.001), finishes P1 → surprise_over
         rows.append((2024, 5, "R", "VER", 1.0, 0.0, 0.001, 0.01, 1, "none"))
         _write_snapshot_parquet(tmp_path, rows)

@@ -81,10 +81,7 @@ def _write_race_parquet(data_dir: Path, rows: list[tuple]) -> None:
 
 def _minimal_snapshots(year: int, round_num: int, n_drivers: int = 5) -> list[tuple]:
     """Minimal snapshot rows with no surprise or trend signals (finish == expected rank)."""
-    return [
-        (year, round_num, "R", f"D{i}", float(i), 0.1, 1.0 / (i + 1), 0.5, i + 1, "none")
-        for i in range(n_drivers)
-    ]
+    return [(year, round_num, "R", f"D{i}", float(i), 0.1, 1.0 / (i + 1), 0.5, i + 1, "none") for i in range(n_drivers)]
 
 
 def _minimal_race_rows(year: int, round_num: int, n_drivers: int = 5) -> list[tuple]:
@@ -216,10 +213,7 @@ class TestDetectOutput:
 
     def test_surprise_signal_present_in_output(self, tmp_path):
         # VER expected P20 (lowest win_prob), finishes P1 → surprise_over
-        rows = [
-            (2024, 3, "R", f"D{i}", float(i), 0.0, 1.0 / (i + 1), 0.5, i + 1, "none")
-            for i in range(19)
-        ]
+        rows = [(2024, 3, "R", f"D{i}", float(i), 0.0, 1.0 / (i + 1), 0.5, i + 1, "none") for i in range(19)]
         rows.append((2024, 3, "R", "VER", 1.0, 0.0, 0.001, 0.01, 1, "none"))
         _write_snapshot_parquet(tmp_path, rows)
         runner = CliRunner()
@@ -230,10 +224,7 @@ class TestDetectOutput:
         assert "surprise_over" in signal_types
 
     def test_each_signal_has_required_keys(self, tmp_path):
-        rows = [
-            (2024, 3, "R", f"D{i}", float(i), 0.0, 1.0 / (i + 1), 0.5, i + 1, "none")
-            for i in range(19)
-        ]
+        rows = [(2024, 3, "R", f"D{i}", float(i), 0.0, 1.0 / (i + 1), 0.5, i + 1, "none") for i in range(19)]
         rows.append((2024, 3, "R", "VER", 1.0, 0.0, 0.001, 0.01, 1, "none"))
         _write_snapshot_parquet(tmp_path, rows)
         runner = CliRunner()
@@ -253,10 +244,7 @@ class TestDetectOutput:
         assert result.exit_code == 0
 
     def test_sprint_session_type_accepted(self, tmp_path):
-        snap_rows = [
-            (2024, 3, "S", f"D{i}", float(i), 0.1, 1.0 / (i + 1), 0.5, i + 1, "none")
-            for i in range(5)
-        ]
+        snap_rows = [(2024, 3, "S", f"D{i}", float(i), 0.1, 1.0 / (i + 1), 0.5, i + 1, "none") for i in range(5)]
         _write_snapshot_parquet(tmp_path, snap_rows)
         runner = CliRunner()
         result = runner.invoke(
@@ -399,14 +387,10 @@ class TestSeasonOutput:
 
     def test_surprise_signal_surfaced_in_season(self, tmp_path):
         # One race with an obvious surprise (expected last, finished first)
-        snap_rows = [
-            (2024, 1, "R", f"D{i}", float(i), 0.0, 1.0 / (i + 1), 0.5, i + 1, "none")
-            for i in range(19)
-        ]
+        snap_rows = [(2024, 1, "R", f"D{i}", float(i), 0.0, 1.0 / (i + 1), 0.5, i + 1, "none") for i in range(19)]
         snap_rows.append((2024, 1, "R", "VER", 1.0, 0.0, 0.001, 0.01, 1, "none"))
         race_rows = [
-            (2024, 1, "R", f"D{i}", None, "Team", i + 1, i + 1, 50, "Finished", "none", False, False)
-            for i in range(19)
+            (2024, 1, "R", f"D{i}", None, "Team", i + 1, i + 1, 50, "Finished", "none", False, False) for i in range(19)
         ]
         race_rows.append((2024, 1, "R", "VER", None, "Team", 20, 1, 50, "Finished", "none", False, False))
         _write_snapshot_parquet(tmp_path, snap_rows)

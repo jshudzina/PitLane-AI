@@ -72,7 +72,8 @@ class TestStoriesDetectCommand:
     def test_workspace_not_found_exits_1(self, mock_exists):
         mock_exists.return_value = False
         result = CliRunner().invoke(
-            stories, ["detect", "--year", "2024", "--round", "5"],
+            stories,
+            ["detect", "--year", "2024", "--round", "5"],
             env={"PITLANE_WORKSPACE_ID": "ghost"},
         )
         assert result.exit_code == 1
@@ -88,9 +89,7 @@ class TestStoriesDetectCommand:
         mock_path.return_value = tmp_path
         mock_detect.return_value = [_make_signal("VER"), _make_signal("HAM", -0.7, "slump")]
 
-        result = CliRunner().invoke(
-            stories, ["detect", "--year", "2024", "--round", "5"], env=_ENV
-        )
+        result = CliRunner().invoke(stories, ["detect", "--year", "2024", "--round", "5"], env=_ENV)
 
         assert result.exit_code == 0
         out = json.loads(result.output)
@@ -107,9 +106,7 @@ class TestStoriesDetectCommand:
         mock_path.return_value = tmp_path
         mock_detect.return_value = [_make_signal()]
 
-        CliRunner().invoke(
-            stories, ["detect", "--year", "2024", "--round", "5"], env=_ENV
-        )
+        CliRunner().invoke(stories, ["detect", "--year", "2024", "--round", "5"], env=_ENV)
 
         output_file = tmp_path / "data" / "stories_2024_5.json"
         assert output_file.exists()
@@ -122,9 +119,7 @@ class TestStoriesDetectCommand:
         mock_path.return_value = tmp_path
         mock_detect.return_value = [_make_signal("VER"), _make_signal("LEC", 0.6)]
 
-        CliRunner().invoke(
-            stories, ["detect", "--year", "2024", "--round", "5"], env=_ENV
-        )
+        CliRunner().invoke(stories, ["detect", "--year", "2024", "--round", "5"], env=_ENV)
 
         payload = json.loads((tmp_path / "data" / "stories_2024_5.json").read_text())
         assert payload["year"] == 2024
@@ -141,9 +136,7 @@ class TestStoriesDetectCommand:
         mock_path.return_value = tmp_path
         mock_detect.return_value = []
 
-        CliRunner().invoke(
-            stories, ["detect", "--year", "2024", "--round", "5"], env=_ENV
-        )
+        CliRunner().invoke(stories, ["detect", "--year", "2024", "--round", "5"], env=_ENV)
 
         payload = json.loads((tmp_path / "data" / "stories_2024_5.json").read_text())
         assert payload["story_count"] == 0
@@ -157,9 +150,7 @@ class TestStoriesDetectCommand:
         mock_path.return_value = tmp_path
         mock_detect.return_value = []
 
-        CliRunner().invoke(
-            stories, ["detect", "--year", "2024", "--round", "5"], env=_ENV
-        )
+        CliRunner().invoke(stories, ["detect", "--year", "2024", "--round", "5"], env=_ENV)
 
         _, kwargs = mock_detect.call_args
         assert kwargs["session_type"] == "R"
@@ -207,9 +198,7 @@ class TestStoriesDetectCommand:
         mock_path.return_value = tmp_path
         mock_detect.return_value = []
 
-        result = CliRunner().invoke(
-            stories, ["detect", "--year", "2024", "--round", "7"], env=_ENV
-        )
+        result = CliRunner().invoke(stories, ["detect", "--year", "2024", "--round", "7"], env=_ENV)
 
         out = json.loads(result.output)
         assert "stories_2024_7.json" in out["data_file"]
@@ -217,16 +206,12 @@ class TestStoriesDetectCommand:
     @patch("pitlane_agent.cli_stories.workspace_exists")
     @patch("pitlane_agent.cli_stories.get_workspace_path")
     @patch("pitlane_elo.stories.signals.detect_stories")
-    def test_detect_stories_exception_exits_1_with_error_json(
-        self, mock_detect, mock_path, mock_exists, tmp_path
-    ):
+    def test_detect_stories_exception_exits_1_with_error_json(self, mock_detect, mock_path, mock_exists, tmp_path):
         mock_exists.return_value = True
         mock_path.return_value = tmp_path
         mock_detect.side_effect = RuntimeError("snapshot missing")
 
-        result = CliRunner().invoke(
-            stories, ["detect", "--year", "2024", "--round", "5"], env=_ENV
-        )
+        result = CliRunner().invoke(stories, ["detect", "--year", "2024", "--round", "5"], env=_ENV)
 
         assert result.exit_code == 1
         err = json.loads(result.output)
@@ -255,7 +240,8 @@ class TestStoriesSeasonCommand:
     def test_workspace_not_found_exits_1(self, mock_exists):
         mock_exists.return_value = False
         result = CliRunner().invoke(
-            stories, ["season", "--year", "2024"],
+            stories,
+            ["season", "--year", "2024"],
             env={"PITLANE_WORKSPACE_ID": "ghost"},
         )
         assert result.exit_code == 1
@@ -270,9 +256,7 @@ class TestStoriesSeasonCommand:
         mock_data_dir.return_value = tmp_path
         mock_entries.return_value = []
 
-        result = CliRunner().invoke(
-            stories, ["season", "--year", "2024"], env=_ENV
-        )
+        result = CliRunner().invoke(stories, ["season", "--year", "2024"], env=_ENV)
 
         assert result.exit_code == 1
         err = json.loads(result.output)
@@ -286,8 +270,14 @@ class TestStoriesSeasonCommand:
     @patch("pitlane_elo.data.group_entries_by_race")
     @patch("pitlane_elo.stories.signals.detect_stories")
     def test_success_stdout_structure(
-        self, mock_detect, mock_group, mock_entries, mock_data_dir,
-        mock_path, mock_exists, tmp_path,
+        self,
+        mock_detect,
+        mock_group,
+        mock_entries,
+        mock_data_dir,
+        mock_path,
+        mock_exists,
+        tmp_path,
     ):
         mock_exists.return_value = True
         mock_path.return_value = tmp_path
@@ -302,9 +292,7 @@ class TestStoriesSeasonCommand:
             [_make_signal("LEC")],
         ]
 
-        result = CliRunner().invoke(
-            stories, ["season", "--year", "2024"], env=_ENV
-        )
+        result = CliRunner().invoke(stories, ["season", "--year", "2024"], env=_ENV)
 
         assert result.exit_code == 0
         out = json.loads(result.output)
@@ -320,8 +308,14 @@ class TestStoriesSeasonCommand:
     @patch("pitlane_elo.data.group_entries_by_race")
     @patch("pitlane_elo.stories.signals.detect_stories")
     def test_writes_season_json_file(
-        self, mock_detect, mock_group, mock_entries, mock_data_dir,
-        mock_path, mock_exists, tmp_path,
+        self,
+        mock_detect,
+        mock_group,
+        mock_entries,
+        mock_data_dir,
+        mock_path,
+        mock_exists,
+        tmp_path,
     ):
         mock_exists.return_value = True
         mock_path.return_value = tmp_path
@@ -341,8 +335,14 @@ class TestStoriesSeasonCommand:
     @patch("pitlane_elo.data.group_entries_by_race")
     @patch("pitlane_elo.stories.signals.detect_stories")
     def test_season_json_payload_structure(
-        self, mock_detect, mock_group, mock_entries, mock_data_dir,
-        mock_path, mock_exists, tmp_path,
+        self,
+        mock_detect,
+        mock_group,
+        mock_entries,
+        mock_data_dir,
+        mock_path,
+        mock_exists,
+        tmp_path,
     ):
         mock_exists.return_value = True
         mock_path.return_value = tmp_path
@@ -370,8 +370,14 @@ class TestStoriesSeasonCommand:
     @patch("pitlane_elo.data.group_entries_by_race")
     @patch("pitlane_elo.stories.signals.detect_stories")
     def test_total_signals_is_sum_across_races(
-        self, mock_detect, mock_group, mock_entries, mock_data_dir,
-        mock_path, mock_exists, tmp_path,
+        self,
+        mock_detect,
+        mock_group,
+        mock_entries,
+        mock_data_dir,
+        mock_path,
+        mock_exists,
+        tmp_path,
     ):
         mock_exists.return_value = True
         mock_path.return_value = tmp_path
@@ -379,8 +385,8 @@ class TestStoriesSeasonCommand:
         mock_entries.return_value = [_make_entry(2024, i) for i in range(1, 4)]
         mock_group.return_value = [[_make_entry(2024, i)] for i in range(1, 4)]
         mock_detect.side_effect = [
-            [_make_signal()],           # round 1: 1 signal
-            [],                         # round 2: 0 signals
+            [_make_signal()],  # round 1: 1 signal
+            [],  # round 2: 0 signals
             [_make_signal(), _make_signal("HAM")],  # round 3: 2 signals
         ]
 
@@ -396,8 +402,14 @@ class TestStoriesSeasonCommand:
     @patch("pitlane_elo.data.group_entries_by_race")
     @patch("pitlane_elo.stories.signals.detect_stories")
     def test_exception_exits_1_with_error_json(
-        self, mock_detect, mock_group, mock_entries, mock_data_dir,
-        mock_path, mock_exists, tmp_path,
+        self,
+        mock_detect,
+        mock_group,
+        mock_entries,
+        mock_data_dir,
+        mock_path,
+        mock_exists,
+        tmp_path,
     ):
         mock_exists.return_value = True
         mock_path.return_value = tmp_path
