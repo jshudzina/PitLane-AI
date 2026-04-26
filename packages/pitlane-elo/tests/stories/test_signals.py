@@ -411,6 +411,28 @@ class TestDetectTrendSignals:
         # Only 2 valid history rows (rounds 3,4) for n=3 → insufficient → no signal
         assert detect_trend_signals(snaps, 2024, 5, n=3, data_dir=tmp_path) == []
 
+    def test_path_with_single_quote_returns_signals(self, tmp_path):
+        # Paths containing single quotes (e.g. /Users/O'Brien/) must not break
+        # the DuckDB query via quote injection in the read_parquet() f-string.
+        normal_dir = tmp_path / "normal"
+        _write_snapshot_parquet(normal_dir, [
+            (2024, 2, "R", "VER", 0.7, 0.1, 0.5, 0.8, 1, "none"),
+            (2024, 3, "R", "VER", 1.0, 0.1, 0.5, 0.8, 1, "none"),
+            (2024, 4, "R", "VER", 1.2, 0.1, 0.5, 0.8, 1, "none"),
+        ])
+        import shutil
+        quoted_dir = tmp_path / "O'Brien"
+        quoted_snapshots = quoted_dir / "elo_snapshots"
+        quoted_snapshots.mkdir(parents=True)
+        shutil.copy(
+            normal_dir / "elo_snapshots" / "snapshots.parquet",
+            quoted_snapshots / "snapshots.parquet",
+        )
+        snaps = [_make_snap("VER", rating=1.5)]
+        signals = detect_trend_signals(snaps, 2024, 5, n=3, data_dir=quoted_dir)
+        hot = [s for s in signals if s.signal_type == "hot_streak"]
+        assert len(hot) == 1
+
     def test_context_includes_lookback_and_rating(self, tmp_path):
         _write_snapshot_parquet(tmp_path, [
             (2024, 2, "R", "VER", 0.7, 0.1, 0.5, 0.8, 1, "none"),
