@@ -5,12 +5,9 @@ from __future__ import annotations
 import json
 from unittest.mock import patch
 
-import pytest
 from click.testing import CliRunner
-from pitlane_elo.stories.signals import StorySignal
-
 from pitlane_agent.cli_stories import stories
-
+from pitlane_elo.stories.signals import StorySignal
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -155,7 +152,7 @@ class TestStoriesDetectCommand:
     @patch("pitlane_agent.cli_stories.workspace_exists")
     @patch("pitlane_agent.cli_stories.get_workspace_path")
     @patch("pitlane_elo.stories.signals.detect_stories")
-    def test_default_session_type_is_R(self, mock_detect, mock_path, mock_exists, tmp_path):
+    def test_default_session_type_is_r(self, mock_detect, mock_path, mock_exists, tmp_path):
         mock_exists.return_value = True
         mock_path.return_value = tmp_path
         mock_detect.return_value = []
@@ -170,7 +167,7 @@ class TestStoriesDetectCommand:
     @patch("pitlane_agent.cli_stories.workspace_exists")
     @patch("pitlane_agent.cli_stories.get_workspace_path")
     @patch("pitlane_elo.stories.signals.detect_stories")
-    def test_session_type_S_forwarded(self, mock_detect, mock_path, mock_exists, tmp_path):
+    def test_session_type_s_forwarded(self, mock_detect, mock_path, mock_exists, tmp_path):
         mock_exists.return_value = True
         mock_path.return_value = tmp_path
         mock_detect.return_value = []

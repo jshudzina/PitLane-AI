@@ -78,8 +78,7 @@ def season(year: int, session_type: str, trend_lookback: int, db_path: str | Non
     Example:
       pitlane-elo stories season --year 2025
     """
-    from pitlane_elo.data import get_data_dir, get_race_entries
-    from pitlane_elo.data import group_entries_by_race
+    from pitlane_elo.data import get_data_dir, get_race_entries, group_entries_by_race
 
     data_dir = Path(db_path) if db_path else get_data_dir()
     entries = get_race_entries(year, data_dir=data_dir, session_type=session_type)

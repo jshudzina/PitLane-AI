@@ -6,10 +6,8 @@ import json
 from pathlib import Path
 
 import duckdb
-import pytest
 from click.testing import CliRunner
 from pitlane_elo.cli_stories import stories
-
 
 # ---------------------------------------------------------------------------
 # Helpers
