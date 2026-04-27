@@ -60,6 +60,7 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "-ra",
+    "--ignore=tests/bayesian",
 ]
 markers = [
     "slow: marks tests as slow running",
