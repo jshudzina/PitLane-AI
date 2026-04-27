@@ -31,6 +31,7 @@ dependencies = [
     "backoff>=2.2.1",
     "duckdb>=1.5.0",
     "scipy>=1.10",
+    "pitlane-elo>=0.4.7",
 ]
 
 [project.scripts]

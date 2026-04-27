@@ -15,6 +15,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from pitlane_elo.calibration import calibrate as run_calibrate
+from pitlane_elo.cli_stories import stories
 from pitlane_elo.config import ENDURE_ELO_DEFAULT, SPEED_ELO_DEFAULT
 from pitlane_elo.data import get_data_dir
 from pitlane_elo.prediction.forecast import compare_models, evaluate_model, run_historical
@@ -723,6 +724,9 @@ def promote(model_name: str) -> None:
     """Promote a trained model artifact to pitlane-agent's data directory."""
     click.echo(f"Promoting {model_name}...")
     click.echo("Not yet implemented.")
+
+
+main.add_command(stories)
 
 
 if __name__ == "__main__":
