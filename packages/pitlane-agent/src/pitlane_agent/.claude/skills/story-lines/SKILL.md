@@ -8,14 +8,6 @@ allowed-tools: Bash(pitlane *), Read, Write
 
 You detect and synthesize ELO-based narrative story angles for F1 races. Story lines are grounded in the calibrated endure-ELO model and represent statistically significant deviations from expectation.
 
-## Prerequisite: ELO Snapshots
-
-Story detection requires pre-computed ELO snapshots. If you get an empty `signals` array, run a snapshot catchup first:
-
-```bash
-pitlane-elo snapshot-catchup
-```
-
 ## Detecting Story Lines
 
 ### For a specific race
@@ -36,7 +28,12 @@ Returns JSON saved to `{workspace}/data/stories_2026_3.json`.
 pitlane stories season --year 2025
 ```
 
-Returns JSON saved to `{workspace}/data/stories_2025_season.json`.
+Returns the top 10 signals (by |value|) across the entire season, saved to `{workspace}/data/stories_2025_season.json`.
+
+**Options:**
+- `--top-n 15` — change how many top signals to write (default 10)
+
+Use `pitlane stories detect --year Y --round R` to get full signal detail for any individual round.
 
 ## Reading the Results
 
@@ -45,6 +42,10 @@ After running the command, read the output file:
 ```
 Read {workspace}/data/stories_2026_3.json
 ```
+
+## Before Interpreting Surprise Signals
+
+After running `pitlane stories detect`, use the **f1-analyst** skill to load the race session before analyzing surprise signals. You need to know the actual grid order, retirements, safety cars, and lap count context before judging whether a surprise result is a story.
 
 ## Signal Types
 
@@ -75,7 +76,8 @@ Each signal has a `signal_type`. Interpret them as follows:
 ### `surprise_under`
 - **What it means:** A driver finished far behind their predicted position (SurpriseScore > 2.0).
 - **Story angle:** Shock retirement, car failure after strong qualifying, strategic disaster.
-- **Note:** Always check `dnf_category` in context — a mechanical DNF is less of a "story" than a crash or strategy error.
+- **`context.status`:** Raw retirement string from the data (e.g., `"Engine"`, `"Collision"`, `"Retired"`). This is your first clue. Note that `dnf_category` is unreliable for 2022+ data — all retirements may be classified as `"retired"` regardless of cause. Do not use it as the final word.
+- **Always use the web-search skill** to find the actual reason behind any DNF: search for `[driver] [grand prix year] DNF` to find FIA reports, team radio, and post-race statements. A "Retired" status with no further context is not a complete story.
 
 ### `teammate_shift`
 - **What it means:** Within-team ELO gap has been consistently one-sided (or just flipped).
@@ -113,7 +115,7 @@ Before finalizing a story line, consider:
 1. **Is this race on a wet or street circuit?** Check `context` fields — wet races and street circuits can inflate/deflate performance deviations.
 2. **Did a Safety Car or red flag affect the result?** Use the `race-control` skill to cross-check surprise signals against race incidents.
 3. **Is the driver new or recently changing teams?** A high k-factor (uncertainty) means the surprise threshold is wider — check `pre_race_k` in context.
-4. **DNF category:** For `surprise_under` signals, check if `dnf_category` is `mechanical` (less informative about driver ability) vs `crash` (more informative).
+4. **DNF reason:** For `surprise_under` signals, check `context.status` for the raw string, then always web-search for the actual cause. `dnf_category` is not reliable for 2022+ data.
 
 ## Signal Priority
 
@@ -121,7 +123,7 @@ When writing story lines, prioritize signals in this order:
 1. **`teammate_shift` with flipped gap** — rarest and most dramatic
 2. **Strong `surprise_over`** (SurpriseScore < −3.0) — unexpected winner or giant-killing
 3. **`hot_streak`** with ΔR̂ > 1.0 — multi-race dominance
-4. **`surprise_under`** where DNF category is `none` (finished but badly underperformed)
+4. **`surprise_under`** where `status` is not a mechanical failure — crash or strategy disaster is more of a story
 5. **`slump`** with ΔR̂ < −1.0 — crisis narrative
 
 ## Notes

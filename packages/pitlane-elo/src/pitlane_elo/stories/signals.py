@@ -228,10 +228,15 @@ def detect_surprise_signals(
     race_snapshots: list[EloSnapshot],
     year: int,
     round_num: int,
+    race_entries: list[RaceEntry] | None = None,
 ) -> list[StorySignal]:
     """Detect outlier results via SurpriseScore = (actual_pos − expected_pos) / σ."""
     if not race_snapshots:
         return []
+
+    entry_status: dict[str, str] = {}
+    if race_entries:
+        entry_status = {e["driver_id"]: e.get("status", "") for e in race_entries}
 
     expected = _expected_positions(race_snapshots)
     signals: list[StorySignal] = []
@@ -259,6 +264,8 @@ def detect_surprise_signals(
                     context={
                         "expected_position": exp_pos,
                         "actual_position": snap.finish_position,
+                        "status": entry_status.get(snap.driver_id, ""),
+                        "dnf_category": snap.dnf_category,
                         "win_probability": round(snap.win_probability, 4),
                         "pre_race_rating": round(snap.pre_race_rating, 4),
                     },
@@ -280,6 +287,8 @@ def detect_surprise_signals(
                     context={
                         "expected_position": exp_pos,
                         "actual_position": snap.finish_position,
+                        "status": entry_status.get(snap.driver_id, ""),
+                        "dnf_category": snap.dnf_category,
                         "win_probability": round(snap.win_probability, 4),
                         "pre_race_rating": round(snap.pre_race_rating, 4),
                     },
@@ -438,7 +447,7 @@ def detect_stories(
                 con=con,
             )
         )
-        signals.extend(detect_surprise_signals(race_snapshots, year, round_num))
+        signals.extend(detect_surprise_signals(race_snapshots, year, round_num, race_entries=race_entries))
         signals.extend(
             detect_teammate_delta(
                 race_snapshots,

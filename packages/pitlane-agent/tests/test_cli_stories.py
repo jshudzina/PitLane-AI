@@ -298,7 +298,7 @@ class TestStoriesSeasonCommand:
         out = json.loads(result.output)
         assert out["year"] == 2024
         assert out["total_races"] == 2
-        assert out["total_signals"] == 3
+        assert out["total_signals_found"] == 3
         assert "data_file" in out
 
     @patch("pitlane_agent.cli_stories.workspace_exists")
@@ -356,12 +356,11 @@ class TestStoriesSeasonCommand:
         payload = json.loads((tmp_path / "data" / "stories_2024_season.json").read_text())
         assert payload["year"] == 2024
         assert payload["total_races"] == 1
-        assert len(payload["races"]) == 1
-        race = payload["races"][0]
-        assert race["year"] == 2024
-        assert race["round"] == 3
-        assert race["story_count"] == 1
-        assert len(race["signals"]) == 1
+        assert "top_n" in payload
+        assert len(payload["signals"]) == 1
+        signal = payload["signals"][0]
+        assert signal["year"] == 2024
+        assert signal["round"] == 3
 
     @patch("pitlane_agent.cli_stories.workspace_exists")
     @patch("pitlane_agent.cli_stories.get_workspace_path")
@@ -393,7 +392,7 @@ class TestStoriesSeasonCommand:
         result = CliRunner().invoke(stories, ["season", "--year", "2024"], env=_ENV)
 
         assert result.exit_code == 0
-        assert json.loads(result.output)["total_signals"] == 3
+        assert json.loads(result.output)["total_signals_found"] == 3
 
     @patch("pitlane_agent.cli_stories.workspace_exists")
     @patch("pitlane_agent.cli_stories.get_workspace_path")

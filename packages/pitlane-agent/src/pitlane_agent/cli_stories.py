@@ -65,9 +65,7 @@ def detect(year: int, round_num: int, session_type: str, trend_lookback: int) ->
             "signals": [s.to_dict() for s in signals],
         }
         if not signals:
-            payload["message"] = (
-                "No story signals detected. Run `pitlane-elo snapshot-catchup` to ensure snapshots are up to date."
-            )
+            payload["message"] = "No story signals detected — snapshots may not exist for this race."
 
         data_dir = workspace_path / "data"
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -95,14 +93,17 @@ def detect(year: int, round_num: int, session_type: str, trend_lookback: int) ->
 @click.option("--year", type=int, required=True, help="Season year.")
 @click.option("--session-type", type=click.Choice(["R", "S"]), default="R", show_default=True)
 @click.option("--trend-lookback", type=int, default=3, show_default=True)
-def season(year: int, session_type: str, trend_lookback: int) -> None:
+@click.option("--top-n", type=int, default=10, show_default=True, help="Top signals to write, ranked by |value|.")
+def season(year: int, session_type: str, trend_lookback: int, top_n: int) -> None:
     """Detect story signals across all races in a season and save to workspace.
 
-    Writes {workspace}/data/stories_{year}_season.json.
+    Collects all signals, ranks by |value|, and writes the top N to
+    {workspace}/data/stories_{year}_season.json.
 
     \b
     Example:
       pitlane stories season --year 2025
+      pitlane stories season --year 2025 --top-n 15
     """
     from pitlane_elo.data import get_data_dir, get_race_entries, group_entries_by_race
     from pitlane_elo.stories.signals import detect_stories
@@ -128,7 +129,7 @@ def season(year: int, session_type: str, trend_lookback: int) -> None:
             sys.exit(1)
 
         races = group_entries_by_race(entries)
-        all_results = []
+        all_signals = []
         for race in races:
             r_year = race[0]["year"]
             r_round = race[0]["round"]
@@ -139,20 +140,17 @@ def season(year: int, session_type: str, trend_lookback: int) -> None:
                 data_dir=data_dir,
                 trend_lookback=trend_lookback,
             )
-            all_results.append(
-                {
-                    "year": r_year,
-                    "round": r_round,
-                    "story_count": len(signals),
-                    "signals": [s.to_dict() for s in signals],
-                }
-            )
+            all_signals.extend(signals)
+
+        all_signals.sort(key=lambda s: abs(s.value), reverse=True)
+        top_signals = all_signals[:top_n]
 
         payload = {
             "year": year,
             "session_type": session_type,
-            "total_races": len(all_results),
-            "races": all_results,
+            "total_races": len(races),
+            "top_n": top_n,
+            "signals": [s.to_dict() for s in top_signals],
         }
 
         out_dir = workspace_path / "data"
@@ -160,14 +158,14 @@ def season(year: int, session_type: str, trend_lookback: int) -> None:
         output_file = out_dir / f"stories_{year}_season.json"
         output_file.write_text(json.dumps(payload, indent=2))
 
-        total_signals = sum(r["story_count"] for r in all_results)
         click.echo(
             json.dumps(
                 {
                     "data_file": str(output_file),
                     "year": year,
-                    "total_races": len(all_results),
-                    "total_signals": total_signals,
+                    "total_races": len(races),
+                    "total_signals_found": len(all_signals),
+                    "top_n_written": len(top_signals),
                 },
                 indent=2,
             )
