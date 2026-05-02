@@ -27,7 +27,11 @@
   3. `pitlane_elo.studio_api` module exists and exposes `detect_stories()`; a cross-package integration test calls it with real (non-mock) data and passes under `uv run --directory packages/pitlane-studio pytest`
   4. `claude-agent-sdk` is pinned to `<0.2.0` in pyproject.toml and any Jinja2 `| safe` outputs pass through `bleach.clean()` — verifiable by code inspection and a unit test asserting sanitization
   5. An article record can be created, transitioned through all four states (`draft` → `outline_generated` → `outline_approved` → `published`), and persisted at `~/.pitlane/studio/articles.db` — verified by a pytest integration test against a real SQLite file
-**Plans**: TBD
+**Plans**: 4 plans
+  - [ ] 01-01-PLAN.md — Wave 0 test scaffold (xfail stubs for all four PKG-* tests + conftest fixtures)
+  - [ ] 01-02-PLAN.md — Wave 1 pitlane-studio package scaffold (pyproject, src layout, FastAPI app + /health, click CLI on port 8001, root workspace registration) [PKG-01]
+  - [ ] 01-03-PLAN.md — Wave 1 pitlane_elo.studio_api boundary module + claude-agent-sdk <0.2.0 pin in pitlane-agent [PKG-02, PKG-03 SDK half]
+  - [ ] 01-04-PLAN.md — Wave 2 bleach safe_html Jinja2 filter + ArticleStore (SQLAlchemy Core + Pydantic + strict state machine) [PKG-03 bleach half, PKG-04]
 
 ### Phase 2: Story Angle Detection + Five-Act Data Layer
 **Goal**: The system surfaces 4–6 ranked, filtered, novel story angle candidates from any completed race using ELO signals, cross-checks driver crisis angles against actual DNF records, gates on data completeness, and has all five-act data fetched and cached — so angle quality is validated independently before the UI makes problems invisible
