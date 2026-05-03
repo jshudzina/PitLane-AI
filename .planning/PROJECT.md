@@ -21,6 +21,14 @@ These capabilities already exist in the codebase and are the foundation the new 
 - ✓ Workspace management — `~/.pitlane/workspaces/<uuid>/` file-based state
 - ✓ FastAPI web server infrastructure — pitlane-web package pattern available to follow
 
+### Validated in Phase 1 (2026-05-03)
+
+- ✓ `pitlane-studio` package — uv workspace member, FastAPI /health, click CLI on port 8001
+- ✓ `pitlane_elo.studio_api` public boundary — `detect_stories(year, round) -> list[StorySignal]`, tested against live 2026 data
+- ✓ `claude-agent-sdk<0.2.0` pin — supply chain drift risk eliminated
+- ✓ `safe_html()` Jinja2 filter — two-pass XSS sanitizer (regex + bleach) returning `markupsafe.Markup`
+- ✓ `ArticleStore` — SQLAlchemy Core, strict state machine (draft→outline_generated→outline_approved→published), SQLite persistence
+
 ### Active
 
 - [ ] Story angle detection layer — maps race ELO signals + telemetry outputs to 4–6 narrative frames per race (e.g. "Dominant Tyre Management," "Comeback Narrative," "Strategic Gamble That Backfired")
@@ -61,10 +69,12 @@ The existing ELO system design document (`docs/F1_ELO_Story_Detection_System_Des
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Separate package (`pitlane-studio`) vs. extending pitlane-web | Co-authoring UI has a fundamentally different interaction model than the chat interface; mixing them creates a confusing product | — Pending |
+| Separate package (`pitlane-studio`) vs. extending pitlane-web | Co-authoring UI has a fundamentally different interaction model than the chat interface; mixing them creates a confusing product | ✓ Validated in Phase 1 |
 | Unofficial Substack API with markdown fallback | No official API exists; unofficial is best available; markdown fallback prevents publisher lock-in | — Pending |
 | v1 = 3 directions only (angle detection, plan-then-write, five-act) | Research doc explicitly prioritizes these; shipping fewer things lets the core loop get validated before adding audience framing, chart pairing, etc. | — Pending |
 | EndureElo as the signal source for story angles | Empirically outperforms speed-Elo and Bayesian model; already implemented and tested | ✓ Good |
+| Two-pass XSS sanitization (regex pre-pass + bleach) | bleach strip=True keeps inner text of script tags; regex pre-pass removes inner content before bleach runs | ✓ Validated in Phase 1 |
+| ArticleStore uses SQLAlchemy Core only (no ORM) | State machine is simple and explicit; ORM adds no value over Core for a 3-field state table | ✓ Validated in Phase 1 |
 
 ## Evolution
 
@@ -84,4 +94,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-02 after initialization*
+*Last updated: 2026-05-03 after Phase 1 completion*
