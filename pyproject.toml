@@ -22,6 +22,7 @@ dependencies = [
     "pitlane-agent",
     "pitlane-elo",
     "pitlane-web",
+    "pitlane-studio",
 ]
 
 [project.urls]
@@ -37,6 +38,7 @@ config-settings = { editable_mode = "compat" }
 pitlane-agent = { workspace = true }
 pitlane-elo = { workspace = true }
 pitlane-web = { workspace = true }
+pitlane-studio = { workspace = true }
 
 [dependency-groups]
 dev = [

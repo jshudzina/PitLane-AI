@@ -7,13 +7,6 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.xfail(
-    reason="pitlane_studio.app not yet implemented (lands in Plan 02)",
-    strict=False,
-    run=True,
-)
-
-
 def test_health_endpoint_returns_200():
     """GET /health returns {'status': 'ok'} with HTTP 200."""
     from fastapi.testclient import TestClient
