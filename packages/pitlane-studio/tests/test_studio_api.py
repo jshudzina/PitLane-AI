@@ -7,12 +7,6 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.xfail(
-    reason="pitlane_elo.studio_api not yet implemented (lands in Plan 03)",
-    strict=False,
-    run=True,
-)
-
 
 def test_detect_stories_latest_2026_race():
     """Integration test: detect_stories() with real cached 2026 data, no mocks."""
