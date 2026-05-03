@@ -1,17 +1,8 @@
-"""PKG-03 unit test — safe_html filter sanitizes XSS via bleach.clean().
-
-XFAIL until Plan 04 creates pitlane_studio.filters.safe_html.
-"""
+"""PKG-03 unit test — safe_html filter sanitizes XSS via bleach.clean()."""
 
 from __future__ import annotations
 
 import pytest
-
-pytestmark = pytest.mark.xfail(
-    reason="pitlane_studio.filters not yet implemented (lands in Plan 04)",
-    strict=False,
-    run=True,
-)
 
 
 def test_script_tag_is_stripped():
@@ -54,3 +45,21 @@ def test_disallowed_block_tag_stripped():
     result = str(safe_html("<div>content</div>"))
     assert "<div>" not in result
     assert "content" in result
+
+
+def test_javascript_protocol_anchor_stripped():
+    """<a href='javascript:...'> protocol is stripped by bleach default ALLOWED_PROTOCOLS."""
+    from pitlane_studio.filters import safe_html
+
+    result = str(safe_html('<a href="javascript:alert(1)">click</a>'))
+    assert "javascript:" not in result
+    assert "click" in result
+
+
+def test_table_tags_preserved():
+    """Markdown table family tags are in ALLOWED_TAGS."""
+    from pitlane_studio.filters import safe_html
+
+    result = str(safe_html("<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>d</td></tr></tbody></table>"))
+    for tag in ["<table>", "<thead>", "<tr>", "<th>", "<tbody>", "<td>"]:
+        assert tag in result
