@@ -1,7 +1,4 @@
-"""PKG-04 integration test — ArticleStore against real SQLite file (no mocks).
-
-XFAIL until Plan 04 creates pitlane_studio.store.article_store.
-"""
+"""PKG-04 integration test — ArticleStore against real SQLite file (no mocks)."""
 
 from __future__ import annotations
 
@@ -9,12 +6,6 @@ import uuid
 from pathlib import Path
 
 import pytest
-
-pytestmark = pytest.mark.xfail(
-    reason="pitlane_studio.store.article_store not yet implemented (lands in Plan 04)",
-    strict=False,
-    run=True,
-)
 
 
 class TestArticleStoreLifecycle:
