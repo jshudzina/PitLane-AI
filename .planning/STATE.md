@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 2
 current_plan: None
-status: Phase 2 executing — Wave 0 active
+status: Phase 2 executing — Wave 1 active
 last_updated: "2026-05-04T00:00:00.000Z"
 progress:
   total_phases: 3
@@ -34,7 +34,7 @@ progress:
 
 ## Current Position
 
-**Phase:** 2 — Story Angle Detection + Five-Act Data Layer (Executing — Wave 0)
+**Phase:** 2 — Story Angle Detection + Five-Act Data Layer (Executing — Wave 1)
 **Plans:** 3 plans in 2 waves (Wave 0 + Wave 1 parallel)
 **Plans complete:** 4/7 (Phase 1 complete; Phase 2 planned, not yet executed)
 

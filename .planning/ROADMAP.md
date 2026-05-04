@@ -44,7 +44,7 @@
   4. Attempting to load angle candidates for a race session less than 2 hours old or with an incomplete lap count returns a clear blocking message and generates no angle candidates
   5. All five-act data (qualifying/grid, lap-1 chaos, pit window, final stint, championship implications) is fetched from pitlane-agent commands and cached on race load; each act's data is accessible as a Python dict keyed by act number — verifiable by a unit test against the static act→command config
 **Plans**: 3 plans
-  - [ ] 02-01-PLAN.md — Wave 0: test stubs (xfail) for ANGL-01..04 and ACT-01..02 + anthropic dep + services/ package init [ANGL-01, ANGL-02, ANGL-03, ANGL-04, ACT-01, ACT-02]
+  - [x] 02-01-PLAN.md — Wave 0: test stubs (xfail) for ANGL-01..04 and ACT-01..02 + anthropic dep + services/ package init [ANGL-01, ANGL-02, ANGL-03, ANGL-04, ACT-01, ACT-02]
   - [ ] 02-02-PLAN.md — Wave 1: FiveActMapper + ACT_CONFIG static dict (5 acts × pitlane-agent commands, workspace_dir for chart commands, in-memory cache) [ACT-01, ACT-02]
   - [ ] 02-03-PLAN.md — Wave 1: AngleService pipeline (AngleCandidate schema, DataNotReadyError gate, ELO cap, novelty filter, DNF cross-check, ranking) [ANGL-01, ANGL-02, ANGL-03, ANGL-04]
 
