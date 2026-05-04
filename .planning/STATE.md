@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 2
 current_plan: None
 status: Phase 1 complete — ready for Phase 2 planning
-last_updated: "2026-05-03T00:00:00.000Z"
+last_updated: "2026-05-04T02:02:31.828Z"
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 4
   completed_plans: 4
-  percent: 33
+  percent: 100
 ---
 
 # Project State: PitLane Studio
@@ -108,6 +108,7 @@ Progress: [ Phase 1 ✓ ] → [ Phase 2 ] → [ Phase 3 ]
 **Verification:** 12/12 must-haves (passed)
 
 What was built:
+
 - `packages/pitlane-studio/` — fully installable uv workspace member (src layout, FastAPI /health, click CLI on port 8001)
 - `pitlane_elo.studio_api` — public boundary with `detect_stories(year, round)` and `StorySignal`
 - `claude-agent-sdk>=0.1.40,<0.2.0` pin in pitlane-agent (resolves 0.1.47)
