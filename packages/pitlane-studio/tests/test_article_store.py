@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from pitlane_studio.store.article_store import ArticleStore
+
 
 class TestArticleStoreLifecycle:
     def test_create_returns_draft(self, tmp_store):
@@ -51,8 +53,6 @@ class TestArticleStoreLifecycle:
 
 class TestArticleStorePersistence:
     def test_articles_db_file_created_in_db_path(self, tmp_db_path: Path):
-        from pitlane_studio.store.article_store import ArticleStore
-
         store = ArticleStore(db_path=tmp_db_path)
         store.create(str(uuid.uuid4()), race_year=2026, race_round=1)
         assert tmp_db_path.exists()
