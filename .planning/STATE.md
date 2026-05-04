@@ -2,21 +2,21 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 2
+current_phase: 3
 current_plan: None
-status: Phase 2 executing — all waves complete, verifying
+status: Phase 2 complete — ready for Phase 3
 last_updated: "2026-05-04T00:00:00.000Z"
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 7
-  completed_plans: 4
-  percent: 57
+  completed_phases: 2
+  total_plans: 8
+  completed_plans: 8
+  percent: 67
 ---
 
 # Project State: PitLane Studio
 
-*Last updated: 2026-05-04 — Phase 2 executing*
+*Last updated: 2026-05-04 — Phase 2 complete*
 
 ---
 
@@ -24,24 +24,24 @@ progress:
 
 **Core Value:** Surface 4–6 data-grounded story angles from any race and guide the journalist through an outline-first drafting pipeline, so writing time goes entirely to voice, context, and quotes — not finding the story.
 
-**Current Focus:** Phase 2 — Story Angle Detection + Five-Act Data Layer
+**Current Focus:** Phase 3 — Plan-Then-Write Pipeline + Co-Authoring UI
 
 **Total Phases:** 3
-**Current Phase:** 2
+**Current Phase:** 3
 **Current Plan:** None
 
 ---
 
 ## Current Position
 
-**Phase:** 2 — Story Angle Detection + Five-Act Data Layer (Executing — Wave 1)
-**Plans:** 3 plans in 2 waves (Wave 0 + Wave 1 parallel)
-**Plans complete:** 4/7 (Phase 1 complete; Phase 2 planned, not yet executed)
+**Phase:** 3 — Plan-Then-Write Pipeline + Co-Authoring UI (Not started)
+**Plans:** TBD
+**Plans complete:** 8/8 (Phases 1 and 2 complete)
 
 ```
-Progress: [ Phase 1 ✓ ] → [ Phase 2 ◆ ] → [ Phase 3 ]
-                                ^
-                              (here)
+Progress: [ Phase 1 ✓ ] → [ Phase 2 ✓ ] → [ Phase 3 ◆ ]
+                                                  ^
+                                                (here)
 ```
 
 ---
@@ -51,10 +51,10 @@ Progress: [ Phase 1 ✓ ] → [ Phase 2 ◆ ] → [ Phase 3 ]
 | Metric | Value |
 |--------|-------|
 | Phases total | 3 |
-| Phases complete | 1 |
+| Phases complete | 2 |
 | v1 requirements | 19 |
 | Requirements mapped | 19 |
-| Requirements complete | 4 (PKG-01, PKG-02, PKG-03, PKG-04) |
+| Requirements complete | 10 (PKG-01..04, ANGL-01..04, ACT-01..02) |
 
 ---
 
@@ -126,8 +126,24 @@ What was built:
 3. Read `.planning/REQUIREMENTS.md` — ANGL-01..04, ACT-01..02 requirements for Phase 2
 4. Run `/gsd-discuss-phase 2` to gather context before planning
 
-**Next action:** Run `/gsd-execute-phase 2` to execute Phase 2 (plans ready — Wave 0 → Wave 1 parallel).
+**Next action:** Run `/gsd-discuss-phase 3` to gather context before planning Phase 3.
 
 ---
 
-*State initialized: 2026-05-02 | Phase 1 complete: 2026-05-03*
+## Phase 2 Completion Summary
+
+**Completed:** 2026-05-04
+**Plans executed:** 4/4 (Waves 0, 1, 2 + gap-closure)
+**Tests:** 42 passed, 2 skipped (expected live-data integration skips)
+**Verification:** 6/6 must-haves (passed)
+
+What was built:
+
+- `pitlane_studio.services.angles` — `AngleService`, `AngleCandidate` (Pydantic), `DataNotReadyError`; full pipeline: data gate → ELO signals → non-ELO signals → DNF cross-check (web search, retry loop) → novelty filter → rank → return 4–6 candidates
+- `pitlane_studio.services.five_act` — `ACT_CONFIG` static dict mapping 5 acts to pitlane-agent commands; `FiveActMapper.fetch_act_data()` with in-memory cache
+- `_check_dnf` uses `tool_types = ["web_search_20250305", "web_search"]` retry loop; `BadRequestError` caught and retried with fallback tool type
+- All imports at module top in both test files; `pytest.importorskip` at module scope for optional integration test
+
+---
+
+*State initialized: 2026-05-02 | Phase 1 complete: 2026-05-03 | Phase 2 complete: 2026-05-04*
