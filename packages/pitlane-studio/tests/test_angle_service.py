@@ -1,27 +1,17 @@
-"""ANGL-01..04 tests — AngleService, AngleCandidate, DataNotReadyError.
-
-XFAIL until Plan 03 creates pitlane_studio.services.angles.
-All imports are at the top of each test function to avoid import errors
-while the module does not yet exist; the pytestmark covers expected failures.
-"""
+"""ANGL-01..04 tests — AngleService, AngleCandidate, DataNotReadyError."""
 
 from __future__ import annotations
 
 import pytest
+from pitlane_elo.stories.signals import StorySignal
 
-pytestmark = pytest.mark.xfail(
-    reason="pitlane_studio.services.angles not yet implemented (lands in Plan 03)",
-    strict=False,
-    run=True,
-)
+from pitlane_studio.services.angles import AngleCandidate, AngleService, DataNotReadyError
 
 
 class TestAngleCandidateSchema:
     """ANGL-01: AngleCandidate Pydantic schema accepts all required fields."""
 
     def test_valid_fields_accepted(self):
-        from pitlane_studio.services.angles import AngleCandidate
-
         candidate = AngleCandidate(
             angle_id="abc123",
             name="Hamilton hot streak",
@@ -35,8 +25,6 @@ class TestAngleCandidateSchema:
         assert candidate.dnf_suppressed is False
 
     def test_signal_type_is_string(self):
-        from pitlane_studio.services.angles import AngleCandidate
-
         candidate = AngleCandidate(
             angle_id="x",
             name="n",
@@ -54,8 +42,6 @@ class TestDataGate:
     def test_data_gate_too_fresh(self, mocker):
         """get_angles() raises DataNotReadyError for a race session < 2 hours old."""
         from datetime import UTC, date, datetime
-
-        from pitlane_studio.services.angles import AngleService, DataNotReadyError
 
         today = date.today()
         mock_session = {
@@ -75,8 +61,6 @@ class TestDataGate:
     def test_data_gate_incomplete_laps(self, mocker):
         """get_angles() raises DataNotReadyError when lap count < 90% scheduled."""
         from datetime import date, timedelta
-
-        from pitlane_studio.services.angles import AngleService, DataNotReadyError
 
         old_date = date(2025, 3, 16)
         mock_session = {
@@ -99,8 +83,6 @@ class TestDataGate:
 
     def test_data_not_ready_has_message_attribute(self):
         """DataNotReadyError.message is a str."""
-        from pitlane_studio.services.angles import DataNotReadyError
-
         err = DataNotReadyError("Race data not ready")
         assert err.message == "Race data not ready"
 
@@ -110,8 +92,6 @@ class TestEloTypeCap:
 
     def test_top_2_per_elo_signal_type(self):
         """More than 2 signals of the same ELO type → only top 2 survive by confidence."""
-        from pitlane_studio.services.angles import AngleCandidate, AngleService
-
         # Build 3 hot_streak candidates
         candidates = [
             AngleCandidate(
@@ -133,8 +113,6 @@ class TestEloTypeCap:
 
     def test_non_elo_signals_not_capped(self):
         """wildness/standings_shift/lap1_chaos signals are not affected by ELO cap."""
-        from pitlane_studio.services.angles import AngleCandidate, AngleService
-
         candidates = [
             AngleCandidate(
                 angle_id="w1",
@@ -164,10 +142,6 @@ class TestNoveltyFilter:
 
     def test_novelty_filter_suppresses_repeated_driver_signal(self, mocker):
         """Candidate with same (driver_id, signal_type) as prior round is suppressed."""
-        from pitlane_elo.stories.signals import StorySignal
-
-        from pitlane_studio.services.angles import AngleCandidate, AngleService
-
         current = AngleCandidate(
             angle_id="a1",
             name="Hamilton hot streak",
@@ -204,8 +178,6 @@ class TestNoveltyFilter:
 
     def test_novelty_filter_passes_new_driver_signal(self, mocker):
         """Candidate with no prior occurrence passes through novelty filter."""
-        from pitlane_studio.services.angles import AngleCandidate, AngleService
-
         current = AngleCandidate(
             angle_id="b1",
             name="Verstappen slump",
@@ -234,7 +206,6 @@ class TestDnfCheck:
     def test_dnf_check_only_for_crisis_types(self, mocker):
         """hot_streak signal does NOT trigger a DNF API call."""
         mock_create = mocker.patch("anthropic.Anthropic")
-        from pitlane_studio.services.angles import AngleService
 
         service = AngleService()
         # hot_streak should not call anthropic at all
@@ -255,8 +226,6 @@ class TestDnfCheck:
         """Second call for same (year, round, driver_id) uses cache, no new API call."""
         import json
 
-        from anthropic.types import Message, TextBlock
-
         mock_response = mocker.MagicMock()
         mock_response.content = [
             mocker.MagicMock(type="text", text='{"dnf": false, "reason": "finished race"}')
@@ -264,8 +233,6 @@ class TestDnfCheck:
         mock_client = mocker.MagicMock()
         mock_client.messages.create.return_value = mock_response
         mocker.patch("anthropic.Anthropic", return_value=mock_client)
-
-        from pitlane_studio.services.angles import AngleService
 
         service = AngleService()
         service._check_dnf(year=2026, round_num=5, driver_id="hamilton", race_name="Bahrain")
@@ -275,16 +242,12 @@ class TestDnfCheck:
 
     def test_dnf_suppression(self, mocker):
         """slump signal for a confirmed DNF driver is excluded from results."""
-        from pitlane_studio.services.angles import AngleService
-
         mocker.patch(
             "pitlane_studio.services.angles.AngleService._check_dnf",
             return_value=True,
         )
         service = AngleService()
         # _apply_dnf_filter should exclude slump candidates where DNF=True
-        from pitlane_studio.services.angles import AngleCandidate
-
         slump_candidate = AngleCandidate(
             angle_id="s1",
             name="Hamilton slump",
@@ -318,8 +281,6 @@ class TestGetAnglesIntegration:
             pytest.skip("No 2026 race data cached")
 
         latest_round = max(e["round"] for e in entries)
-
-        from pitlane_studio.services.angles import AngleCandidate, AngleService
 
         service = AngleService()
         try:
