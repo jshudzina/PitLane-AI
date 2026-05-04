@@ -29,6 +29,7 @@ dependencies = [
     "httpx>=0.27",
     "pitlane-elo",
     "pitlane-agent",
+    "anthropic>=0.97.0",
 ]
 
 [project.scripts]
