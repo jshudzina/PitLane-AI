@@ -530,16 +530,12 @@ class AngleService:
                 result.append(candidate)
         return result
 
-    def _check_dnf(
-        self, year: int, round_num: int, driver_id: str, race_name: str
-    ) -> bool:
-        """Check whether driver DNF'd via Claude API web search (D-08).
+    def _check_dnf(self, year: int, round_num: int, driver_id: str, race_name: str) -> bool:
+        """Check via web search whether the driver DNF'd in the given race.
 
-        Uses in-memory cache to avoid duplicate API calls (D-09).
-        Model: claude-haiku-4-5 (fast binary classification).
-
-        If ANTHROPIC_API_KEY is not set, AuthenticationError is caught and
-        the check returns False (conservative: do not suppress without confirmation).
+        Tries tool type "web_search_20250305" first; on BadRequestError falls back
+        to "web_search".  On AuthenticationError (no API key) returns False
+        conservatively.  All other exceptions default to False with a logged trace.
 
         Per Pitfall 6: web search tool type string may vary by SDK version.
         Initial attempt: "web_search_20250305". On 400 error, fall back to "web_search".
@@ -549,40 +545,46 @@ class AngleService:
             return self._dnf_cache[cache_key]
 
         result = False
-        try:
-            client = anthropic.Anthropic()
-            prompt = (
-                f'Did {driver_id} DNF or retire in the {race_name} {year} Formula 1 race? '
-                f'Respond with ONLY valid JSON: {{"dnf": true, "reason": "brief"}} '
-                f'or {{"dnf": false, "reason": "finished"}}'
-            )
-            response = client.messages.create(
-                model="claude-haiku-4-5",
-                max_tokens=150,
-                tools=[{"type": "web_search_20250305", "name": "web_search"}],
-                messages=[{"role": "user", "content": prompt}],
-            )
-            # Find text content block and extract JSON
-            for block in response.content:
-                if hasattr(block, "type") and block.type == "text":
-                    text = block.text.strip()
-                    # Extract JSON if surrounded by explanation text
-                    start = text.find("{")
-                    end = text.rfind("}") + 1
-                    if start >= 0 and end > start:
-                        parsed = json.loads(text[start:end])
-                        result = bool(parsed.get("dnf", False))
-                    break
-        except anthropic.AuthenticationError:
-            logger.warning(
-                "ANTHROPIC_API_KEY not set — skipping DNF check for %s %d R%d",
-                driver_id, year, round_num,
-            )
-        except Exception:
-            logger.exception(
-                "DNF check failed for %s %d R%d — defaulting to False",
-                driver_id, year, round_num,
-            )
+        client = anthropic.Anthropic()
+        prompt = (
+            f'Did {driver_id} DNF or retire in the {race_name} {year} Formula 1 race? '
+            f'Respond with ONLY valid JSON: {{"dnf": true, "reason": "brief"}} '
+            f'or {{"dnf": false, "reason": "finished"}}'
+        )
+        tool_types = ["web_search_20250305", "web_search"]
+        for tool_type in tool_types:
+            try:
+                response = client.messages.create(
+                    model="claude-haiku-4-5",
+                    max_tokens=150,
+                    tools=[{"type": tool_type, "name": "web_search"}],
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                for block in response.content:
+                    if hasattr(block, "type") and block.type == "text":
+                        text = block.text.strip()
+                        start = text.find("{")
+                        end = text.rfind("}") + 1
+                        if start >= 0 and end > start:
+                            parsed = json.loads(text[start:end])
+                            result = bool(parsed.get("dnf", False))
+                        break
+                break  # success — stop trying tool types
+            except anthropic.BadRequestError:
+                logger.warning("web_search tool type %r rejected — trying fallback", tool_type)
+                continue
+            except anthropic.AuthenticationError:
+                logger.warning(
+                    "ANTHROPIC_API_KEY not set — skipping DNF check for %s %d R%d",
+                    driver_id, year, round_num,
+                )
+                break
+            except Exception:
+                logger.exception(
+                    "DNF check failed for %s %d R%d — defaulting to False",
+                    driver_id, year, round_num,
+                )
+                break
 
         self._dnf_cache[cache_key] = result
         return result

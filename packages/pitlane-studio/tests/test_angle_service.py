@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+import json
+from datetime import UTC, date, datetime, timedelta
+
+import anthropic
 import pytest
 from pitlane_elo.stories.signals import StorySignal
 
 from pitlane_studio.services.angles import AngleCandidate, AngleService, DataNotReadyError
+
+get_race_entries = pytest.importorskip(
+    "pitlane_elo.data", reason="pitlane_elo not available"
+).get_race_entries
 
 
 class TestAngleCandidateSchema:
@@ -41,11 +49,21 @@ class TestDataGate:
 
     def test_data_gate_too_fresh(self, mocker):
         """get_angles() raises DataNotReadyError for a race session < 2 hours old."""
-        from datetime import UTC, date, datetime
+        # Use a fixed past date so the test is not time-of-day sensitive.
+        # Subclass datetime to override now() so the gate fires regardless of
+        # when this test actually runs.
+        race_date = date(2026, 3, 16)
+        # Race ends at 16:00 UTC; inject now=17:00 UTC (within 2-hour window)
+        fake_now = datetime(2026, 3, 16, 17, 0, tzinfo=UTC)
 
-        today = date.today()
+        class _FakeDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):  # type: ignore[override]
+                return fake_now
+
+        mocker.patch("pitlane_studio.services.angles.datetime", _FakeDatetime)
         mock_session = {
-            "date": today.isoformat(),
+            "date": race_date.isoformat(),
             "total_laps": 57,
             "circuit_length_km": 5.35,
         }
@@ -60,8 +78,6 @@ class TestDataGate:
 
     def test_data_gate_incomplete_laps(self, mocker):
         """get_angles() raises DataNotReadyError when lap count < 90% scheduled."""
-        from datetime import date, timedelta
-
         old_date = date(2025, 3, 16)
         mock_session = {
             "date": old_date.isoformat(),
@@ -224,8 +240,6 @@ class TestDnfCheck:
 
     def test_dnf_cache_prevents_duplicate_calls(self, mocker):
         """Second call for same (year, round, driver_id) uses cache, no new API call."""
-        import json
-
         mock_response = mocker.MagicMock()
         mock_response.content = [
             mocker.MagicMock(type="text", text='{"dnf": false, "reason": "finished race"}')
@@ -265,17 +279,39 @@ class TestDnfCheck:
         )
         assert len(result) == 0
 
+    def test_dnf_check_falls_back_to_web_search_on_bad_request(self, mocker):
+        """_check_dnf retries with 'web_search' when 'web_search_20250305' raises BadRequestError."""
+        mock_response = mocker.MagicMock()
+        mock_response.content = [
+            mocker.MagicMock(type="text", text='{"dnf": false, "reason": "finished race"}')
+        ]
+        mock_client = mocker.MagicMock()
+        # First call (web_search_20250305) raises BadRequestError; second call (web_search) succeeds
+        mock_client.messages.create.side_effect = [
+            anthropic.BadRequestError(
+                message="unknown tool type",
+                response=mocker.MagicMock(status_code=400),
+                body={"error": {"type": "invalid_request_error"}},
+            ),
+            mock_response,
+        ]
+        mocker.patch("anthropic.Anthropic", return_value=mock_client)
+
+        service = AngleService()
+        result = service._check_dnf(year=2026, round_num=5, driver_id="hamilton", race_name="Bahrain")
+
+        assert isinstance(result, bool)
+        assert mock_client.messages.create.call_count == 2
+        # Second call used the fallback tool type
+        second_call_tools = mock_client.messages.create.call_args_list[1][1]["tools"]
+        assert second_call_tools[0]["type"] == "web_search"
+
 
 class TestGetAnglesIntegration:
     """ANGL-01 integration test — requires real ELO snapshots; skipped if absent."""
 
     def test_get_angles_returns_candidates(self):
         """get_angles() returns 4–6 AngleCandidate instances for a completed race."""
-        try:
-            from pitlane_elo.data import get_race_entries
-        except ImportError:
-            pytest.skip("pitlane_elo not available")
-
         entries = get_race_entries(2026, session_type="R")
         if not entries:
             pytest.skip("No 2026 race data cached")
