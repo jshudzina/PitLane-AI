@@ -6,7 +6,6 @@ import uuid
 from pathlib import Path
 
 import pytest
-
 from pitlane_studio.store.article_store import ArticleStore
 
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from markupsafe import Markup
-
 from pitlane_studio.filters import safe_html
 
 
