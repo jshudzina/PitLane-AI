@@ -21,7 +21,7 @@
 
 ### Five-Act Race Timeline
 
-- [ ] **ACT-01**: System maps Bouzarth et al.'s five dramatic acts to specific pitlane-agent commands via static Python config (act 1: qualifying/grid → `session-info` + `position-changes`; act 2: lap-1 chaos → `race-control` + `position-changes`; act 3: pit window → `tyre-strategy` + `race-control`; act 4: final stint → `lap-times` + `position-changes`; act 5: implications → `standings`)
+- [ ] **ACT-01**: System maps Bouzarth et al.'s five dramatic acts to specific pitlane-agent commands via static Python config (act 1: qualifying/grid → `session-info` + `qualifying-results`; act 2: lap-1 chaos → `race-control` + `position-changes`; act 3: pit window → `tyre-strategy` + `race-control`; act 4: final stint → `lap-times` + `position-changes`; act 5: implications → `standings`). Note: act 1 uses `qualifying-results` (not `position-changes`) per CONTEXT.md D-12 — qualifying grid context is more relevant to act 1 than position changes, which belong in acts 2 and 4.
 - [ ] **ACT-02**: System fetches and caches act-specific data on race load; data is available as grounding context when generating outline and beat prose
 - [ ] **ACT-03**: User sees an always-visible five-act sidebar in the co-authoring UI showing act labels, mapped data sources, and key data points per act
 

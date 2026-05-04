@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pitlane_agent.commands.analyze.qualifying_results import generate_qualifying_results_chart
 from pitlane_agent.commands.analyze.tyre_strategy import generate_tyre_strategy_chart
 from pitlane_agent.commands.fetch.driver_standings import get_driver_standings
 from pitlane_agent.commands.fetch.session_info import get_session_info
@@ -41,6 +42,13 @@ class TestActConfigStructure:
 
     def test_act1_includes_session_info_command(self):
         assert get_session_info in ACT_CONFIG[1]["commands"]
+
+    def test_act1_second_command_is_qualifying_results(self):
+        """ACT-01: Act 1 second command is generate_qualifying_results_chart, not position-changes."""
+        commands = ACT_CONFIG[1]["commands"]
+        assert generate_qualifying_results_chart in commands, (
+            f"Expected generate_qualifying_results_chart in act 1 commands, got: {commands}"
+        )
 
     def test_act3_includes_tyre_strategy_command(self):
         assert generate_tyre_strategy_chart in ACT_CONFIG[3]["commands"]
