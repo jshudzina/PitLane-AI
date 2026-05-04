@@ -43,7 +43,10 @@
   3. A driver crisis angle (slump, underperformance) is suppressed and replaced with a user-facing message when a web search confirms the driver DNF/retired that race — FastF1 DNF classification is explicitly not used for this check
   4. Attempting to load angle candidates for a race session less than 2 hours old or with an incomplete lap count returns a clear blocking message and generates no angle candidates
   5. All five-act data (qualifying/grid, lap-1 chaos, pit window, final stint, championship implications) is fetched from pitlane-agent commands and cached on race load; each act's data is accessible as a Python dict keyed by act number — verifiable by a unit test against the static act→command config
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 02-01-PLAN.md — Wave 0: test stubs (xfail) for ANGL-01..04 and ACT-01..02 + anthropic dep + services/ package init [ANGL-01, ANGL-02, ANGL-03, ANGL-04, ACT-01, ACT-02]
+  - [ ] 02-02-PLAN.md — Wave 1: FiveActMapper + ACT_CONFIG static dict (5 acts × pitlane-agent commands, workspace_dir for chart commands, in-memory cache) [ACT-01, ACT-02]
+  - [ ] 02-03-PLAN.md — Wave 1: AngleService pipeline (AngleCandidate schema, DataNotReadyError gate, ELO cap, novelty filter, DNF cross-check, ranking) [ANGL-01, ANGL-02, ANGL-03, ANGL-04]
 
 ### Phase 3: Plan-Then-Write Pipeline + Co-Authoring UI
 **Goal**: A journalist can select a race, choose an angle, review and approve a structured outline, receive beat-by-beat AI prose with enforced placeholder hooks, edit in a block editor, see the five-act sidebar, and copy a clean markdown export — so the complete writing workflow is usable end to end
@@ -66,7 +69,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Package Scaffold + Prerequisites | 4/4 | Complete | 2026-05-03 |
-| 2. Story Angle Detection + Five-Act Data Layer | 0/? | Not started | - |
+| 2. Story Angle Detection + Five-Act Data Layer | 0/3 | Not started | - |
 | 3. Plan-Then-Write Pipeline + Co-Authoring UI | 0/? | Not started | - |
 
 ---
