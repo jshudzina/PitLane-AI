@@ -105,9 +105,7 @@ class ArticleStore:
     def get(self, article_id: str) -> ArticleRecord:
         """Return the article record. Raises ValueError if not found."""
         with self._engine.connect() as conn:
-            row = conn.execute(
-                articles_table.select().where(articles_table.c.id == article_id)
-            ).fetchone()
+            row = conn.execute(articles_table.select().where(articles_table.c.id == article_id)).fetchone()
         if row is None:
             raise ValueError(f"Article {article_id!r} not found")
         return ArticleRecord(
@@ -120,23 +118,16 @@ class ArticleStore:
             updated_at=row.updated_at,
         )
 
-    def transition_status(
-        self, article_id: str, target_status: str
-    ) -> ArticleRecord:
+    def transition_status(self, article_id: str, target_status: str) -> ArticleRecord:
         """Advance article to target_status. Raises ValueError on illegal transition."""
         with self._engine.begin() as conn:
-            row = conn.execute(
-                articles_table.select().where(articles_table.c.id == article_id)
-            ).fetchone()
+            row = conn.execute(articles_table.select().where(articles_table.c.id == article_id)).fetchone()
             if row is None:
                 raise ValueError(f"Article {article_id!r} not found")
             current = row.status
             expected = _TRANSITIONS.get(current)
             if expected != target_status:
-                raise ValueError(
-                    f"Invalid transition: {current!r} -> {target_status!r}. "
-                    f"Expected: {expected!r}"
-                )
+                raise ValueError(f"Invalid transition: {current!r} -> {target_status!r}. Expected: {expected!r}")
             conn.execute(
                 articles_table.update()
                 .where(articles_table.c.id == article_id)

@@ -19,11 +19,39 @@ from markupsafe import Markup
 logger = logging.getLogger(__name__)
 
 # Tags appropriate for markdown-to-HTML output (block + inline + table)
-_MARKDOWN_TAGS: frozenset[str] = frozenset({
-    "a", "abbr", "acronym", "b", "blockquote", "br", "code", "em",
-    "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p",
-    "pre", "s", "strong", "table", "tbody", "td", "th", "thead", "tr", "ul",
-})
+_MARKDOWN_TAGS: frozenset[str] = frozenset(
+    {
+        "a",
+        "abbr",
+        "acronym",
+        "b",
+        "blockquote",
+        "br",
+        "code",
+        "em",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "hr",
+        "i",
+        "li",
+        "ol",
+        "p",
+        "pre",
+        "s",
+        "strong",
+        "table",
+        "tbody",
+        "td",
+        "th",
+        "thead",
+        "tr",
+        "ul",
+    }
+)
 
 _MARKDOWN_ATTRS: dict[str, list[str]] = {
     "a": ["href", "title"],
