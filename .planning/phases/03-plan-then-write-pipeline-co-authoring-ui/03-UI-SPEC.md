@@ -1,7 +1,8 @@
 ---
 phase: 3
 slug: plan-then-write-pipeline-co-authoring-ui
-status: draft
+status: approved
+reviewed_at: 2026-05-05
 shadcn_initialized: false
 preset: none
 created: 2026-05-05
@@ -53,16 +54,16 @@ Exceptions:
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 15px | 400 | 1.6 |
-| Label | 13px | 500 | 1.4 |
+| Label | 13px | 400 | 1.4 |
 | Heading | 20px | 600 | 1.2 |
-| Display | 28px | 700 | 1.15 |
+| Display | 28px | 600 | 1.15 |
 
 Notes:
 - Body 15px (not 16px) reduces visual weight in a data-dense two-panel layout
-- Label 13px at weight 500 used for: confidence badges, signal type chips, act labels, data anchor text
+- Label 13px at weight 400 used for: confidence badges, signal type chips, act labels, data anchor text — visual distinction from body is served by size (13px vs 15px)
 - Heading 20px used for: angle card titles, beat section headers, panel titles
 - Display 28px reserved for: page-level article title only
-- Monospace exception: data rationale text in angle cards and data anchor text in outline beats uses `'Menlo', 'Consolas', monospace` at 12px / weight 400 / line-height 1.5 — visually distinguishes data from prose
+- Monospace exception: data rationale text in angle cards, data anchor text in outline beats, and key data points in the five-act sidebar use `'Menlo', 'Consolas', monospace` at 13px / weight 400 / line-height 1.5 — visual distinction from prose is served by font-family, not size
 
 ---
 
@@ -160,13 +161,13 @@ Two chained `<select>` dropdowns: Year (2023–current) then Round (1–N for se
 Grid layout: 2 columns, gap 16px. Each card: 200px min-height, `#242424` background, `#2e2e2e` border, border-radius 8px, padding 16px.
 
 Card anatomy (top to bottom):
-1. Signal type chip — 13px label weight 500, background `#1a1a1a`, border `#2e2e2e`, padding 4px 8px, border-radius 4px — text shows signal type (e.g. "SurpriseScore", "ΔR̂")
+1. Signal type chip — 13px label weight 400, background `#1a1a1a`, border `#2e2e2e`, padding 4px 8px, border-radius 4px — text shows signal type (e.g. "SurpriseScore", "ΔR̂")
 2. Angle name — 20px heading weight 600, `#e0e0e0`, margin-top 8px
 3. Confidence badge — inline, right of heading row: pill shape, 3 variants:
    - High (≥0.7): background `rgba(58, 122, 74, 0.3)`, text `#6acc8a`, label "HIGH"
    - Medium (0.4–0.69): background `rgba(160, 120, 40, 0.3)`, text `#ccaa44`, label "MED"
    - Low (<0.4): background `rgba(120, 60, 60, 0.3)`, text `#cc8888`, label "LOW"
-4. Data rationale — 12px monospace, `#999999`, line-height 1.5, margin-top 8px, max 3 lines with `text-overflow: ellipsis` on overflow
+4. Data rationale — 13px monospace weight 400, `#999999`, line-height 1.5, margin-top 8px, max 3 lines with `text-overflow: ellipsis` on overflow
 
 Selected state: accent border `#e10600` (2px), box-shadow `0 0 0 1px #e10600`, background `rgba(225, 6, 0, 0.06)`.
 
@@ -189,20 +190,22 @@ Displayed in main content area during Stage 2. Full-width within content area.
 Panel header: "Review Your Outline" (20px heading), subtitle "Edit beat titles and data anchors before approving. You cannot change these after approval." (13px label, `#999999`).
 
 Beat list: vertical stack, gap 12px. Each beat row:
-- Beat number badge: circular, 24px, `#1a1a1a` background, `#999999` text, 13px weight 500
+- Beat number badge: circular, 24px, `#1a1a1a` background, `#999999` text, 13px weight 400
 - Beat title: editable `<input>`, full-width minus badge, 15px body weight 400, `#e0e0e0`, background `#1a1a1a`, border `#2e2e2e`, border-radius 4px, padding 8px 12px; focus border `#e10600`
-- Data anchors: editable `<textarea>`, 12px monospace, `#999999`, background `#141414`, border `#252525`, border-radius 4px, padding 8px 12px, min-height 56px; focus border `#e10600`
-- Add/remove controls: "Add Beat" link-button (13px, `#999999`, plus icon) at bottom of list; remove icon (trash, 16px `#555555`) at right of each beat row — red on hover `#cf4444`
+- Data anchors: editable `<textarea>`, 13px monospace weight 400, `#999999`, background `#141414`, border `#252525`, border-radius 4px, padding 8px 12px, min-height 56px; focus border `#e10600`
+- Add/remove controls: "Add Beat" link-button (13px, `#999999`, plus icon) at bottom of list; remove icon (trash, 16px `#555555`, aria-label="Remove beat") at right of each beat row — red on hover `#cf4444`
 - Beat count constraint: minimum 1 beat, maximum 8 beats; "Add Beat" button is disabled (greyed) at 8
 
 Reorder: up/down arrow icon buttons (16px, `#555555`) on each beat row — not drag-and-drop (CM-02 is deferred v2).
+- Up arrow: aria-label="Move beat up"
+- Down arrow: aria-label="Move beat down"
 
 ### Approve Outline Button (PTW-02, UI-03)
 
 This is the hard gate UI element. Must be the most visually prominent element in Stage 2.
 
 - Label: "Approve Outline and Generate Prose" (see Copywriting Contract)
-- Style: background `#e10600`, text `#ffffff`, weight 700, 15px, height 48px (above minimum), border-radius 6px, padding 0 32px
+- Style: background `#e10600`, text `#ffffff`, weight 600, 15px, height 48px (above minimum), border-radius 6px, padding 0 32px
 - Placement: below beat list, full-width container with 48px top margin (visual breathing room)
 - Gate warning text above button: "Once approved, you cannot edit beats. Prose generation will begin immediately." — 13px, `#999999`, italic, margin-bottom 12px
 - Loading state: spinner, label "Generating Beat 1 of N..."
@@ -212,14 +215,14 @@ This is the hard gate UI element. Must be the most visually prominent element in
 
 Always visible in right sidebar column (260px wide). Sticky positioning within the sidebar scroll container.
 
-Sidebar header: "Five Acts" — 13px label weight 500, `#999999`, uppercase, letter-spacing 0.08em.
+Sidebar header: "Five Acts" — 13px label weight 400, `#999999`, uppercase, letter-spacing 0.08em.
 
 Each act: stacked vertically, divider line `#2e2e2e` between acts.
 
 Act row anatomy:
-- Act number + label: 13px weight 500, `#e0e0e0` — e.g. "Act 1 — Grid & Qualifying"
-- Data sources: 12px, `#999999`, comma-separated command names — e.g. "session-info, qualifying-results"
-- Key data point: 12px monospace, `#777777`, 2-line max, ellipsis on overflow — populated from `FiveActMapper.fetch_act_data()` result
+- Act number + label: 13px weight 400, `#e0e0e0` — e.g. "Act 1 — Grid & Qualifying"
+- Data sources: 13px, `#999999`, comma-separated command names — e.g. "session-info, qualifying-results"
+- Key data point: 13px monospace weight 400, `#777777`, 2-line max, ellipsis on overflow — populated from `FiveActMapper.fetch_act_data()` result
 - Empty state (before race selected): each act shows "—" for data sources and key data point in `#444444`
 
 Act labels (from ACT_CONFIG):
@@ -237,7 +240,7 @@ Layout: vertical stack of beat blocks, each beat in its own contained section.
 
 Beat section anatomy:
 1. Beat header bar (40px, background `#1a1a1a`, border-bottom `#2e2e2e`):
-   - Beat number + title (13px label weight 500, `#e0e0e0`)
+   - Beat number + title (13px label weight 400, `#e0e0e0`)
    - TipTap toolbar (bold, italic, only — minimal toolbar; no heading levels in beat prose)
 2. TipTap editor canvas (background `#0f0f0f`, padding 16px 20px, min-height 120px)
 3. Beat footer bar (32px, background `#141414`, border-top `#252525`): word count label (13px, `#555555`)
@@ -263,12 +266,12 @@ Three node types:
 
 Visual treatment for all three:
 - Display: `inline-block`
-- Font: 12px monospace weight 500
+- Font: 13px monospace weight 400
 - Padding: 2px 8px
 - Border-radius: 3px
 - Border: 1px solid (type-specific color above)
 - Cursor: `default` (non-editable node — journalist replaces the whole node with their prose)
-- Icon: 12px icon left of label — `quote-icon` / `info-circle` / `git-merge` from Lucide
+- Icon: 13px icon left of label — `quote-icon` / `info-circle` / `git-merge` from Lucide
 
 In markdown export (`XPRT-01`), these render as:
 - `placeholderQuote` → `[JOURNALIST: quote]`
@@ -279,7 +282,7 @@ In markdown export (`XPRT-01`), these render as:
 
 280px left panel. Shows outline beats as a navigation list.
 
-Panel header: "Outline" — 13px label weight 500, `#999999`, uppercase, letter-spacing 0.08em.
+Panel header: "Outline" — 13px label weight 400, `#999999`, uppercase, letter-spacing 0.08em.
 
 Each beat: 40px row, padding 0 16px, 13px weight 400, `#999999`. Active beat (editor scrolled to this beat): text `#e0e0e0`, left border 2px `#e10600`.
 
