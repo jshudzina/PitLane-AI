@@ -1,0 +1,25 @@
+{
+  "name": "pitlane-studio-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.59.1",
+    "@sveltejs/vite-plugin-svelte": "^7.1.0",
+    "svelte": "^5.55.5",
+    "vite": "^8.0.10"
+  },
+  "dependencies": {
+    "@tiptap/core": "^2.0.0",
+    "@tiptap/extension-placeholder": "^2.0.0",
+    "@tiptap/pm": "^2.0.0",
+    "@tiptap/starter-kit": "^2.0.0",
+    "lucide-svelte": "^1.0.1"
+  }
+}
