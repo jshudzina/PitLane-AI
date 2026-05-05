@@ -60,8 +60,14 @@
   4. Every generated beat contains at minimum one quote placeholder, one contextual explanation placeholder, and one causal reasoning placeholder rendered as visually distinct unfilled blocks in the TipTap editor — the tool generates no content to fill these slots
   5. The always-visible five-act sidebar shows act labels, mapped pitlane-agent data sources, and key data points for each act throughout the drafting session
   6. The journalist can click a copy/export action at any time and receive clean markdown with placeholder hooks rendered as `[JOURNALIST: <type>]` markers
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 6 plans
+Plans:
+- [ ] 03-01-PLAN.md — Wave 0: BeatStore (outline_beats + beats SQLAlchemy Core tables) + full test suite + xfail stubs [PTW-02, PTW-03, PTW-04]
+- [ ] 03-02-PLAN.md — Wave 0: PipelineOrchestrator (generate_outline + stream_beat SSE async generator + placeholder detection) [PTW-01, PTW-02, PTW-03, PTW-04]
+- [ ] 03-03-PLAN.md — Wave 0: SvelteKit frontend scaffold + TipTap 2.x install + placeholder-nodes.ts + D-10 spike (human verify) [UI-02, PTW-04]
+- [ ] 03-04-PLAN.md — Wave 1: FastAPI routers (articles, acts, races) + app.py StaticFiles + xfail stubs converted to real tests [ACT-03, PTW-01, PTW-02, PTW-03, UI-01, UI-03]
+- [ ] 03-05-PLAN.md — Wave 2: SvelteKit Stage 1 (race selector + angle cards) + Stage 2 (outline panel + approve gate) [UI-01, UI-03, PTW-01, PTW-02]
+- [ ] 03-06-PLAN.md — Wave 2: Stage 3 (BeatEditor + SSE streaming + placeholder nodes) + FiveActSidebar + markdown export + Copy Markdown (human verify) [UI-02, UI-03, PTW-03, PTW-04, ACT-03, XPRT-01]
 
 ---
 
@@ -71,7 +77,7 @@
 |-------|----------------|--------|-----------|
 | 1. Package Scaffold + Prerequisites | 4/4 | Complete | 2026-05-03 |
 | 2. Story Angle Detection + Five-Act Data Layer | 4/4 | Complete | 2026-05-04 |
-| 3. Plan-Then-Write Pipeline + Co-Authoring UI | 0/? | Not started | - |
+| 3. Plan-Then-Write Pipeline + Co-Authoring UI | 0/6 | Not started | - |
 
 ---
 
