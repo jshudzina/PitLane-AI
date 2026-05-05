@@ -246,17 +246,14 @@ from anthropic import AsyncAnthropic
 router = APIRouter()
 
 async def _beat_sse_generator(article_id: str, beat_number: int):
-    """Async generator yielding SSE-formatted strings for one beat."""
-    # Gate check — 409 is raised BEFORE returning StreamingResponse
-    # (must check before generator is consumed)
-    store = ArticleStore()
-    article = store.get(article_id)
-    if article.status != "outline_approved":
-        # Cannot raise HTTPException inside a generator after headers are sent.
-        # Yield a structured error event and return.
-        yield f"event: error\ndata: {json.dumps({'beat_number': beat_number, 'message': 'Outline not approved', 'retryable': False})}\n\n"
-        return
+    """Async generator yielding SSE-formatted strings for one beat.
 
+    Gate check (article.status == outline_approved) is performed in the route
+    handler BEFORE this generator is passed to StreamingResponse. Do NOT add a
+    gate check here — HTTP status is already 200 by the time the generator runs.
+    Use the error SSE event only for errors that occur after streaming has started
+    (e.g. LLM failure mid-stream).
+    """
     # beat_start event
     yield f"event: beat_start\ndata: {json.dumps({'beat_number': beat_number, 'beat_title': '...', 'total_beats': 5})}\n\n"
 
