@@ -70,7 +70,9 @@
     {:else}
       <option value="">Round</option>
       {#each rounds as r, i}
-        <option value={i + 1}>Round {i + 1}{typeof r === 'object' && r !== null && 'name' in r ? ` — ${(r as { name: string }).name}` : ''}</option>
+        {@const roundNum = (typeof r === 'object' && r !== null && 'round' in r) ? (r as { round: number }).round : i + 1}
+        {@const roundName = (typeof r === 'object' && r !== null && 'name' in r) ? (r as { name: string }).name : ''}
+        <option value={roundNum}>Round {roundNum}{roundName ? ` — ${roundName}` : ''}</option>
       {/each}
     {/if}
   </select>

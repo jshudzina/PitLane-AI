@@ -26,7 +26,11 @@ async def get_rounds(year: int) -> dict:
     """Return list of rounds for a given year."""
     try:
         summary = get_season_summary(year)
-        rounds = summary.get("rounds", [])
+        races = summary.get("races", [])
+        rounds = sorted(
+            [{"round": r["round"], "name": r["event_name"]} for r in races if "round" in r and "event_name" in r],
+            key=lambda x: x["round"],
+        )
         return {"year": year, "rounds": rounds}
     except Exception as exc:
         logger.exception("Failed to fetch rounds for year %d", year)
