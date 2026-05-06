@@ -181,7 +181,7 @@ class BeatStore:
                 beat_title=beat["beat_title"],
                 data_anchors=beat.get("data_anchors"),
                 act_number=beat.get("act_number"),
-                position=beat["position"],
+                position=beat.get("position", beat["beat_number"]),
             )
 
     # ------------------------------------------------------------------
