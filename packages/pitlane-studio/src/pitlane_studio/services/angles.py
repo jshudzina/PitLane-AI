@@ -115,7 +115,15 @@ def _check_data_gate(year: int, round_num: int) -> None:
     Fallback: derive from 305 km FIA standard / circuit_length_km.
     Final fallback: 58 laps (F1 average).
     """
-    info = get_session_info(year, round_num)
+    if not isinstance(year, int) or not isinstance(round_num, int):
+        raise TypeError(
+            f"year and round_num must be int, got {type(year).__name__} and {type(round_num).__name__}"
+        )
+    if year < 2023:
+        raise ValueError(f"year {year} predates supported data range (2023+)")
+    if round_num < 1 or round_num > 30:
+        raise ValueError(f"round_num {round_num} out of valid range 1–30")
+    info = get_session_info(year, str(round_num), "R")
 
     # --- Gate 1: session age < 2 hours ---
     session_date_str: str | None = info.get("date")
@@ -408,7 +416,7 @@ class AngleService:
         """
         try:
             result = generate_position_changes_chart(
-                year, round_num, workspace_dir=_CHART_DIR
+                year, str(round_num), "R", workspace_dir=_CHART_DIR
             )
             stats = result.get("statistics", {})
             total_changes = stats.get("total_position_changes", 0)
@@ -592,7 +600,7 @@ class AngleService:
     def _get_race_name(self, year: int, round_num: int) -> str:
         """Get a human-readable race name for the DNF web search query."""
         try:
-            info = get_session_info(year, round_num)
+            info = get_session_info(year, str(round_num), "R")
             return info.get("event_name") or info.get("circuit_name") or f"Round {round_num}"
         except Exception:
             return f"Round {round_num}"

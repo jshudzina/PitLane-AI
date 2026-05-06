@@ -4,6 +4,7 @@ Usage:
     pitlane analyze qualifying-results --year 2024 --gp Monaco --session Q
 """
 
+import logging
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -15,6 +16,7 @@ from pitlane_agent.utils.fastf1_helpers import build_chart_path, format_lap_time
 from pitlane_agent.utils.plotting import ensure_color_contrast, get_driver_color_safe, save_figure, setup_plot_style
 
 _Q1_GRAY = "#888888"
+logger = logging.getLogger(__name__)
 
 
 def _assign_qualifying_phases(results: pd.DataFrame) -> pd.DataFrame:
@@ -39,10 +41,9 @@ def _assign_qualifying_phases(results: pd.DataFrame) -> pd.DataFrame:
     """
     results = results.copy()
     n = len(results)
-    if n < 10:
-        raise ValueError(f"Expected at least 10 classified drivers, got {n}")
-    n_q3 = 10
-    n_q2 = (n - n_q3) // 2  # 5 for 20-car grid, 6 for 22-car grid
+    # DNS situations can reduce the classified count below 10 — adapt rather than crash.
+    n_q3 = min(10, n)
+    n_q2 = max(0, (n - n_q3) // 2)  # 5 for 20-car grid, 6 for 22-car grid; 0 if n < 10
 
     def _phase(row: pd.Series) -> str:
         pos = int(row["Position"])
@@ -119,7 +120,13 @@ def generate_qualifying_results_chart(
     required_cols = {"Position", "Abbreviation", "TeamName", "Q1", "Q2", "Q3"}
     missing = required_cols - set(results.columns)
     if missing:
-        raise ValueError(f"session.results missing columns: {missing}")
+        logger.warning("qualifying_results: missing columns %s for %d %s %s", missing, year, gp, session_type)
+        return {
+            "chart_path": None, "session": None, "year": year, "gp": gp,
+            "session_type": session_type, "drivers": [], "total_drivers": len(results),
+            "pole_driver": None, "pole_time_s": None, "pole_time_str": None,
+            "error": "missing_columns",
+        }
 
     # Sort by final classification position (P1 first)
     results = results.sort_values("Position").reset_index(drop=True)

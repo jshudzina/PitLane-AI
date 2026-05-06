@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, date, datetime, timedelta
 
 import anthropic
@@ -312,6 +313,8 @@ class TestGetAnglesIntegration:
 
     def test_get_angles_returns_candidates(self):
         """get_angles() returns 4–6 AngleCandidate instances for a completed race."""
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            pytest.skip("ANTHROPIC_API_KEY not set")
         entries = get_race_entries(2026, session_type="R")
         if not entries:
             pytest.skip("No 2026 race data cached")
