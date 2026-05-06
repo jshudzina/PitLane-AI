@@ -14,9 +14,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
-!packages/pitlane-studio/frontend/src/lib/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
