@@ -78,9 +78,9 @@ def parse_driver_standings_response(
 
             standings_data.append(
                 {
-                    "position": int(row["position"]),
-                    "points": float(row["points"]),
-                    "wins": int(row["wins"]),
+                    "position": int(row["position"]) if pd.notna(row["position"]) else None,
+                    "points": float(row["points"]) if pd.notna(row["points"]) else 0.0,
+                    "wins": int(row["wins"]) if pd.notna(row["wins"]) else 0,
                     "driver_id": row["driverId"],
                     "driver_code": row.get("driverCode"),
                     "driver_number": driver_number,
@@ -131,9 +131,9 @@ def parse_constructor_standings_response(
         for _, row in standings_df.iterrows():
             standings_data.append(
                 {
-                    "position": int(row["position"]),
-                    "points": float(row["points"]),
-                    "wins": int(row["wins"]),
+                    "position": int(row["position"]) if pd.notna(row["position"]) else None,
+                    "points": float(row["points"]) if pd.notna(row["points"]) else 0.0,
+                    "wins": int(row["wins"]) if pd.notna(row["wins"]) else 0,
                     "constructor_id": row["constructorId"],
                     "constructor_name": row["constructorName"],
                     "nationality": row["constructorNationality"],

@@ -137,7 +137,7 @@ class FiveActMapper:
                             year,
                             str(round_num),
                             "R",
-                            _CHART_DIR,
+                            workspace_dir=_CHART_DIR,
                         )
                 elif cmd is get_driver_standings:
                     result = live_cmd(year, round_num)
