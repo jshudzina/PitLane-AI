@@ -143,7 +143,9 @@ class FiveActMapper:
                     result = live_cmd(year, round_num)
                 else:
                     # Fetch commands: get_session_info, get_race_control_messages
-                    result = live_cmd(year, round_num)
+                    # Both take (year, gp, session_type); pass round_num as str gp
+                    # so FastF1 resolves by round number, and "R" as session_type.
+                    result = live_cmd(year, str(round_num), "R")
                 results[cmd_name] = result
             except Exception:
                 logger.exception(
