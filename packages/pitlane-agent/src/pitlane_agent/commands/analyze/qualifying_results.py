@@ -133,7 +133,19 @@ def generate_qualifying_results_chart(
 
     pole_time = results.iloc[0]["BestTime"]
     if pole_time is None or pd.isna(pole_time):
-        raise ValueError("Pole sitter has no recorded lap time; cannot compute gaps.")
+        return {
+            "chart_path": None,
+            "session": None,
+            "year": year,
+            "gp": gp,
+            "session_type": session_type,
+            "drivers": [],
+            "total_drivers": 0,
+            "pole_driver": None,
+            "pole_time_s": None,
+            "pole_time_str": None,
+            "error": "no_qualifying_data",
+        }
     pole_time_s = pole_time.total_seconds()
 
     results["GapToPole"] = results["BestTime"].apply(
