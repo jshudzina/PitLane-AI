@@ -3,6 +3,9 @@
   import RaceSelector from '$lib/components/RaceSelector.svelte'
   import AngleCard from '$lib/components/AngleCard.svelte'
   import OutlinePanel from '$lib/components/OutlinePanel.svelte'
+  import BeatEditor from '$lib/components/BeatEditor.svelte'
+  import FiveActSidebar from '$lib/components/FiveActSidebar.svelte'
+  import { exportMarkdown } from '$lib/utils/markdown-export'
   import {
     stage,
     selectedYear,
@@ -27,7 +30,10 @@
     getActs,
   } from '$lib/api'
 
-  let copyLabel = 'Copy Markdown'
+  let copyButtonLabel = 'Copy Markdown'
+  let editorRefs: any[] = []
+  let currentStreamingBeat: number | null = null
+  let allBeatsComplete = false
 
   async function onRaceSelect(e: CustomEvent<{ year: number; round: number }>) {
     const { year, round } = e.detail
@@ -108,6 +114,8 @@
     approvalPending.set(true)
     try {
       await approveOutline(aid)
+      currentStreamingBeat = 1
+      allBeatsComplete = false
       stage.set('beat-editing')
     } catch (e) {
       anglesError.set(e instanceof Error ? e.message : 'Approval failed')
@@ -116,23 +124,52 @@
     }
   }
 
-  function copyMarkdown() {
+  function onStreamComplete(e: CustomEvent<{ beat_number: number }>) {
     const beats = get(outlineBeats)
-    const md = beats.map(b => `## Beat ${b.beat_number}: ${b.beat_title}\n\n${b.data_anchors}`).join('\n\n---\n\n')
-    navigator.clipboard.writeText(md).then(() => {
-      copyLabel = 'Copied!'
-      setTimeout(() => { copyLabel = 'Copy Markdown' }, 2000)
-    })
+    const completedIdx = beats.findIndex(b => b.beat_number === e.detail.beat_number)
+    const nextBeat = beats[completedIdx + 1]
+    if (nextBeat) {
+      currentStreamingBeat = nextBeat.beat_number
+    } else {
+      currentStreamingBeat = null
+      allBeatsComplete = true
+    }
   }
 
-  // Act labels
-  const ACT_LABELS: Record<number, string> = {
-    1: 'Grid & Qualifying',
-    2: 'Lap 1 Chaos',
-    3: 'Pit Window',
-    4: 'Final Stint',
-    5: 'Championship Implications',
+  async function handleCopyMarkdown() {
+    const beatJsonMap = new Map<number, any>()
+    const beats = get(outlineBeats)
+    beats.forEach((beat, i) => {
+      const ref = editorRefs[i]
+      if (ref) {
+        const json = ref.getEditorJSON()
+        if (json) beatJsonMap.set(beat.beat_number, json)
+      }
+    })
+    const markdown = beatJsonMap.size > 0
+      ? exportMarkdown(beatJsonMap)
+      : beats.map(b => `## Beat ${b.beat_number}: ${b.beat_title}\n\n${b.data_anchors}`).join('\n\n---\n\n')
+    await navigator.clipboard.writeText(markdown)
+    copyButtonLabel = 'Copied!'
+    setTimeout(() => { copyButtonLabel = 'Copy Markdown' }, 2000)
   }
+
+  function getBeatStatus(beatNumber: number): 'pending' | 'streaming' | 'complete' {
+    if (currentStreamingBeat === beatNumber) return 'streaming'
+    if (allBeatsComplete) return 'complete'
+    const beats = get(outlineBeats)
+    const beatIdx = beats.findIndex(b => b.beat_number === beatNumber)
+    const streamingIdx = currentStreamingBeat != null ? beats.findIndex(b => b.beat_number === currentStreamingBeat) : -1
+    if (streamingIdx > -1 && beatIdx < streamingIdx) return 'complete'
+    return 'pending'
+  }
+
+  $: beatStatusMap = (() => {
+    const beats = get(outlineBeats)
+    const map: Record<number, 'pending' | 'streaming' | 'complete'> = {}
+    beats.forEach(b => { map[b.beat_number] = getBeatStatus(b.beat_number) })
+    return map
+  })()
 </script>
 
 <!-- three-column layout -->
@@ -147,9 +184,9 @@
     </div>
     <div style="flex:1;"></div>
     <button
-      on:click={copyMarkdown}
+      on:click={handleCopyMarkdown}
       style="height:36px;background:#e10600;color:#ffffff;font-weight:600;font-size:13px;border:none;border-radius:6px;padding:0 16px;cursor:pointer;"
-    >{copyLabel}</button>
+    >{copyButtonLabel}</button>
   </header>
 
   <!-- Body -->
@@ -160,8 +197,16 @@
       <aside style="width:280px;background:#1a1a1a;border-right:1px solid #2e2e2e;flex-shrink:0;overflow-y:auto;">
         <div style="padding:16px;font-size:13px;color:#999999;text-transform:uppercase;letter-spacing:0.08em;">Outline</div>
         {#each $outlineBeats as beat}
-          <div style="height:40px;display:flex;align-items:center;padding:0 16px;font-size:13px;color:#999999;border-left:2px solid transparent;">
-            {beat.beat_number}. {beat.beat_title}
+          {@const bStatus = $stage === 'beat-editing' ? (currentStreamingBeat === beat.beat_number ? 'streaming' : (allBeatsComplete || (currentStreamingBeat != null && beat.beat_number < currentStreamingBeat) ? 'complete' : 'pending')) : 'pending'}
+          <div style="height:40px;display:flex;align-items:center;padding:0 16px;font-size:13px;color:{bStatus === 'complete' || currentStreamingBeat === beat.beat_number ? '#e0e0e0' : '#999999'};border-left:2px solid {currentStreamingBeat === beat.beat_number ? '#e10600' : 'transparent'};">
+            <span style="flex:1;">{beat.beat_number}. {beat.beat_title}</span>
+            {#if bStatus === 'complete'}
+              <span style="color:#6acc8a;">✓</span>
+            {:else if bStatus === 'streaming'}
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#5a9acc;animation:spin-dot 1s linear infinite;"></span>
+            {:else}
+              <span style="color:#444444;">—</span>
+            {/if}
           </div>
         {/each}
       </aside>
@@ -237,28 +282,30 @@
         />
 
       {:else if $stage === 'beat-editing'}
-        <!-- Stage 3: Beat editor — implemented in 03-06 -->
-        <div style="padding:24px;color:#999999;font-size:15px;">Beat editor loading...</div>
+        <!-- Stage 3: Beat editor — SSE streaming per beat -->
+        {#if allBeatsComplete}
+          <div style="background:#3a7a4a;border-radius:6px;padding:16px;margin-bottom:24px;font-size:14px;color:#6acc8a;">
+            Prose complete. Review and fill in the placeholder hooks before exporting.
+          </div>
+        {/if}
+
+        {#each $outlineBeats as beat, i}
+          <BeatEditor
+            bind:this={editorRefs[i]}
+            beat_number={beat.beat_number}
+            beat_title={beat.beat_title}
+            article_id={$articleId ?? ''}
+            auto_stream={currentStreamingBeat === beat.beat_number}
+            on:streamComplete={onStreamComplete}
+          />
+        {/each}
       {/if}
 
     </main>
 
     <!-- Right sidebar — always visible -->
     <aside style="width:260px;background:#1a1a1a;border-left:1px solid #2e2e2e;flex-shrink:0;overflow-y:auto;">
-      <div style="padding:16px;font-size:13px;color:#999999;text-transform:uppercase;letter-spacing:0.08em;border-bottom:1px solid #2e2e2e;">Five Acts</div>
-      {#each [1, 2, 3, 4, 5] as n}
-        {@const act = $actSidebarData[n]}
-        <div style="padding:12px 16px;border-bottom:1px solid #2e2e2e;">
-          <div style="font-size:13px;color:#e0e0e0;">Act {n} — {act?.label ?? ACT_LABELS[n]}</div>
-          {#if act?.data && Object.keys(act.data).length > 0}
-            <div style="font-size:13px;font-family:'Menlo','Consolas',monospace;color:#777777;margin-top:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">
-              {JSON.stringify(act.data).slice(0, 80)}
-            </div>
-          {:else}
-            <div style="font-size:13px;color:#444444;margin-top:4px;">—</div>
-          {/if}
-        </div>
-      {/each}
+      <FiveActSidebar acts={$actSidebarData} />
     </aside>
 
   </div>
@@ -268,5 +315,10 @@
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
+  }
+  @keyframes spin-dot {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
   }
 </style>
