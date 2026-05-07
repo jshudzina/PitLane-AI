@@ -22,7 +22,6 @@ from typing import Any
 
 from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions
 from claude_agent_sdk import query as sdk_query
-from claude_agent_sdk.types import TextBlock
 from pydantic import BaseModel
 
 from pitlane_agent.commands.analyze.position_changes import generate_position_changes_chart
@@ -564,7 +563,7 @@ class AngleService:
             async for msg in sdk_query(prompt=prompt, options=options):
                 if isinstance(msg, AssistantMessage):
                     for block in msg.content:
-                        if isinstance(block, TextBlock):
+                        if hasattr(block, "text"):
                             collected.append(block.text)
             text = "".join(collected).strip()
             start = text.find("{")
