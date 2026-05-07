@@ -241,6 +241,10 @@ class PipelineOrchestrator:
             raw_text = "".join(collected)
 
             # 4. Parse JSON and validate
+            # Extract JSON from inside code fences if the LLM wrapped it (handles surrounding prose too)
+            fence_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw_text)
+            if fence_match:
+                raw_text = fence_match.group(1)
             try:
                 raw_beats = json.loads(raw_text)
             except json.JSONDecodeError as exc:
