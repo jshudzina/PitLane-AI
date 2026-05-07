@@ -58,7 +58,7 @@ async def get_angles(article_id: str) -> dict:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     try:
         service = AngleService()
-        angles = service.get_angles(article.race_year, article.race_round)
+        angles = await service.get_angles(article.race_year, article.race_round)
         return {"angles": [a.model_dump() for a in angles]}
     except DataNotReadyError as exc:
         raise HTTPException(status_code=422, detail=exc.message) from exc
@@ -73,7 +73,7 @@ async def generate_outline(article_id: str, body: GenerateOutlineRequest) -> dic
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     try:
         orchestrator = PipelineOrchestrator()
-        outline_beats = orchestrator.generate_outline(
+        outline_beats = await orchestrator.generate_outline(
             article_id=article_id,
             year=article.race_year,
             round_num=article.race_round,

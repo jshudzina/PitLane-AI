@@ -2,11 +2,10 @@
 
 Per CONTEXT.md:
   D-02: Full outline context included in every per-beat prompt.
-  PTW-01: generate_outline() makes a single non-streaming Anthropic call,
+  PTW-01: generate_outline() makes a single async SDK call,
           persists to outline_beats, transitions article to outline_generated.
   PTW-03: stream_beat() is an async generator yielding SSE-formatted strings.
   PTW-04: placeholder_markers detected by regex; must appear verbatim in prose.
-  A3: AsyncAnthropic singleton instantiated at module level (safe at import time).
 
 Beat streaming model: claude-sonnet-4-5-20250929
 Outline generation model: claude-haiku-4-5
@@ -19,8 +18,9 @@ import logging
 import re
 from typing import AsyncIterator
 
-import anthropic
-from anthropic import AsyncAnthropic
+from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions
+from claude_agent_sdk import query as sdk_query
+from claude_agent_sdk.types import TextBlock
 from pydantic import BaseModel
 
 from pitlane_studio.services.five_act import ACT_CONFIG, FiveActMapper
@@ -28,9 +28,6 @@ from pitlane_studio.store.article_store import ArticleStore
 from pitlane_studio.store.beat_store import BeatStore
 
 logger = logging.getLogger(__name__)
-
-# Module-level async client singleton (RESEARCH.md Pattern 5, Assumption A3 — safe at import time)
-_async_client = AsyncAnthropic()
 
 # ---------------------------------------------------------------------------
 # Pydantic model
@@ -193,7 +190,7 @@ class PipelineOrchestrator:
     - stream_beat(): async generator yielding SSE strings with token events
     """
 
-    def generate_outline(
+    async def generate_outline(
         self,
         article_id: str,
         year: int,
@@ -204,9 +201,9 @@ class PipelineOrchestrator:
     ) -> list[OutlineBeat]:
         """Generate a structured 5-beat outline for the article.
 
-        Makes a single non-streaming Anthropic call (claude-haiku-4-5),
-        persists to outline_beats table, and transitions the article status
-        to 'outline_generated'.
+        Makes a single async SDK call (claude-haiku-4-5), persists to
+        outline_beats table, and transitions the article status to
+        'outline_generated'.
 
         Args:
             article_id: UUID of the article to generate outline for.
@@ -220,7 +217,6 @@ class PipelineOrchestrator:
             List of 5 OutlineBeat objects.
 
         Raises:
-            anthropic.AuthenticationError: If ANTHROPIC_API_KEY is missing/invalid.
             json.JSONDecodeError: If LLM response is not valid JSON.
             Exception: Re-raised after logging for any other error.
         """
@@ -235,14 +231,15 @@ class PipelineOrchestrator:
             # 2. Build prompt
             prompt = _build_outline_prompt(year, round_num, angle_name, angle_rationale, act_data)
 
-            # 3. Sync Anthropic call
-            client = anthropic.Anthropic()
-            response = client.messages.create(
-                model="claude-haiku-4-5",
-                max_tokens=2048,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            raw_text = response.content[0].text
+            # 3. SDK call — collect all text blocks from AssistantMessages
+            options = ClaudeAgentOptions(model="claude-haiku-4-5", allowed_tools=[])
+            collected: list[str] = []
+            async for msg in sdk_query(prompt=prompt, options=options):
+                if isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, TextBlock):
+                            collected.append(block.text)
+            raw_text = "".join(collected)
 
             # 4. Parse JSON and validate
             try:
@@ -270,12 +267,6 @@ class PipelineOrchestrator:
             # 7. Return
             return outline_beats
 
-        except anthropic.AuthenticationError:
-            logger.warning(
-                "generate_outline: Anthropic authentication failed for article %s",
-                article_id,
-            )
-            raise
         except json.JSONDecodeError:
             raise
         except Exception:
@@ -347,23 +338,23 @@ class PipelineOrchestrator:
         # 5. Build prompt
         prompt = _build_beat_prompt(beat.beat_title, beat.data_anchors, outline_beats, act_data)
 
-        # 6. Stream tokens, then persist and emit beat_done
+        # 6. Collect full prose via SDK, emit as single token event, then beat_done
         full_prose_parts: list[str] = []
         try:
-            async with _async_client.messages.stream(
-                model="claude-sonnet-4-5-20250929",
-                max_tokens=1024,
-                messages=[{"role": "user", "content": prompt}],
-            ) as stream:
-                async for text in stream.text_stream:
-                    full_prose_parts.append(text)
-                    yield (
-                        f"event: token\n"
-                        f"data: {json.dumps({'beat_number': beat_number, 'token': text})}\n\n"
-                    )
+            options = ClaudeAgentOptions(model="claude-sonnet-4-5-20250929", allowed_tools=[])
+            async for msg in sdk_query(prompt=prompt, options=options):
+                if isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, TextBlock):
+                            full_prose_parts.append(block.text)
+            prose_text = "".join(full_prose_parts)
+            yield (
+                f"event: token\n"
+                f"data: {json.dumps({'beat_number': beat_number, 'token': prose_text})}\n\n"
+            )
 
             # 7. Detect placeholders
-            prose = "".join(full_prose_parts)
+            prose = prose_text
             placeholder_markers = _detect_placeholders(prose)
 
             # 8. Persist beat

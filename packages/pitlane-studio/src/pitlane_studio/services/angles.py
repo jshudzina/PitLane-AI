@@ -20,7 +20,9 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-import anthropic
+from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions
+from claude_agent_sdk import query as sdk_query
+from claude_agent_sdk.types import TextBlock
 from pydantic import BaseModel
 
 from pitlane_agent.commands.analyze.position_changes import generate_position_changes_chart
@@ -212,7 +214,7 @@ class AngleService:
         # Ensure chart dir exists for position_changes signal
         _CHART_DIR.mkdir(parents=True, exist_ok=True)
 
-    def get_angles(self, year: int, round_num: int) -> list[AngleCandidate]:
+    async def get_angles(self, year: int, round_num: int) -> list[AngleCandidate]:
         """Run the full pipeline; raises DataNotReadyError if gate blocks.
 
         Returns:
@@ -245,7 +247,7 @@ class AngleService:
         # Step 6: DNF cross-check (slump/surprise_under only)
         # Get race name for web search query
         race_name = self._get_race_name(year, round_num)
-        checked = self._apply_dnf_filter(filtered, year, round_num, race_name, driver_id_map)
+        checked = await self._apply_dnf_filter(filtered, year, round_num, race_name, driver_id_map)
 
         # Step 7: Sort by confidence desc; return top 4–6
         checked.sort(key=lambda c: c.confidence, reverse=True)
@@ -505,7 +507,7 @@ class AngleService:
                 result.append(candidate)
         return result
 
-    def _apply_dnf_filter(
+    async def _apply_dnf_filter(
         self,
         candidates: list[AngleCandidate],
         year: int,
@@ -527,7 +529,7 @@ class AngleService:
             if not driver_id or driver_id == "race":
                 result.append(candidate)
                 continue
-            dnf = self._check_dnf(year, round_num, driver_id, race_name)
+            dnf = await self._check_dnf(year, round_num, driver_id, race_name)
             if dnf:
                 logger.info(
                     "DNF filter suppressed: driver=%s signal_type=%s (confirmed DNF)",
@@ -538,61 +540,43 @@ class AngleService:
                 result.append(candidate)
         return result
 
-    def _check_dnf(self, year: int, round_num: int, driver_id: str, race_name: str) -> bool:
+    async def _check_dnf(self, year: int, round_num: int, driver_id: str, race_name: str) -> bool:
         """Check via web search whether the driver DNF'd in the given race.
 
-        Tries tool type "web_search_20250305" first; on BadRequestError falls back
-        to "web_search".  On AuthenticationError (no API key) returns False
-        conservatively.  All other exceptions default to False with a logged trace.
+        Uses claude-agent-sdk with WebSearch tool. Returns False conservatively
+        on any exception.
 
-        Per Pitfall 6: web search tool type string may vary by SDK version.
-        Initial attempt: "web_search_20250305". On 400 error, fall back to "web_search".
+        Per Pitfall 6: web search tool version is managed by the SDK automatically.
         """
         cache_key = (year, round_num, driver_id)
         if cache_key in self._dnf_cache:
             return self._dnf_cache[cache_key]
 
         result = False
-        client = anthropic.Anthropic()
         prompt = (
             f'Did {driver_id} DNF or retire in the {race_name} {year} Formula 1 race? '
-            f'Respond with ONLY valid JSON: {{"dnf": true, "reason": "brief"}} '
-            f'or {{"dnf": false, "reason": "finished"}}'
+            f'Search the web to verify, then respond with ONLY valid JSON: '
+            f'{{"dnf": true, "reason": "brief"}} or {{"dnf": false, "reason": "finished"}}'
         )
-        tool_types = ["web_search_20250305", "web_search"]
-        for tool_type in tool_types:
-            try:
-                response = client.messages.create(
-                    model="claude-haiku-4-5",
-                    max_tokens=150,
-                    tools=[{"type": tool_type, "name": "web_search"}],
-                    messages=[{"role": "user", "content": prompt}],
-                )
-                for block in response.content:
-                    if hasattr(block, "type") and block.type == "text":
-                        text = block.text.strip()
-                        start = text.find("{")
-                        end = text.rfind("}") + 1
-                        if start >= 0 and end > start:
-                            parsed = json.loads(text[start:end])
-                            result = bool(parsed.get("dnf", False))
-                        break
-                break  # success — stop trying tool types
-            except anthropic.BadRequestError:
-                logger.warning("web_search tool type %r rejected — trying fallback", tool_type)
-                continue
-            except anthropic.AuthenticationError:
-                logger.warning(
-                    "ANTHROPIC_API_KEY not set — skipping DNF check for %s %d R%d",
-                    driver_id, year, round_num,
-                )
-                break
-            except Exception:
-                logger.exception(
-                    "DNF check failed for %s %d R%d — defaulting to False",
-                    driver_id, year, round_num,
-                )
-                break
+        try:
+            options = ClaudeAgentOptions(model="claude-haiku-4-5", allowed_tools=["WebSearch"])
+            collected: list[str] = []
+            async for msg in sdk_query(prompt=prompt, options=options):
+                if isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, TextBlock):
+                            collected.append(block.text)
+            text = "".join(collected).strip()
+            start = text.find("{")
+            end = text.rfind("}") + 1
+            if start >= 0 and end > start:
+                parsed = json.loads(text[start:end])
+                result = bool(parsed.get("dnf", False))
+        except Exception:
+            logger.exception(
+                "DNF check failed for %s %d R%d — defaulting to False",
+                driver_id, year, round_num,
+            )
 
         self._dnf_cache[cache_key] = result
         return result
