@@ -822,7 +822,7 @@ wheels = [
 
 [[package]]
 name = "fastf1"
-version = "3.8.1"
+version = "3.8.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
@@ -841,9 +841,9 @@ dependencies = [
     { name = "timple" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1b/03/74de84691c192eb66531dc1214bd108190dbc168fce98ea0186a1a6ec4b3/fastf1-3.8.1.tar.gz", hash = "sha256:337e787b8cd8b991734fd9ba829e025112f57cfe9fbbd7d332fca04f9f675e0d", size = 135392, upload-time = "2026-02-11T18:33:13.747Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f9/8f/3281f9add386bcd7f20f2f487917d5dc2422ec32581b22ec42a5a5c8a670/fastf1-3.8.3.tar.gz", hash = "sha256:9277e1a759debfcf63e65c248b9d440c561724147512fd5e95115dd8a71ac350", size = 137053, upload-time = "2026-04-29T21:24:04.164Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6f/ab/5e2dae97b5f625b8f09837fc31cde5d746293205ab2451b1e2f56e09303d/fastf1-3.8.1-py3-none-any.whl", hash = "sha256:0a8dc7604cd5f8d09ebbb9dee325ac31517ecaaaee84e212e99f08b3243272e7", size = 135467, upload-time = "2026-02-11T18:33:11.499Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/7b/fd211595db7d433c7180184559e5c1aad5621a964fc1c8724218fa3690d5/fastf1-3.8.3-py3-none-any.whl", hash = "sha256:e3270f6d60838662dd3e15cf6236519228a7fcfcc009f5edb195798769c845ad", size = 135960, upload-time = "2026-04-29T21:24:01.912Z" },
 ]
 
 [[package]]
@@ -2439,7 +2439,7 @@ requires-dist = [
     { name = "claude-agent-sdk", specifier = ">=0.1.40,<0.2.0" },
     { name = "click", specifier = ">=8.1.0" },
     { name = "duckdb", specifier = ">=1.5.0" },
-    { name = "fastf1", specifier = ">=3.8" },
+    { name = "fastf1", specifier = ">=3.8.3" },
     { name = "matplotlib", specifier = ">=3.8" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "opentelemetry-api", specifier = ">=1.24.0" },
