@@ -47,7 +47,7 @@ dev = [
     "pytest-mock>=3.12",
     "pytest-timeout>=2.2.0",
     "pytest>=9.0.3",
-    "ruff>=0.15.12",
+    "ruff>=0.15.15",
     "pre-commit>=4.6.0",
 ]
 docs = [
