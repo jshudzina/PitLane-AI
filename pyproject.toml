@@ -55,7 +55,7 @@ docs = [
     "mkdocstrings[python]>=1.0.4",
     "mkdocs-git-revision-date-localized-plugin>=1.2.0",
     "mkdocs-minify-plugin>=0.8.0",
-    "pymdown-extensions>=10.20.0",
+    "pymdown-extensions>=10.21.3",
 ]
 
 [tool.uv.workspace]
