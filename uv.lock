@@ -2606,7 +2606,7 @@ requires-dist = [
     { name = "pitlane-elo", editable = "packages/pitlane-elo" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "sqlalchemy", specifier = ">=2.0" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.49.0" },
 ]
 provides-extras = ["test"]
 
@@ -2632,7 +2632,7 @@ requires-dist = [
     { name = "pitlane-agent", editable = "packages/pitlane-agent" },
     { name = "python-multipart", specifier = ">=0.0.32" },
     { name = "slowapi", specifier = ">=0.1.9" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.49.0" },
 ]
 
 [[package]]
