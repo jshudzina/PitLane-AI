@@ -36,7 +36,7 @@ jobs:
         run: echo "key=$(date -u +%Y-W%V)" >> "$GITHUB_OUTPUT"
 
       - name: Cache FastF1 data
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.pitlane/cache/fastf1
           key: fastf1-${{ runner.os }}-${{ steps.week.outputs.key }}
