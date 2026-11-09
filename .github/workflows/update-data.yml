@@ -79,7 +79,7 @@ jobs:
 
       - name: Create PR with updated Parquet files
         if: steps.changes.outputs.has_changes == 'true'
-        uses: peter-evans/create-pull-request@v8.1.1
+        uses: peter-evans/create-pull-request@v8.1.2
         with:
           commit-message: "data: update F1 Parquet data [skip ci]"
           committer: PitLane Agent <pitlaneagent@gmail.com>
